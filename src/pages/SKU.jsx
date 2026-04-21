@@ -3,7 +3,7 @@ import axios from "axios";
 import { backendUrl } from "../App";
 import { toast } from "react-toastify";
 
-const sizesList = ["XS", "S", "M", "L", "XL", "XXL"];
+const sizesList = ["XS", "S", "M", "L", "XL", "XXL", "2XL", "3XL"];
 const ITEMS_PER_PAGE = 32;
 
 const normalizeCategory = (value = "") => {
@@ -28,6 +28,44 @@ const FIXED_CATEGORIES = [
   "Crop Jersey",
 ];
 
+const extractImage = (input) => {
+  if (!input) return "";
+
+  if (Array.isArray(input)) {
+    for (const item of input) {
+      const found = extractImage(item);
+      if (found) return found;
+    }
+    return "";
+  }
+
+  if (typeof input === "object") {
+    return (
+      input.secure_url ||
+      input.url ||
+      input.image ||
+      input.src ||
+      input.path ||
+      input.filename ||
+      ""
+    );
+  }
+
+  return String(input).trim();
+};
+
+const getStock = (stock, size) => {
+  if (!stock) return 0;
+
+  const key = String(size || "").toUpperCase();
+
+  if (typeof stock.get === "function") {
+    return Number(stock.get(key) || 0);
+  }
+
+  return Number(stock[key] || 0);
+};
+
 const SKU = ({ token }) => {
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
@@ -38,6 +76,30 @@ const SKU = ({ token }) => {
   const [currentPage, setCurrentPage] = useState(1);
 
   const axiosConfig = { headers: { Authorization: `Bearer ${token}` } };
+
+  const getCardImage = (product) => {
+    const img = extractImage(product?.images);
+
+    if (!img) return "";
+
+    if (
+      img.startsWith("http://") ||
+      img.startsWith("https://") ||
+      img.startsWith("data:")
+    ) {
+      return img;
+    }
+
+    if (img.startsWith("/uploads/")) {
+      return `${backendUrl}${img}`;
+    }
+
+    if (img.startsWith("uploads/")) {
+      return `${backendUrl}/${img}`;
+    }
+
+    return `${backendUrl}/uploads/${img}`;
+  };
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -53,9 +115,7 @@ const SKU = ({ token }) => {
         allProducts.forEach((p) => {
           initialStock[p._id] = {};
           sizesList.forEach((size) => {
-            initialStock[p._id][size] = Number(
-              p.stock?.[size] ?? p.stock?.get?.(size) ?? 0
-            );
+            initialStock[p._id][size] = getStock(p.stock, size);
           });
         });
         setStockUpdates(initialStock);
@@ -74,20 +134,29 @@ const SKU = ({ token }) => {
   }, [token]);
 
   const handleStockChange = (productId, size, value) => {
+    const safeValue = Math.max(0, Number(value) || 0);
+
     setStockUpdates((prev) => ({
       ...prev,
       [productId]: {
         ...prev[productId],
-        [size]: Number(value),
+        [String(size).toUpperCase()]: safeValue,
       },
     }));
   };
 
   const updateStock = async (productId) => {
     try {
+      const normalizedStock = {};
+      sizesList.forEach((size) => {
+        normalizedStock[String(size).toUpperCase()] = Number(
+          stockUpdates?.[productId]?.[String(size).toUpperCase()] ?? 0
+        );
+      });
+
       const res = await axios.put(
         `${backendUrl}/api/product/update-stock/${productId}`,
-        { stock: stockUpdates[productId] },
+        { stock: normalizedStock },
         axiosConfig
       );
 
@@ -95,9 +164,7 @@ const SKU = ({ token }) => {
         toast.success(res.data.message);
 
         const updatedProducts = products.map((p) =>
-          p._id === productId
-            ? { ...p, stock: { ...stockUpdates[productId] } }
-            : p
+          p._id === productId ? { ...p, stock: { ...normalizedStock } } : p
         );
 
         setProducts(updatedProducts);
@@ -112,7 +179,11 @@ const SKU = ({ token }) => {
           );
         }
 
-        setSelectedProduct(null);
+        setSelectedProduct((prev) =>
+          prev && prev._id === productId
+            ? { ...prev, stock: { ...normalizedStock } }
+            : null
+        );
       } else {
         toast.error(res.data.message);
       }
@@ -145,16 +216,6 @@ const SKU = ({ token }) => {
     if (qty === 0) return "bg-red-500/90 text-white border-red-400/40";
     if (qty <= 5) return "bg-amber-400 text-black border-amber-300/40";
     return "bg-emerald-500/90 text-white border-emerald-400/40";
-  };
-
-  const getCardImage = (product) => {
-    if (Array.isArray(product.images) && product.images.length > 0) {
-      return `${backendUrl}/uploads/${product.images[0]}`;
-    }
-    if (typeof product.images === "string" && product.images) {
-      return `${backendUrl}/uploads/${product.images}`;
-    }
-    return "";
   };
 
   if (loading) {
@@ -260,6 +321,9 @@ const SKU = ({ token }) => {
                       src={getCardImage(product)}
                       alt={product.name}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                      }}
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-[#0A0D17]/35 text-xs font-black uppercase tracking-[0.22em]">
@@ -296,14 +360,9 @@ const SKU = ({ token }) => {
                     </span>
                   </div>
 
-                  <div className="mt-4 grid grid-cols-3 gap-2">
+                  <div className="mt-4 grid grid-cols-4 gap-2">
                     {sizesList.map((size) => {
-                      const qty =
-                        Number(
-                          product.stock?.[size] ??
-                            product.stock?.get?.(size) ??
-                            0
-                        ) || 0;
+                      const qty = getStock(product.stock, size);
 
                       return (
                         <div
@@ -392,6 +451,9 @@ const SKU = ({ token }) => {
                         src={getCardImage(selectedProduct)}
                         alt={selectedProduct.name}
                         className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                        }}
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-[#0A0D17]/35 text-xs font-black uppercase tracking-[0.22em]">
@@ -416,7 +478,7 @@ const SKU = ({ token }) => {
                       Per Size Inventory
                     </p>
 
-                    <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                    <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                       {sizesList.map((size) => (
                         <div
                           key={size}
@@ -429,7 +491,11 @@ const SKU = ({ token }) => {
                           <input
                             type="number"
                             min={0}
-                            value={stockUpdates[selectedProduct._id]?.[size] ?? 0}
+                            value={
+                              stockUpdates[selectedProduct._id]?.[
+                                String(size).toUpperCase()
+                              ] ?? 0
+                            }
                             onChange={(e) =>
                               handleStockChange(
                                 selectedProduct._id,
