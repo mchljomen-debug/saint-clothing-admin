@@ -26,6 +26,7 @@ const ProductPage = ({ token }) => {
   const [list, setList] = useState([]);
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
   const [showForm, setShowForm] = useState(false);
@@ -78,7 +79,10 @@ const ProductPage = ({ token }) => {
   const [matchWith, setMatchWith] = useState([]);
 
   const axiosConfig = {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: {
+      Authorization: `Bearer ${token}`,
+      token,
+    },
   };
 
   const CATEGORY_OPTIONS = [
@@ -196,7 +200,7 @@ const ProductPage = ({ token }) => {
           ? res.data.product
           : [];
 
-        setList(products.reverse());
+        setList([...products].reverse());
       } else {
         toast.error(res.data.message);
         setList([]);
@@ -321,6 +325,8 @@ const ProductPage = ({ token }) => {
       return toast.error("Please select a branch");
     }
 
+    setSaving(true);
+
     try {
       const formData = new FormData();
 
@@ -329,7 +335,7 @@ const ProductPage = ({ token }) => {
       }
 
       formData.append("name", name.trim());
-      formData.append("description", description);
+      formData.append("description", description || "");
       formData.append("price", numericPrice);
       formData.append("sku", sku.trim());
       formData.append("groupCode", groupCode.trim());
@@ -339,11 +345,10 @@ const ProductPage = ({ token }) => {
 
       formData.append("category", category);
       formData.append("branch", finalBranch);
-      formData.append("bestseller", bestseller);
-      formData.append("newArrival", newArrival);
-
-      formData.append("onSale", onSale);
-      formData.append("salePercent", onSale ? Number(salePercent) : 0);
+      formData.append("bestseller", String(bestseller));
+      formData.append("newArrival", String(newArrival));
+      formData.append("onSale", String(onSale));
+      formData.append("salePercent", onSale ? String(Number(salePercent)) : "0");
 
       formData.append("sizes", JSON.stringify(sizes));
       formData.append("stock", JSON.stringify(stock));
@@ -355,10 +360,12 @@ const ProductPage = ({ token }) => {
       formData.append("matchWith", JSON.stringify(matchWith));
 
       images.forEach((img, i) => {
-        if (img) formData.append(`image${i + 1}`, img);
+        if (img instanceof File) {
+          formData.append(`image${i + 1}`, img);
+        }
       });
 
-      if (model3d) {
+      if (model3d instanceof File) {
         formData.append("model3d", model3d);
       }
 
@@ -366,12 +373,24 @@ const ProductPage = ({ token }) => {
         ? await axios.put(
             `${backendUrl}/api/product/update/${editId}`,
             formData,
-            axiosConfig
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                token,
+                "Content-Type": "multipart/form-data",
+              },
+            }
           )
         : await axios.post(
             `${backendUrl}/api/product/add`,
             formData,
-            axiosConfig
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                token,
+                "Content-Type": "multipart/form-data",
+              },
+            }
           );
 
       if (response.data.success) {
@@ -381,12 +400,20 @@ const ProductPage = ({ token }) => {
         resetForm();
         setShowForm(false);
         setCurrentPage(1);
-        fetchList();
+        await fetchList();
       } else {
         toast.error(response.data.message || "Something went wrong");
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || err.message);
+      console.error("PRODUCT SUBMIT ERROR:", err);
+      console.log("PRODUCT SUBMIT RESPONSE:", err?.response?.data);
+      toast.error(
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to save product"
+      );
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -665,7 +692,7 @@ const ProductPage = ({ token }) => {
                             accept="image/*"
                             hidden
                             onChange={(e) => {
-                              const file = e.target.files[0];
+                              const file = e.target.files?.[0] || null;
                               setImages((prev) => {
                                 const copy = [...prev];
                                 copy[i] = file;
@@ -704,7 +731,7 @@ const ProductPage = ({ token }) => {
                       type="file"
                       accept="image/*"
                       hidden
-                      onChange={(e) => setSizeChartImage(e.target.files[0] || null)}
+                      onChange={(e) => setSizeChartImage(e.target.files?.[0] || null)}
                     />
                   </label>
 
@@ -720,7 +747,7 @@ const ProductPage = ({ token }) => {
                   <input
                     type="file"
                     accept=".glb,.gltf,.obj,.fbx,.mp4,.webm,.ogg"
-                    onChange={(e) => setModel3d(e.target.files[0] || null)}
+                    onChange={(e) => setModel3d(e.target.files?.[0] || null)}
                     className="w-full border border-black/10 rounded-2xl px-3 py-2.5 bg-white"
                   />
                   <p className="text-xs text-[#6b7280] mt-2">
@@ -1129,8 +1156,21 @@ const ProductPage = ({ token }) => {
               </div>
             </div>
 
-            <button className="mt-6 px-6 py-3 bg-black text-white font-black rounded-2xl hover:bg-gray-800 transition">
-              {editId ? "Update Product" : "Add Product"}
+            <button
+              disabled={saving}
+              className={`mt-6 px-6 py-3 text-white font-black rounded-2xl transition ${
+                saving
+                  ? "bg-gray-500 cursor-not-allowed"
+                  : "bg-black hover:bg-gray-800"
+              }`}
+            >
+              {saving
+                ? editId
+                  ? "Updating..."
+                  : "Adding..."
+                : editId
+                ? "Update Product"
+                : "Add Product"}
             </button>
           </form>
         )}
@@ -1329,4 +1369,4 @@ const ProductPage = ({ token }) => {
   );
 };
 
-export default ProductPage;
+export default ProductPage; 
