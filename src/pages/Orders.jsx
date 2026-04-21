@@ -59,8 +59,7 @@ const normalizeCategory = (value = "") => {
   if (clean === "crop jersey" || clean === "cropjersey") return "Crop Jersey";
   if (clean === "mesh short" || clean === "mesh shorts") return "Mesh Shorts";
   if (clean === "long sleeve" || clean === "longsleeve") return "Long Sleeve";
-  if (clean === "tshirt" || clean === "t-shirt" || clean === "tee")
-    return "Tshirt";
+  if (clean === "tshirt" || clean === "t-shirt" || clean === "tee") return "Tshirt";
 
   return String(value).trim();
 };
@@ -155,38 +154,63 @@ const Orders = () => {
     );
   };
 
-  const getProofUrl = (fileName) => {
-    if (!fileName) return "";
-    if (
-      String(fileName).startsWith("http://") ||
-      String(fileName).startsWith("https://")
-    ) {
-      return fileName;
+  const extractImageValue = (input) => {
+    if (!input) return "";
+
+    if (Array.isArray(input)) {
+      for (const item of input) {
+        const found = extractImageValue(item);
+        if (found) return found;
+      }
+      return "";
     }
-    return `${backendUrl}/uploads/payment-proofs/${fileName}`;
+
+    if (typeof input === "object") {
+      return (
+        input.secure_url ||
+        input.url ||
+        input.image ||
+        input.src ||
+        input.path ||
+        input.filename ||
+        ""
+      );
+    }
+
+    return String(input).trim();
+  };
+
+  const buildAssetUrl = (value, folder = "") => {
+    const clean = extractImageValue(value);
+
+    if (!clean) return assets.fallback_image;
+
+    if (
+      clean.startsWith("http://") ||
+      clean.startsWith("https://") ||
+      clean.startsWith("data:")
+    ) {
+      return clean;
+    }
+
+    if (clean.startsWith("/uploads/")) {
+      return `${backendUrl}${clean}`;
+    }
+
+    if (clean.startsWith("uploads/")) {
+      return `${backendUrl}/${clean}`;
+    }
+
+    const normalizedFolder = folder ? `${folder.replace(/^\/+|\/+$/g, "")}/` : "";
+    return `${backendUrl}/uploads/${normalizedFolder}${clean}`;
+  };
+
+  const getProofUrl = (fileName) => {
+    return buildAssetUrl(fileName, "payment-proofs");
   };
 
   const getOrderImageUrl = (image) => {
-    if (!image) return assets.fallback_image;
-
-    const finalImage = Array.isArray(image) ? image[0] : image;
-    const imageString = String(finalImage || "").trim();
-
-    if (!imageString) return assets.fallback_image;
-
-    if (
-      imageString.startsWith("http://") ||
-      imageString.startsWith("https://") ||
-      imageString.startsWith("data:")
-    ) {
-      return imageString;
-    }
-
-    if (imageString.startsWith("/uploads/")) {
-      return `${backendUrl}${imageString}`;
-    }
-
-    return `${backendUrl}/uploads/${imageString}`;
+    return buildAssetUrl(image);
   };
 
   const formatAddress = (address = {}) => {
@@ -231,7 +255,7 @@ const Orders = () => {
 
         const flatItems = [];
         fetchedOrders.forEach((order) => {
-          order.items.forEach((item) => {
+          (order.items || []).forEach((item) => {
             flatItems.push({
               ...item,
               orderId: order._id,
@@ -334,9 +358,7 @@ const Orders = () => {
     }
 
     if (paymentStatusFilter !== "All") {
-      temp = temp.filter(
-        (item) => item.paymentStatusLabel === paymentStatusFilter
-      );
+      temp = temp.filter((item) => item.paymentStatusLabel === paymentStatusFilter);
     }
 
     temp = sortItems(temp);
@@ -362,8 +384,7 @@ const Orders = () => {
           normalizeStatus(item.status) === "Pending Payment" ||
           normalizeStatus(item.status) === "Order Placed"
       ).length,
-      paid: filteredItems.filter((item) => item.paymentStatusLabel === "Paid")
-        .length,
+      paid: filteredItems.filter((item) => item.paymentStatusLabel === "Paid").length,
     };
   }, [filteredItems]);
 
@@ -528,12 +549,14 @@ const Orders = () => {
                 <div className="grid grid-cols-1 xl:grid-cols-[1.25fr_1.35fr_1fr_0.7fr] gap-0">
                   <div className="p-5 border-b xl:border-b-0 xl:border-r border-black/10">
                     <div className="flex items-start gap-4">
-                      <div className="w-16 h-16 rounded-2xl bg-[#f4f4f3] border border-black/10 flex items-center justify-center shrink-0">
+                      <div className="w-16 h-16 rounded-2xl bg-[#f4f4f3] border border-black/10 flex items-center justify-center shrink-0 overflow-hidden">
                         <img
                           src={getOrderImageUrl(item.image)}
-                          className="w-full h-full object-cover rounded-2xl"
+                          className="w-full h-full object-cover"
                           alt={item.name}
+                          loading="lazy"
                           onError={(e) => {
+                            e.currentTarget.onerror = null;
                             e.currentTarget.src = assets.fallback_image;
                           }}
                         />
@@ -684,6 +707,11 @@ const Orders = () => {
                                     src={getProofUrl(item.paymentProofImage)}
                                     alt="Payment Proof"
                                     className="w-24 h-24 object-cover rounded-xl border border-black/10 hover:opacity-90 transition"
+                                    loading="lazy"
+                                    onError={(e) => {
+                                      e.currentTarget.onerror = null;
+                                      e.currentTarget.src = assets.fallback_image;
+                                    }}
                                   />
                                 </button>
 
@@ -809,6 +837,11 @@ const Orders = () => {
                   src={selectedProof}
                   alt="Payment Proof Large View"
                   className="max-h-[75vh] w-auto max-w-full object-contain rounded-xl border border-black/10 bg-white"
+                  loading="lazy"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = assets.fallback_image;
+                  }}
                 />
               </div>
 
