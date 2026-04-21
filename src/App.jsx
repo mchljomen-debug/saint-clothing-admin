@@ -14,7 +14,7 @@ import SalesReportPrint from "./pages/SalesReportPrint";
 import ProductPage from "./pages/ProductPage";
 import SKU from "./pages/SKU";
 import UsersPage from "./pages/UsersPage";
-import EmployeesPage from "./pages/EmployeesPAge";
+import EmployeesPage from "./pages/EmployeesPage";
 import BranchesPage from "./pages/BranchesPage";
 import HeroManager from "./pages/HeroManager";
 import PoliciesManager from "./pages/PoliciesManager";
