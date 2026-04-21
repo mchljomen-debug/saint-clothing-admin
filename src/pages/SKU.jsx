@@ -3,7 +3,7 @@ import axios from "axios";
 import { backendUrl } from "../App";
 import { toast } from "react-toastify";
 
-const sizesList = ["XS", "S", "M", "L", "XL", "XXL", "2XL", "3XL"];
+const sizesList = [ "S", "M", "L", "XL", "2XL", "3XL"];
 const ITEMS_PER_PAGE = 32;
 
 const normalizeCategory = (value = "") => {
