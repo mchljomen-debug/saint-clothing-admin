@@ -4,6 +4,21 @@ import axios from "axios";
 import { backendUrl, currency } from "../App";
 import { toast } from "react-toastify";
 
+const getMediaUrl = (value, backendUrl) => {
+  if (!value) return "";
+  const stringValue = String(value).trim();
+
+  if (
+    stringValue.startsWith("http://") ||
+    stringValue.startsWith("https://") ||
+    stringValue.startsWith("data:")
+  ) {
+    return stringValue;
+  }
+
+  return `${backendUrl}/uploads/${stringValue.replace(/^\/+/, "")}`;
+};
+
 const ProductPage = ({ token }) => {
   const role = localStorage.getItem("role") || "";
   const userBranch = localStorage.getItem("branch") || "branch1";
@@ -178,8 +193,8 @@ const ProductPage = ({ token }) => {
         const products = Array.isArray(res.data.products)
           ? res.data.products
           : Array.isArray(res.data.product)
-            ? res.data.product
-            : [];
+          ? res.data.product
+          : [];
 
         setList(products.reverse());
       } else {
@@ -307,10 +322,8 @@ const ProductPage = ({ token }) => {
     }
 
     try {
-      // ✅ CREATE FIRST
       const formData = new FormData();
 
-      // ✅ NOW SAFE TO USE
       if (sizeChartImage) {
         formData.append("sizeChartImage", sizeChartImage);
       }
@@ -351,15 +364,15 @@ const ProductPage = ({ token }) => {
 
       const response = editId
         ? await axios.put(
-          `${backendUrl}/api/product/update/${editId}`,
-          formData,
-          axiosConfig
-        )
+            `${backendUrl}/api/product/update/${editId}`,
+            formData,
+            axiosConfig
+          )
         : await axios.post(
-          `${backendUrl}/api/product/add`,
-          formData,
-          axiosConfig
-        );
+            `${backendUrl}/api/product/add`,
+            formData,
+            axiosConfig
+          );
 
       if (response.data.success) {
         toast.success(
@@ -447,8 +460,7 @@ const ProductPage = ({ token }) => {
     if (normalized === "all") return "All Branches";
 
     const match = activeBranches.find(
-      (b) =>
-        String(b.code).trim().toLowerCase() === normalized
+      (b) => String(b.code).trim().toLowerCase() === normalized
     );
 
     return match?.name || branchCode || "Unassigned";
@@ -634,16 +646,17 @@ const ProductPage = ({ token }) => {
                       return (
                         <label key={i} className="cursor-pointer">
                           <img
-                            className={`w-24 h-28 border border-black/10 rounded-2xl bg-white ${hasImage
-                              ? "object-cover"
-                              : "object-contain p-2 opacity-50"
-                              }`}
+                            className={`w-24 h-28 border border-black/10 rounded-2xl bg-white ${
+                              hasImage
+                                ? "object-cover"
+                                : "object-contain p-2 opacity-50"
+                            }`}
                             src={
                               img
                                 ? URL.createObjectURL(img)
                                 : oldImages[i]
-                                  ? `${backendUrl}/uploads/${oldImages[i]}`
-                                  : assets.upload_area
+                                ? getMediaUrl(oldImages[i], backendUrl)
+                                : assets.upload_area
                             }
                             alt=""
                           />
@@ -673,16 +686,17 @@ const ProductPage = ({ token }) => {
 
                   <label className="cursor-pointer inline-block">
                     <img
-                      className={`w-40 h-40 border border-black/10 rounded-2xl bg-white ${sizeChartImage || oldSizeChartImage
-                        ? "object-cover"
-                        : "object-contain p-3 opacity-50"
-                        }`}
+                      className={`w-40 h-40 border border-black/10 rounded-2xl bg-white ${
+                        sizeChartImage || oldSizeChartImage
+                          ? "object-cover"
+                          : "object-contain p-3 opacity-50"
+                      }`}
                       src={
                         sizeChartImage
                           ? URL.createObjectURL(sizeChartImage)
                           : oldSizeChartImage
-                            ? `${backendUrl}/uploads/${oldSizeChartImage}`
-                            : assets.upload_area
+                          ? getMediaUrl(oldSizeChartImage, backendUrl)
+                          : assets.upload_area
                       }
                       alt="Size chart"
                     />
@@ -872,10 +886,11 @@ const ProductPage = ({ token }) => {
                               : [...prev, size]
                           )
                         }
-                        className={`px-3 py-2 border rounded-xl cursor-pointer text-sm font-semibold ${sizes.includes(size)
-                          ? "bg-black text-white border-black"
-                          : "bg-white border-black/10"
-                          }`}
+                        className={`px-3 py-2 border rounded-xl cursor-pointer text-sm font-semibold ${
+                          sizes.includes(size)
+                            ? "bg-black text-white border-black"
+                            : "bg-white border-black/10"
+                        }`}
                       >
                         {size}
                       </span>
@@ -1081,10 +1096,11 @@ const ProductPage = ({ token }) => {
                                 : [...prev, item]
                             )
                           }
-                          className={`px-3 py-1.5 border rounded-xl cursor-pointer text-xs font-semibold ${matchWith.includes(item)
-                            ? "bg-black text-white border-black"
-                            : "bg-white border-black/10"
-                            }`}
+                          className={`px-3 py-1.5 border rounded-xl cursor-pointer text-xs font-semibold ${
+                            matchWith.includes(item)
+                              ? "bg-black text-white border-black"
+                              : "bg-white border-black/10"
+                          }`}
                         >
                           {item}
                         </span>
@@ -1168,13 +1184,14 @@ const ProductPage = ({ token }) => {
             currentItems.map((item, index) => (
               <div
                 key={item._id}
-                className={`grid grid-cols-1 md:grid-cols-[0.75fr_2.3fr_1fr_1fr_1fr_1fr] items-center border-b border-[#ecece6] px-5 py-4 gap-3 ${index % 2 === 0 ? "bg-white" : "bg-[#fcfcfb]"
-                  }`}
+                className={`grid grid-cols-1 md:grid-cols-[0.75fr_2.3fr_1fr_1fr_1fr_1fr] items-center border-b border-[#ecece6] px-5 py-4 gap-3 ${
+                  index % 2 === 0 ? "bg-white" : "bg-[#fcfcfb]"
+                }`}
               >
                 <img
                   src={
                     item.images?.[0]
-                      ? `${backendUrl}/uploads/${item.images[0]}`
+                      ? getMediaUrl(item.images[0], backendUrl)
                       : assets.upload_area
                   }
                   className="w-16 h-20 object-cover rounded-2xl bg-white border border-black/10"
@@ -1296,10 +1313,11 @@ const ProductPage = ({ token }) => {
               <button
                 key={i}
                 onClick={() => setCurrentPage(i + 1)}
-                className={`px-3.5 py-1.5 border rounded-xl font-black ${currentPage === i + 1
-                  ? "bg-black text-white border-black"
-                  : "bg-white/70 text-gray-900 border-[#d7d7d2]"
-                  }`}
+                className={`px-3.5 py-1.5 border rounded-xl font-black ${
+                  currentPage === i + 1
+                    ? "bg-black text-white border-black"
+                    : "bg-white/70 text-gray-900 border-[#d7d7d2]"
+                }`}
               >
                 {i + 1}
               </button>
