@@ -13,6 +13,17 @@ const emptySlide = {
   file: null,
 };
 
+const resolveImage = (img) => {
+  if (!img) return "";
+  const value = String(img).trim();
+
+  if (value.startsWith("blob:")) return value;
+  if (value.startsWith("http://") || value.startsWith("https://")) return value;
+  if (value.startsWith("/uploads/")) return `${backendUrl}${value}`;
+
+  return `${backendUrl}/uploads/${value.replace(/^\/+/, "")}`;
+};
+
 const HeroManager = ({ token }) => {
   const [loading, setLoading] = useState(false);
   const [tickerEnabled, setTickerEnabled] = useState(true);
@@ -24,13 +35,6 @@ const HeroManager = ({ token }) => {
     { ...emptySlide },
     { ...emptySlide },
   ]);
-
-  const resolveImage = (img) => {
-    if (!img) return "";
-    if (img.startsWith("blob:")) return img;
-    if (img.startsWith("http")) return img;
-    return `${backendUrl}${img}`;
-  };
 
   const fetchHero = async () => {
     try {
@@ -51,6 +55,7 @@ const HeroManager = ({ token }) => {
         const normalizedSlides = [0, 1, 2].map((index) => ({
           ...emptySlide,
           ...(incomingSlides[index] || {}),
+          image: incomingSlides[index]?.image || "",
           file: null,
         }));
 
@@ -98,21 +103,25 @@ const HeroManager = ({ token }) => {
 
       const formData = new FormData();
 
-      formData.append("tickerEnabled", tickerEnabled);
+      formData.append("tickerEnabled", String(tickerEnabled));
       formData.append("tickerText", tickerText);
 
       const slidePayload = slides.map((slide) => ({
-        title: slide.title,
-        subtitle: slide.subtitle,
-        description: slide.description,
-        cta: slide.cta,
-        action: slide.action,
+        title: slide.title || "",
+        subtitle: slide.subtitle || "",
+        description: slide.description || "",
+        cta: slide.cta || "",
+        action: slide.action || "collection",
         image:
           slide.image &&
           !slide.image.startsWith("blob:") &&
-          !slide.image.startsWith("http")
-            ? slide.image.replace(backendUrl, "")
-            : slide.image && !slide.image.startsWith("blob:")
+          !slide.image.startsWith("http://") &&
+          !slide.image.startsWith("https://")
+            ? slide.image.startsWith("/uploads/")
+              ? slide.image
+              : `/uploads/${String(slide.image).replace(/^\/+/, "")}`
+            : slide.image &&
+              !slide.image.startsWith("blob:")
             ? slide.image
             : "",
       }));
@@ -169,9 +178,12 @@ const HeroManager = ({ token }) => {
           <div className="flex flex-col gap-5">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div>
-                <p className="text-sm font-black text-[#0A0D17]">Welcome Ticker</p>
+                <p className="text-sm font-black text-[#0A0D17]">
+                  Welcome Ticker
+                </p>
                 <p className="text-xs text-gray-500">
-                  Use <span className="font-bold">{"{name}"}</span> to show the user name.
+                  Use <span className="font-bold">{"{name}"}</span> to show the
+                  user name.
                 </p>
               </div>
 
