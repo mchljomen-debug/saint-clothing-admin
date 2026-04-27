@@ -10,6 +10,7 @@ const emptySlide = {
   cta: "",
   action: "collection",
   image: "",
+  previewImage: "",
   file: null,
 };
 
@@ -30,6 +31,7 @@ const HeroManager = ({ token }) => {
   const [tickerText, setTickerText] = useState(
     "Welcome back, {name}! Ready to explore the latest from Saint Clothing?"
   );
+
   const [slides, setSlides] = useState([
     { ...emptySlide },
     { ...emptySlide },
@@ -39,7 +41,8 @@ const HeroManager = ({ token }) => {
   const fetchHero = async () => {
     try {
       setLoading(true);
-      const { data } = await axios.get(`${backendUrl}/api/hero`);
+
+      const { data } = await axios.get(`${backendUrl}/api/hero?ts=${Date.now()}`);
 
       if (data.success && data.hero) {
         setTickerEnabled(Boolean(data.hero.tickerEnabled));
@@ -56,6 +59,7 @@ const HeroManager = ({ token }) => {
           ...emptySlide,
           ...(incomingSlides[index] || {}),
           image: incomingSlides[index]?.image || "",
+          previewImage: "",
           file: null,
         }));
 
@@ -88,7 +92,7 @@ const HeroManager = ({ token }) => {
           ? {
               ...slide,
               file,
-              image: file ? URL.createObjectURL(file) : slide.image,
+              previewImage: file ? URL.createObjectURL(file) : "",
             }
           : slide
       )
@@ -112,18 +116,11 @@ const HeroManager = ({ token }) => {
         description: slide.description || "",
         cta: slide.cta || "",
         action: slide.action || "collection",
-        image:
-          slide.image &&
-          !slide.image.startsWith("blob:") &&
-          !slide.image.startsWith("http://") &&
-          !slide.image.startsWith("https://")
-            ? slide.image.startsWith("/uploads/")
-              ? slide.image
-              : `/uploads/${String(slide.image).replace(/^\/+/, "")}`
-            : slide.image &&
-              !slide.image.startsWith("blob:")
-            ? slide.image
-            : "",
+
+        // IMPORTANT:
+        // keep old real image URL/path
+        // never save previewImage/blob to database
+        image: slide.image || "",
       }));
 
       formData.append("slides", JSON.stringify(slidePayload));
@@ -137,17 +134,14 @@ const HeroManager = ({ token }) => {
       const { data } = await axios.put(`${backendUrl}/api/hero`, formData, {
         headers: {
           token,
-          "Content-Type": "multipart/form-data",
         },
       });
 
       if (data.success) {
         toast.success("Hero updated successfully");
-
         localStorage.setItem("hero_updated", Date.now().toString());
         window.dispatchEvent(new Event("hero-refresh"));
-
-        fetchHero();
+        await fetchHero();
       } else {
         toast.error(data.message || "Failed to save hero");
       }
@@ -182,8 +176,7 @@ const HeroManager = ({ token }) => {
                   Welcome Ticker
                 </p>
                 <p className="text-xs text-gray-500">
-                  Use <span className="font-bold">{"{name}"}</span> to show the
-                  user name.
+                  Use <span className="font-bold">{"{name}"}</span> to show the user name.
                 </p>
               </div>
 
@@ -205,106 +198,101 @@ const HeroManager = ({ token }) => {
               onChange={(e) => setTickerText(e.target.value)}
               rows={3}
               className="w-full rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-black"
-              placeholder="Welcome back, {name}! Ready to explore the latest from Saint Clothing?"
             />
           </div>
         </div>
 
-        {slides.map((slide, index) => (
-          <div
-            key={index}
-            className="rounded-[28px] border border-black/10 bg-white p-6 shadow-[0_15px_40px_rgba(0,0,0,0.05)]"
-          >
-            <div className="mb-5">
-              <p className="text-[11px] font-black uppercase tracking-[0.28em] text-gray-400">
-                Slide {index + 1}
-              </p>
-              <h2 className="mt-1 text-xl font-black text-[#0A0D17]">
-                Hero Content
-              </h2>
-            </div>
+        {slides.map((slide, index) => {
+          const displayImage = slide.previewImage || slide.image;
 
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <input
-                type="text"
-                value={slide.title}
-                onChange={(e) =>
-                  handleSlideChange(index, "title", e.target.value)
-                }
-                placeholder="Title"
-                className="w-full rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-black"
-              />
+          return (
+            <div
+              key={index}
+              className="rounded-[28px] border border-black/10 bg-white p-6 shadow-[0_15px_40px_rgba(0,0,0,0.05)]"
+            >
+              <div className="mb-5">
+                <p className="text-[11px] font-black uppercase tracking-[0.28em] text-gray-400">
+                  Slide {index + 1}
+                </p>
+                <h2 className="mt-1 text-xl font-black text-[#0A0D17]">
+                  Hero Content
+                </h2>
+              </div>
 
-              <input
-                type="text"
-                value={slide.subtitle}
-                onChange={(e) =>
-                  handleSlideChange(index, "subtitle", e.target.value)
-                }
-                placeholder="Subtitle"
-                className="w-full rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-black"
-              />
-
-              <input
-                type="text"
-                value={slide.cta}
-                onChange={(e) =>
-                  handleSlideChange(index, "cta", e.target.value)
-                }
-                placeholder="CTA Button Text"
-                className="w-full rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-black"
-              />
-
-              <select
-                value={slide.action}
-                onChange={(e) =>
-                  handleSlideChange(index, "action", e.target.value)
-                }
-                className="w-full rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-black"
-              >
-                <option value="collection">Collection</option>
-                <option value="bestseller">Best Seller</option>
-                <option value="latest">Latest</option>
-              </select>
-
-              <div className="lg:col-span-2">
-                <textarea
-                  value={slide.description}
-                  onChange={(e) =>
-                    handleSlideChange(index, "description", e.target.value)
-                  }
-                  rows={4}
-                  placeholder="Description"
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <input
+                  type="text"
+                  value={slide.title}
+                  onChange={(e) => handleSlideChange(index, "title", e.target.value)}
+                  placeholder="Title"
                   className="w-full rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-black"
                 />
-              </div>
 
-              <div className="lg:col-span-2">
-                <label className="mb-2 block text-[11px] font-black uppercase tracking-[0.2em] text-gray-500">
-                  Upload Hero Image
-                </label>
                 <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) =>
-                    handleFileChange(index, e.target.files?.[0] || null)
-                  }
-                  className="w-full rounded-2xl border border-black/10 px-4 py-3 outline-none"
+                  type="text"
+                  value={slide.subtitle}
+                  onChange={(e) => handleSlideChange(index, "subtitle", e.target.value)}
+                  placeholder="Subtitle"
+                  className="w-full rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-black"
                 />
-              </div>
 
-              {slide.image ? (
-                <div className="lg:col-span-2 overflow-hidden rounded-[22px] border border-black/10 bg-[#fafaf8]">
-                  <img
-                    src={resolveImage(slide.image)}
-                    alt={`Slide ${index + 1}`}
-                    className="h-[260px] w-full object-cover"
+                <input
+                  type="text"
+                  value={slide.cta}
+                  onChange={(e) => handleSlideChange(index, "cta", e.target.value)}
+                  placeholder="CTA Button Text"
+                  className="w-full rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-black"
+                />
+
+                <select
+                  value={slide.action}
+                  onChange={(e) => handleSlideChange(index, "action", e.target.value)}
+                  className="w-full rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-black"
+                >
+                  <option value="collection">Collection</option>
+                  <option value="bestseller">Best Seller</option>
+                  <option value="latest">Latest</option>
+                </select>
+
+                <div className="lg:col-span-2">
+                  <textarea
+                    value={slide.description}
+                    onChange={(e) =>
+                      handleSlideChange(index, "description", e.target.value)
+                    }
+                    rows={4}
+                    placeholder="Description"
+                    className="w-full rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-black"
                   />
                 </div>
-              ) : null}
+
+                <div className="lg:col-span-2">
+                  <label className="mb-2 block text-[11px] font-black uppercase tracking-[0.2em] text-gray-500">
+                    Upload Hero Image
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) =>
+                      handleFileChange(index, e.target.files?.[0] || null)
+                    }
+                    className="w-full rounded-2xl border border-black/10 px-4 py-3 outline-none"
+                  />
+                </div>
+
+                {displayImage ? (
+                  <div className="lg:col-span-2 overflow-hidden rounded-[22px] border border-black/10 bg-[#fafaf8]">
+                    <img
+                      src={resolveImage(displayImage)}
+                      alt={`Slide ${index + 1}`}
+                      className="h-[260px] w-full object-cover"
+                    />
+                  </div>
+                ) : null}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         <div className="flex justify-end">
           <button
