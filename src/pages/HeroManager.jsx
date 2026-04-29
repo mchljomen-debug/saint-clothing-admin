@@ -28,9 +28,11 @@ const resolveImage = (img) => {
 const HeroManager = ({ token }) => {
   const [loading, setLoading] = useState(false);
   const [tickerEnabled, setTickerEnabled] = useState(true);
+
   const [newUserGreeting, setNewUserGreeting] = useState("Welcome");
   const [returningUserGreeting, setReturningUserGreeting] =
     useState("Welcome back");
+
   const [tickerText, setTickerText] = useState(
     "{greeting}, {name}! Ready to explore the latest from Saint Clothing?"
   );
@@ -62,15 +64,15 @@ const HeroManager = ({ token }) => {
           ? data.hero.slides
           : [];
 
-        setSlides(
-          [0, 1, 2].map((index) => ({
-            ...emptySlide,
-            ...(incomingSlides[index] || {}),
-            image: incomingSlides[index]?.image || "",
-            previewImage: "",
-            file: null,
-          }))
-        );
+        const normalizedSlides = [0, 1, 2].map((index) => ({
+          ...emptySlide,
+          ...(incomingSlides[index] || {}),
+          image: incomingSlides[index]?.image || "",
+          previewImage: "",
+          file: null,
+        }));
+
+        setSlides(normalizedSlides);
       }
     } catch (error) {
       console.log(error);
@@ -165,6 +167,9 @@ const HeroManager = ({ token }) => {
         <h1 className="mt-2 text-3xl font-black text-[#0A0D17]">
           Hero Manager
         </h1>
+        <p className="mt-2 max-w-2xl text-sm text-gray-500">
+          Control homepage slides and user greeting ticker.
+        </p>
       </div>
 
       <form onSubmit={handleSave} className="space-y-6">
@@ -194,25 +199,36 @@ const HeroManager = ({ token }) => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <input
-                value={newUserGreeting}
-                onChange={(e) => setNewUserGreeting(e.target.value)}
-                placeholder="New user greeting"
-                className="w-full rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-black"
-              />
+              <div className="space-y-2">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">
+                  New User Greeting
+                </p>
+                <input
+                  value={newUserGreeting}
+                  onChange={(e) => setNewUserGreeting(e.target.value)}
+                  placeholder="Example: Welcome"
+                  className="w-full rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-black"
+                />
+              </div>
 
-              <input
-                value={returningUserGreeting}
-                onChange={(e) => setReturningUserGreeting(e.target.value)}
-                placeholder="Returning user greeting"
-                className="w-full rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-black"
-              />
+              <div className="space-y-2">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">
+                  Returning User Greeting
+                </p>
+                <input
+                  value={returningUserGreeting}
+                  onChange={(e) => setReturningUserGreeting(e.target.value)}
+                  placeholder="Example: Welcome back"
+                  className="w-full rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-black"
+                />
+              </div>
             </div>
 
             <textarea
               value={tickerText}
               onChange={(e) => setTickerText(e.target.value)}
               rows={3}
+              placeholder="{greeting}, {name}! Ready to explore Saint Clothing?"
               className="w-full rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-black"
             />
           </div>
@@ -226,12 +242,18 @@ const HeroManager = ({ token }) => {
               key={index}
               className="rounded-[28px] border border-black/10 bg-white p-6 shadow-[0_15px_40px_rgba(0,0,0,0.05)]"
             >
-              <p className="text-[11px] font-black uppercase tracking-[0.28em] text-gray-400">
-                Slide {index + 1}
-              </p>
+              <div className="mb-5">
+                <p className="text-[11px] font-black uppercase tracking-[0.28em] text-gray-400">
+                  Slide {index + 1}
+                </p>
+                <h2 className="mt-1 text-xl font-black text-[#0A0D17]">
+                  Hero Content
+                </h2>
+              </div>
 
-              <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <input
+                  type="text"
                   value={slide.title}
                   onChange={(e) =>
                     handleSlideChange(index, "title", e.target.value)
@@ -241,6 +263,7 @@ const HeroManager = ({ token }) => {
                 />
 
                 <input
+                  type="text"
                   value={slide.subtitle}
                   onChange={(e) =>
                     handleSlideChange(index, "subtitle", e.target.value)
@@ -250,6 +273,7 @@ const HeroManager = ({ token }) => {
                 />
 
                 <input
+                  type="text"
                   value={slide.cta}
                   onChange={(e) =>
                     handleSlideChange(index, "cta", e.target.value)
@@ -280,21 +304,28 @@ const HeroManager = ({ token }) => {
                   className="w-full rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-black lg:col-span-2"
                 />
 
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) =>
-                    handleFileChange(index, e.target.files?.[0] || null)
-                  }
-                  className="lg:col-span-2"
-                />
+                <div className="lg:col-span-2">
+                  <label className="mb-2 block text-[11px] font-black uppercase tracking-[0.2em] text-gray-500">
+                    Upload Hero Image
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) =>
+                      handleFileChange(index, e.target.files?.[0] || null)
+                    }
+                    className="w-full rounded-2xl border border-black/10 px-4 py-3 outline-none"
+                  />
+                </div>
 
                 {displayImage && (
-                  <img
-                    src={resolveImage(displayImage)}
-                    alt={`Slide ${index + 1}`}
-                    className="lg:col-span-2 h-[260px] w-full rounded-xl object-cover"
-                  />
+                  <div className="lg:col-span-2 overflow-hidden rounded-[22px] border border-black/10 bg-[#fafaf8]">
+                    <img
+                      src={resolveImage(displayImage)}
+                      alt={`Slide ${index + 1}`}
+                      className="h-[260px] w-full object-cover"
+                    />
+                  </div>
                 )}
               </div>
             </div>
@@ -305,7 +336,7 @@ const HeroManager = ({ token }) => {
           <button
             type="submit"
             disabled={loading}
-            className="rounded-2xl bg-[#0A0D17] px-8 py-4 text-xs font-black uppercase tracking-[0.2em] text-white"
+            className="rounded-2xl bg-[#0A0D17] px-8 py-4 text-xs font-black uppercase tracking-[0.2em] text-white transition hover:opacity-90 disabled:opacity-60"
           >
             {loading ? "Saving..." : "Save Hero"}
           </button>
