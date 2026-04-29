@@ -85,13 +85,74 @@ const ProductPage = ({ token }) => {
     },
   };
 
-  const CATEGORY_OPTIONS = [
+  const DEFAULT_CATEGORY_OPTIONS = [
     "Tshirt",
     "Long Sleeve",
     "Jorts",
     "Mesh Shorts",
     "Crop Jersey",
   ];
+
+  const [customCategoryInput, setCustomCategoryInput] = useState("");
+
+  const [customCategories, setCustomCategories] = useState(() => {
+    try {
+      const saved = localStorage.getItem("saint_custom_categories");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const CATEGORY_OPTIONS = useMemo(() => {
+    const fromProducts = Array.isArray(list)
+      ? list.map((item) => item.category).filter(Boolean)
+      : [];
+
+    return Array.from(
+      new Set([
+        ...DEFAULT_CATEGORY_OPTIONS,
+        ...customCategories,
+        ...fromProducts,
+      ])
+    );
+  }, [customCategories, list]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      "saint_custom_categories",
+      JSON.stringify(customCategories)
+    );
+  }, [customCategories]);
+
+  const addCustomCategory = () => {
+    const trimmed = customCategoryInput.trim();
+
+    if (!trimmed) return toast.error("Enter category name");
+
+    const exists = CATEGORY_OPTIONS.some(
+      (cat) => cat.toLowerCase() === trimmed.toLowerCase()
+    );
+
+    if (exists) return toast.error("Category already exists");
+
+    setCustomCategories((prev) => [...prev, trimmed]);
+    setCategory(trimmed);
+    setCustomCategoryInput("");
+    toast.success("Category added");
+  };
+
+  const removeCustomCategory = (cat) => {
+    setCustomCategories((prev) => prev.filter((item) => item !== cat));
+
+    if (category === cat) {
+      setCategory("Tshirt");
+    }
+
+    if (categoryFilter === cat) {
+      setCategoryFilter("all");
+    }
+  };
 
   const predefinedColors = [
     { name: "Black", hex: "#000000" },
@@ -197,8 +258,8 @@ const ProductPage = ({ token }) => {
         const products = Array.isArray(res.data.products)
           ? res.data.products
           : Array.isArray(res.data.product)
-          ? res.data.product
-          : [];
+            ? res.data.product
+            : [];
 
         setList([...products].reverse());
       } else {
@@ -371,27 +432,27 @@ const ProductPage = ({ token }) => {
 
       const response = editId
         ? await axios.put(
-            `${backendUrl}/api/product/update/${editId}`,
-            formData,
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-                token,
-                "Content-Type": "multipart/form-data",
-              },
-            }
-          )
+          `${backendUrl}/api/product/update/${editId}`,
+          formData,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              token,
+              "Content-Type": "multipart/form-data",
+            },
+          }
+        )
         : await axios.post(
-            `${backendUrl}/api/product/add`,
-            formData,
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-                token,
-                "Content-Type": "multipart/form-data",
-              },
-            }
-          );
+          `${backendUrl}/api/product/add`,
+          formData,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              token,
+              "Content-Type": "multipart/form-data",
+            },
+          }
+        );
 
       if (response.data.success) {
         toast.success(
@@ -673,17 +734,16 @@ const ProductPage = ({ token }) => {
                       return (
                         <label key={i} className="cursor-pointer">
                           <img
-                            className={`w-24 h-28 border border-black/10 rounded-2xl bg-white ${
-                              hasImage
-                                ? "object-cover"
-                                : "object-contain p-2 opacity-50"
-                            }`}
+                            className={`w-24 h-28 border border-black/10 rounded-2xl bg-white ${hasImage
+                              ? "object-cover"
+                              : "object-contain p-2 opacity-50"
+                              }`}
                             src={
                               img
                                 ? URL.createObjectURL(img)
                                 : oldImages[i]
-                                ? getMediaUrl(oldImages[i], backendUrl)
-                                : assets.upload_area
+                                  ? getMediaUrl(oldImages[i], backendUrl)
+                                  : assets.upload_area
                             }
                             alt=""
                           />
@@ -713,17 +773,16 @@ const ProductPage = ({ token }) => {
 
                   <label className="cursor-pointer inline-block">
                     <img
-                      className={`w-40 h-40 border border-black/10 rounded-2xl bg-white ${
-                        sizeChartImage || oldSizeChartImage
-                          ? "object-cover"
-                          : "object-contain p-3 opacity-50"
-                      }`}
+                      className={`w-40 h-40 border border-black/10 rounded-2xl bg-white ${sizeChartImage || oldSizeChartImage
+                        ? "object-cover"
+                        : "object-contain p-3 opacity-50"
+                        }`}
                       src={
                         sizeChartImage
                           ? URL.createObjectURL(sizeChartImage)
                           : oldSizeChartImage
-                          ? getMediaUrl(oldSizeChartImage, backendUrl)
-                          : assets.upload_area
+                            ? getMediaUrl(oldSizeChartImage, backendUrl)
+                            : assets.upload_area
                       }
                       alt="Size chart"
                     />
@@ -820,6 +879,47 @@ const ProductPage = ({ token }) => {
               </div>
 
               <div className="flex flex-col gap-4">
+                <div className="bg-white/60 border border-black/[0.06] rounded-[24px] p-4">
+                  <p className="text-sm font-black text-[#6b7280] mb-3 uppercase tracking-[0.18em]">
+                    Category Manager
+                  </p>
+
+                  <div className="flex gap-2">
+                    <input
+                      value={customCategoryInput}
+                      onChange={(e) => setCustomCategoryInput(e.target.value)}
+                      placeholder="Add new category"
+                      className="border border-black/10 p-2.5 rounded-xl w-full bg-white"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={addCustomCategory}
+                      className="bg-black text-white px-4 rounded-xl font-bold"
+                    >
+                      Add
+                    </button>
+                  </div>
+
+                  <div className="flex gap-2 mt-3 flex-wrap">
+                    {customCategories.map((cat) => (
+                      <div
+                        key={cat}
+                        className="flex items-center gap-1 bg-[#f2f2ef] px-2 py-1 rounded-lg text-xs"
+                      >
+                        <span>{cat}</span>
+
+                        <button
+                          type="button"
+                          onClick={() => removeCustomCategory(cat)}
+                          className="text-red-600 font-bold hover:text-red-800"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
@@ -913,11 +1013,10 @@ const ProductPage = ({ token }) => {
                               : [...prev, size]
                           )
                         }
-                        className={`px-3 py-2 border rounded-xl cursor-pointer text-sm font-semibold ${
-                          sizes.includes(size)
-                            ? "bg-black text-white border-black"
-                            : "bg-white border-black/10"
-                        }`}
+                        className={`px-3 py-2 border rounded-xl cursor-pointer text-sm font-semibold ${sizes.includes(size)
+                          ? "bg-black text-white border-black"
+                          : "bg-white border-black/10"
+                          }`}
                       >
                         {size}
                       </span>
@@ -1123,11 +1222,10 @@ const ProductPage = ({ token }) => {
                                 : [...prev, item]
                             )
                           }
-                          className={`px-3 py-1.5 border rounded-xl cursor-pointer text-xs font-semibold ${
-                            matchWith.includes(item)
-                              ? "bg-black text-white border-black"
-                              : "bg-white border-black/10"
-                          }`}
+                          className={`px-3 py-1.5 border rounded-xl cursor-pointer text-xs font-semibold ${matchWith.includes(item)
+                            ? "bg-black text-white border-black"
+                            : "bg-white border-black/10"
+                            }`}
                         >
                           {item}
                         </span>
@@ -1158,19 +1256,18 @@ const ProductPage = ({ token }) => {
 
             <button
               disabled={saving}
-              className={`mt-6 px-6 py-3 text-white font-black rounded-2xl transition ${
-                saving
-                  ? "bg-gray-500 cursor-not-allowed"
-                  : "bg-black hover:bg-gray-800"
-              }`}
+              className={`mt-6 px-6 py-3 text-white font-black rounded-2xl transition ${saving
+                ? "bg-gray-500 cursor-not-allowed"
+                : "bg-black hover:bg-gray-800"
+                }`}
             >
               {saving
                 ? editId
                   ? "Updating..."
                   : "Adding..."
                 : editId
-                ? "Update Product"
-                : "Add Product"}
+                  ? "Update Product"
+                  : "Add Product"}
             </button>
           </form>
         )}
@@ -1224,9 +1321,8 @@ const ProductPage = ({ token }) => {
             currentItems.map((item, index) => (
               <div
                 key={item._id}
-                className={`grid grid-cols-1 md:grid-cols-[0.75fr_2.3fr_1fr_1fr_1fr_1fr] items-center border-b border-[#ecece6] px-5 py-4 gap-3 ${
-                  index % 2 === 0 ? "bg-white" : "bg-[#fcfcfb]"
-                }`}
+                className={`grid grid-cols-1 md:grid-cols-[0.75fr_2.3fr_1fr_1fr_1fr_1fr] items-center border-b border-[#ecece6] px-5 py-4 gap-3 ${index % 2 === 0 ? "bg-white" : "bg-[#fcfcfb]"
+                  }`}
               >
                 <img
                   src={
@@ -1353,11 +1449,10 @@ const ProductPage = ({ token }) => {
               <button
                 key={i}
                 onClick={() => setCurrentPage(i + 1)}
-                className={`px-3.5 py-1.5 border rounded-xl font-black ${
-                  currentPage === i + 1
-                    ? "bg-black text-white border-black"
-                    : "bg-white/70 text-gray-900 border-[#d7d7d2]"
-                }`}
+                className={`px-3.5 py-1.5 border rounded-xl font-black ${currentPage === i + 1
+                  ? "bg-black text-white border-black"
+                  : "bg-white/70 text-gray-900 border-[#d7d7d2]"
+                  }`}
               >
                 {i + 1}
               </button>
