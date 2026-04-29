@@ -27,8 +27,10 @@ const resolveImage = (img) => {
 
 const HeroManager = ({ token }) => {
   const [loading, setLoading] = useState(false);
-
   const [tickerEnabled, setTickerEnabled] = useState(true);
+  const [newUserGreeting, setNewUserGreeting] = useState("Welcome");
+  const [returningUserGreeting, setReturningUserGreeting] =
+    useState("Welcome back");
   const [tickerText, setTickerText] = useState(
     "{greeting}, {name}! Ready to explore the latest from Saint Clothing?"
   );
@@ -47,7 +49,10 @@ const HeroManager = ({ token }) => {
 
       if (data.success && data.hero) {
         setTickerEnabled(Boolean(data.hero.tickerEnabled));
-
+        setNewUserGreeting(data.hero.newUserGreeting || "Welcome");
+        setReturningUserGreeting(
+          data.hero.returningUserGreeting || "Welcome back"
+        );
         setTickerText(
           data.hero.tickerText ||
             "{greeting}, {name}! Ready to explore the latest from Saint Clothing?"
@@ -57,15 +62,15 @@ const HeroManager = ({ token }) => {
           ? data.hero.slides
           : [];
 
-        const normalizedSlides = [0, 1, 2].map((index) => ({
-          ...emptySlide,
-          ...(incomingSlides[index] || {}),
-          image: incomingSlides[index]?.image || "",
-          previewImage: "",
-          file: null,
-        }));
-
-        setSlides(normalizedSlides);
+        setSlides(
+          [0, 1, 2].map((index) => ({
+            ...emptySlide,
+            ...(incomingSlides[index] || {}),
+            image: incomingSlides[index]?.image || "",
+            previewImage: "",
+            file: null,
+          }))
+        );
       }
     } catch (error) {
       console.log(error);
@@ -110,6 +115,8 @@ const HeroManager = ({ token }) => {
       const formData = new FormData();
 
       formData.append("tickerEnabled", String(tickerEnabled));
+      formData.append("newUserGreeting", newUserGreeting);
+      formData.append("returningUserGreeting", returningUserGreeting);
       formData.append("tickerText", tickerText);
 
       const slidePayload = slides.map((slide) => ({
@@ -118,7 +125,7 @@ const HeroManager = ({ token }) => {
         description: slide.description || "",
         cta: slide.cta || "",
         action: slide.action || "collection",
-        image: slide.image || "", // IMPORTANT: keep original image
+        image: slide.image || "",
       }));
 
       formData.append("slides", JSON.stringify(slidePayload));
@@ -135,10 +142,8 @@ const HeroManager = ({ token }) => {
 
       if (data.success) {
         toast.success("Hero updated successfully");
-
         localStorage.setItem("hero_updated", Date.now().toString());
         window.dispatchEvent(new Event("hero-refresh"));
-
         await fetchHero();
       } else {
         toast.error(data.message || "Failed to save hero");
@@ -160,13 +165,9 @@ const HeroManager = ({ token }) => {
         <h1 className="mt-2 text-3xl font-black text-[#0A0D17]">
           Hero Manager
         </h1>
-        <p className="mt-2 max-w-2xl text-sm text-gray-500">
-          Upload hero images and customize your homepage content.
-        </p>
       </div>
 
       <form onSubmit={handleSave} className="space-y-6">
-        {/* ================= TICKER ================= */}
         <div className="rounded-[28px] border border-black/10 bg-white p-6 shadow-[0_15px_40px_rgba(0,0,0,0.05)]">
           <div className="flex flex-col gap-5">
             <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -175,9 +176,7 @@ const HeroManager = ({ token }) => {
                   Welcome Ticker
                 </p>
                 <p className="text-xs text-gray-500">
-                  Use{" "}
-                  <span className="font-bold">{"{greeting}"}</span> and{" "}
-                  <span className="font-bold">{"{name}"}</span>
+                  Use <b>{"{greeting}"}</b> and <b>{"{name}"}</b>.
                 </p>
               </div>
 
@@ -194,6 +193,22 @@ const HeroManager = ({ token }) => {
               </label>
             </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <input
+                value={newUserGreeting}
+                onChange={(e) => setNewUserGreeting(e.target.value)}
+                placeholder="New user greeting"
+                className="w-full rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-black"
+              />
+
+              <input
+                value={returningUserGreeting}
+                onChange={(e) => setReturningUserGreeting(e.target.value)}
+                placeholder="Returning user greeting"
+                className="w-full rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-black"
+              />
+            </div>
+
             <textarea
               value={tickerText}
               onChange={(e) => setTickerText(e.target.value)}
@@ -203,7 +218,6 @@ const HeroManager = ({ token }) => {
           </div>
         </div>
 
-        {/* ================= SLIDES ================= */}
         {slides.map((slide, index) => {
           const displayImage = slide.previewImage || slide.image;
 
@@ -212,41 +226,44 @@ const HeroManager = ({ token }) => {
               key={index}
               className="rounded-[28px] border border-black/10 bg-white p-6 shadow-[0_15px_40px_rgba(0,0,0,0.05)]"
             >
-              <div className="mb-5">
-                <p className="text-[11px] font-black uppercase tracking-[0.28em] text-gray-400">
-                  Slide {index + 1}
-                </p>
-                <h2 className="mt-1 text-xl font-black text-[#0A0D17]">
-                  Hero Content
-                </h2>
-              </div>
+              <p className="text-[11px] font-black uppercase tracking-[0.28em] text-gray-400">
+                Slide {index + 1}
+              </p>
 
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <input
                   value={slide.title}
-                  onChange={(e) => handleSlideChange(index, "title", e.target.value)}
+                  onChange={(e) =>
+                    handleSlideChange(index, "title", e.target.value)
+                  }
                   placeholder="Title"
-                  className="w-full rounded-2xl border px-4 py-3"
+                  className="w-full rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-black"
                 />
 
                 <input
                   value={slide.subtitle}
-                  onChange={(e) => handleSlideChange(index, "subtitle", e.target.value)}
+                  onChange={(e) =>
+                    handleSlideChange(index, "subtitle", e.target.value)
+                  }
                   placeholder="Subtitle"
-                  className="w-full rounded-2xl border px-4 py-3"
+                  className="w-full rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-black"
                 />
 
                 <input
                   value={slide.cta}
-                  onChange={(e) => handleSlideChange(index, "cta", e.target.value)}
-                  placeholder="CTA"
-                  className="w-full rounded-2xl border px-4 py-3"
+                  onChange={(e) =>
+                    handleSlideChange(index, "cta", e.target.value)
+                  }
+                  placeholder="CTA Button Text"
+                  className="w-full rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-black"
                 />
 
                 <select
                   value={slide.action}
-                  onChange={(e) => handleSlideChange(index, "action", e.target.value)}
-                  className="w-full rounded-2xl border px-4 py-3"
+                  onChange={(e) =>
+                    handleSlideChange(index, "action", e.target.value)
+                  }
+                  className="w-full rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-black"
                 >
                   <option value="collection">Collection</option>
                   <option value="bestseller">Best Seller</option>
@@ -260,11 +277,12 @@ const HeroManager = ({ token }) => {
                   }
                   rows={4}
                   placeholder="Description"
-                  className="w-full rounded-2xl border px-4 py-3 lg:col-span-2"
+                  className="w-full rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-black lg:col-span-2"
                 />
 
                 <input
                   type="file"
+                  accept="image/*"
                   onChange={(e) =>
                     handleFileChange(index, e.target.files?.[0] || null)
                   }
@@ -274,7 +292,8 @@ const HeroManager = ({ token }) => {
                 {displayImage && (
                   <img
                     src={resolveImage(displayImage)}
-                    className="lg:col-span-2 h-[260px] object-cover rounded-xl"
+                    alt={`Slide ${index + 1}`}
+                    className="lg:col-span-2 h-[260px] w-full rounded-xl object-cover"
                   />
                 )}
               </div>
@@ -286,7 +305,7 @@ const HeroManager = ({ token }) => {
           <button
             type="submit"
             disabled={loading}
-            className="bg-black text-white px-8 py-4 rounded-2xl"
+            className="rounded-2xl bg-[#0A0D17] px-8 py-4 text-xs font-black uppercase tracking-[0.2em] text-white"
           >
             {loading ? "Saving..." : "Save Hero"}
           </button>
