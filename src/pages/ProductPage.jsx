@@ -85,72 +85,82 @@ const ProductPage = ({ token }) => {
     },
   };
 
-  const DEFAULT_CATEGORY_OPTIONS = [
-    "Tshirt",
-    "Long Sleeve",
-    "Jorts",
-    "Mesh Shorts",
-    "Crop Jersey",
-  ];
-
   const [customCategoryInput, setCustomCategoryInput] = useState("");
-
-  const [customCategories, setCustomCategories] = useState(() => {
-    try {
-      const saved = localStorage.getItem("saint_custom_categories");
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [categoriesData, setCategoriesData] = useState([]);
 
   const CATEGORY_OPTIONS = useMemo(() => {
+    const fromBackend = categoriesData.map((item) => item.name).filter(Boolean);
+
     const fromProducts = Array.isArray(list)
       ? list.map((item) => item.category).filter(Boolean)
       : [];
 
-    return Array.from(
-      new Set([
-        ...DEFAULT_CATEGORY_OPTIONS,
-        ...customCategories,
-        ...fromProducts,
-      ])
-    );
-  }, [customCategories, list]);
+    return Array.from(new Set([...fromBackend, ...fromProducts]));
+  }, [categoriesData, list]);
 
-  useEffect(() => {
-    localStorage.setItem(
-      "saint_custom_categories",
-      JSON.stringify(customCategories)
-    );
-  }, [customCategories]);
+  const fetchCategories = async () => {
+    try {
+      const res = await axios.get(`${backendUrl}/api/category/list`);
 
-  const addCustomCategory = () => {
+      if (res.data.success) {
+        setCategoriesData(res.data.categories || []);
+
+        if (!category && res.data.categories?.length > 0) {
+          setCategory(res.data.categories[0].name);
+        }
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to load categories");
+    }
+  };
+
+  const addCustomCategory = async () => {
     const trimmed = customCategoryInput.trim();
 
     if (!trimmed) return toast.error("Enter category name");
 
-    const exists = CATEGORY_OPTIONS.some(
-      (cat) => cat.toLowerCase() === trimmed.toLowerCase()
-    );
+    try {
+      const res = await axios.post(
+        `${backendUrl}/api/category/add`,
+        { name: trimmed },
+        axiosConfig
+      );
 
-    if (exists) return toast.error("Category already exists");
-
-    setCustomCategories((prev) => [...prev, trimmed]);
-    setCategory(trimmed);
-    setCustomCategoryInput("");
-    toast.success("Category added");
+      if (res.data.success) {
+        toast.success(res.data.message || "Category added");
+        setCustomCategoryInput("");
+        setCategory(trimmed);
+        await fetchCategories();
+      } else {
+        toast.error(res.data.message || "Failed to add category");
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to add category");
+    }
   };
 
-  const removeCustomCategory = (cat) => {
-    setCustomCategories((prev) => prev.filter((item) => item !== cat));
+  const removeCustomCategory = async (id, name) => {
+    if (!window.confirm(`Remove category "${name}"?`)) return;
 
-    if (category === cat) {
-      setCategory("Tshirt");
-    }
+    try {
+      const res = await axios.post(
+        `${backendUrl}/api/category/delete`,
+        { id },
+        axiosConfig
+      );
 
-    if (categoryFilter === cat) {
-      setCategoryFilter("all");
+      if (res.data.success) {
+        toast.success(res.data.message || "Category removed");
+
+        if (category === name) setCategory("Tshirt");
+        if (categoryFilter === name) setCategoryFilter("all");
+
+        await fetchCategories();
+      } else {
+        toast.error(res.data.message || "Failed to remove category");
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to remove category");
     }
   };
 
@@ -612,6 +622,7 @@ const ProductPage = ({ token }) => {
     if (token) {
       fetchList();
       fetchBranches();
+      fetchCategories();
     }
   }, [token]);
 
@@ -902,22 +913,24 @@ const ProductPage = ({ token }) => {
                   </div>
 
                   <div className="flex gap-2 mt-3 flex-wrap">
-                    {customCategories.map((cat) => (
+                    {categoriesData.map((cat) => (
                       <div
-                        key={cat}
+                        key={cat._id}
                         className="flex items-center gap-1 bg-[#f2f2ef] px-2 py-1 rounded-lg text-xs"
                       >
-                        <span>{cat}</span>
+                        <span>{cat.name}</span>
 
                         <button
                           type="button"
-                          onClick={() => removeCustomCategory(cat)}
+                          onClick={() => removeCustomCategory(cat._id, cat.name)}
                           className="text-red-600 font-bold hover:text-red-800"
                         >
                           ✕
                         </button>
                       </div>
                     ))}
+
+
                   </div>
                 </div>
                 <select
