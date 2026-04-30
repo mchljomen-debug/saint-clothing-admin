@@ -13,6 +13,7 @@ import {
   Trash2,
   MonitorPlay,
   FileText,
+  Image, // ✅ added
 } from "lucide-react";
 
 const Sidebar = () => {
@@ -28,6 +29,10 @@ const Sidebar = () => {
 
   const adminOnlyLinks = [
     { to: "/hero-manager", icon: MonitorPlay, label: "Hero Manager" },
+
+    // 🔥 NEW CATEGORY MANAGER
+    { to: "/categories", icon: Image, label: "Categories" },
+
     { to: "/policies", icon: FileText, label: "Policies" },
     { to: "/users", icon: Users, label: "Users" },
     { to: "/employees", icon: UserCog, label: "Employees" },
@@ -78,7 +83,9 @@ const Sidebar = () => {
                     />
                   </div>
 
-                  <span className="hidden lg:block truncate">{item.label}</span>
+                  <span className="hidden lg:block truncate">
+                    {item.label}
+                  </span>
 
                   {isActive && (
                     <span className="ml-auto hidden h-2.5 w-2.5 rounded-full bg-white lg:block" />
@@ -97,12 +104,15 @@ const Sidebar = () => {
       <aside className="fixed left-0 top-[72px] h-[calc(100vh-72px)] w-[18%] bg-gradient-to-b from-[#0A0D17] via-[#0f1724] to-[#111827] shadow-[10px_0_40px_rgba(0,0,0,0.18)]">
         <div className="flex h-full flex-col justify-between overflow-y-auto">
           <div className="pb-6">
+            {/* HEADER */}
             <div className="px-5 pt-5 pb-6">
               <div className="rounded-2xl bg-white/[0.05] p-4 backdrop-blur">
                 <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40">
                   Saint Clothing
                 </p>
-                <p className="text-sm font-black text-white">Admin Panel</p>
+                <p className="text-sm font-black text-white">
+                  Admin Panel
+                </p>
 
                 <div className="mt-4 flex justify-between items-center">
                   <span className="text-[10px] text-white/50 uppercase tracking-widest">
@@ -118,6 +128,7 @@ const Sidebar = () => {
               </div>
             </div>
 
+            {/* LINKS */}
             <div className="flex flex-col gap-6">
               <Section title="Main Panel" links={mainLinks} />
 
@@ -129,6 +140,7 @@ const Sidebar = () => {
             </div>
           </div>
 
+          {/* FOOTER */}
           <div className="px-5 pb-6 text-center">
             <p className="text-[9px] uppercase text-white/30 tracking-[0.3em]">
               Internal Console
