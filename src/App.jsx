@@ -18,6 +18,7 @@ import EmployeesPage from "./pages/EmployeesPage";
 import BranchesPage from "./pages/BranchesPage";
 import HeroManager from "./pages/HeroManager";
 import PoliciesManager from "./pages/PoliciesManager";
+import CategoryManager from "./pages/CategoryManager";
 
 export const backendUrl = import.meta.env.VITE_BACKEND_URL;
 export const currency = "₱";
@@ -74,6 +75,15 @@ const App = () => {
                   element={
                     <ProtectedAdminRoute>
                       <HeroManager token={token} />
+                    </ProtectedAdminRoute>
+                  }
+                />
+
+                <Route
+                  path="/categories"
+                  element={
+                    <ProtectedAdminRoute>
+                      <CategoryManager token={token} />
                     </ProtectedAdminRoute>
                   }
                 />
