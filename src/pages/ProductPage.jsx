@@ -74,6 +74,7 @@ const ProductPage = ({ token }) => {
 
   const [fitType, setFitType] = useState("Regular");
   const [styleVibe, setStyleVibe] = useState("Streetwear");
+  const [recommendationSection, setRecommendationSection] = useState("none");
   const [styleTags, setStyleTags] = useState([]);
   const [styleTagInput, setStyleTagInput] = useState("");
   const [matchWith, setMatchWith] = useState([]);
@@ -268,8 +269,8 @@ const ProductPage = ({ token }) => {
         const products = Array.isArray(res.data.products)
           ? res.data.products
           : Array.isArray(res.data.product)
-            ? res.data.product
-            : [];
+          ? res.data.product
+          : [];
 
         setList([...products].reverse());
       } else {
@@ -300,7 +301,8 @@ const ProductPage = ({ token }) => {
         setColorHex(p.colorHex || "#000000");
         setCategory(p.category || "Tshirt");
         setBranch(
-          p.branch || (role === "admin" ? activeBranches[0]?.code || "" : userBranch)
+          p.branch ||
+            (role === "admin" ? activeBranches[0]?.code || "" : userBranch)
         );
         setBestseller(!!p.bestseller);
         setNewArrival(!!p.newArrival);
@@ -346,6 +348,7 @@ const ProductPage = ({ token }) => {
 
         setFitType(p.fitType || "Regular");
         setStyleVibe(p.styleVibe || "Streetwear");
+        setRecommendationSection(p.recommendationSection || "none");
         setStyleTags(Array.isArray(p.styleTags) ? p.styleTags : []);
         setMatchWith(Array.isArray(p.matchWith) ? p.matchWith : []);
 
@@ -427,6 +430,7 @@ const ProductPage = ({ token }) => {
 
       formData.append("fitType", fitType);
       formData.append("styleVibe", styleVibe);
+      formData.append("recommendationSection", recommendationSection);
       formData.append("styleTags", JSON.stringify(styleTags));
       formData.append("matchWith", JSON.stringify(matchWith));
 
@@ -442,27 +446,23 @@ const ProductPage = ({ token }) => {
 
       const response = editId
         ? await axios.put(
-          `${backendUrl}/api/product/update/${editId}`,
-          formData,
-          {
+            `${backendUrl}/api/product/update/${editId}`,
+            formData,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                token,
+                "Content-Type": "multipart/form-data",
+              },
+            }
+          )
+        : await axios.post(`${backendUrl}/api/product/add`, formData, {
             headers: {
               Authorization: `Bearer ${token}`,
               token,
               "Content-Type": "multipart/form-data",
             },
-          }
-        )
-        : await axios.post(
-          `${backendUrl}/api/product/add`,
-          formData,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              token,
-              "Content-Type": "multipart/form-data",
-            },
-          }
-        );
+          });
 
       if (response.data.success) {
         toast.success(
@@ -480,8 +480,8 @@ const ProductPage = ({ token }) => {
       console.log("PRODUCT SUBMIT RESPONSE:", err?.response?.data);
       toast.error(
         err?.response?.data?.message ||
-        err?.message ||
-        "Failed to save product"
+          err?.message ||
+          "Failed to save product"
       );
     } finally {
       setSaving(false);
@@ -516,6 +516,7 @@ const ProductPage = ({ token }) => {
     setColorInput("");
     setFitType("Regular");
     setStyleVibe("Streetwear");
+    setRecommendationSection("none");
     setStyleTags([]);
     setStyleTagInput("");
     setMatchWith([]);
@@ -745,16 +746,17 @@ const ProductPage = ({ token }) => {
                       return (
                         <label key={i} className="cursor-pointer">
                           <img
-                            className={`w-24 h-28 border border-black/10 rounded-2xl bg-white ${hasImage
-                              ? "object-cover"
-                              : "object-contain p-2 opacity-50"
-                              }`}
+                            className={`w-24 h-28 border border-black/10 rounded-2xl bg-white ${
+                              hasImage
+                                ? "object-cover"
+                                : "object-contain p-2 opacity-50"
+                            }`}
                             src={
                               img
                                 ? URL.createObjectURL(img)
                                 : oldImages[i]
-                                  ? getMediaUrl(oldImages[i], backendUrl)
-                                  : assets.upload_area
+                                ? getMediaUrl(oldImages[i], backendUrl)
+                                : assets.upload_area
                             }
                             alt=""
                           />
@@ -784,16 +786,17 @@ const ProductPage = ({ token }) => {
 
                   <label className="cursor-pointer inline-block">
                     <img
-                      className={`w-40 h-40 border border-black/10 rounded-2xl bg-white ${sizeChartImage || oldSizeChartImage
-                        ? "object-cover"
-                        : "object-contain p-3 opacity-50"
-                        }`}
+                      className={`w-40 h-40 border border-black/10 rounded-2xl bg-white ${
+                        sizeChartImage || oldSizeChartImage
+                          ? "object-cover"
+                          : "object-contain p-3 opacity-50"
+                      }`}
                       src={
                         sizeChartImage
                           ? URL.createObjectURL(sizeChartImage)
                           : oldSizeChartImage
-                            ? getMediaUrl(oldSizeChartImage, backendUrl)
-                            : assets.upload_area
+                          ? getMediaUrl(oldSizeChartImage, backendUrl)
+                          : assets.upload_area
                       }
                       alt="Size chart"
                     />
@@ -801,7 +804,9 @@ const ProductPage = ({ token }) => {
                       type="file"
                       accept="image/*"
                       hidden
-                      onChange={(e) => setSizeChartImage(e.target.files?.[0] || null)}
+                      onChange={(e) =>
+                        setSizeChartImage(e.target.files?.[0] || null)
+                      }
                     />
                   </label>
 
@@ -929,10 +934,9 @@ const ProductPage = ({ token }) => {
                         </button>
                       </div>
                     ))}
-
-
                   </div>
                 </div>
+
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
@@ -1026,10 +1030,11 @@ const ProductPage = ({ token }) => {
                               : [...prev, size]
                           )
                         }
-                        className={`px-3 py-2 border rounded-xl cursor-pointer text-sm font-semibold ${sizes.includes(size)
-                          ? "bg-black text-white border-black"
-                          : "bg-white border-black/10"
-                          }`}
+                        className={`px-3 py-2 border rounded-xl cursor-pointer text-sm font-semibold ${
+                          sizes.includes(size)
+                            ? "bg-black text-white border-black"
+                            : "bg-white border-black/10"
+                        }`}
                       >
                         {size}
                       </span>
@@ -1165,6 +1170,33 @@ const ProductPage = ({ token }) => {
 
                   <div className="mb-4">
                     <p className="text-xs font-black text-[#6b7280] mb-2">
+                      Recommendation Position
+                    </p>
+
+                    <div className="flex gap-2 flex-wrap">
+                      {["top", "bottom", "both", "none"].map((pos) => (
+                        <span
+                          key={pos}
+                          onClick={() => setRecommendationSection(pos)}
+                          className={`px-3 py-1.5 border rounded-xl cursor-pointer text-xs font-semibold ${
+                            recommendationSection === pos
+                              ? "bg-black text-white border-black"
+                              : "bg-white border-black/10"
+                          }`}
+                        >
+                          {pos.toUpperCase()}
+                        </span>
+                      ))}
+                    </div>
+
+                    <p className="text-[10px] text-[#6b7280] mt-2 leading-5">
+                      TOP = upper wear. BOTTOM = lower wear. BOTH = can appear
+                      in both recommendation areas.
+                    </p>
+                  </div>
+
+                  <div className="mb-4">
+                    <p className="text-xs font-black text-[#6b7280] mb-2">
                       Style Tags
                     </p>
                     <div className="flex gap-2">
@@ -1235,10 +1267,11 @@ const ProductPage = ({ token }) => {
                                 : [...prev, item]
                             )
                           }
-                          className={`px-3 py-1.5 border rounded-xl cursor-pointer text-xs font-semibold ${matchWith.includes(item)
-                            ? "bg-black text-white border-black"
-                            : "bg-white border-black/10"
-                            }`}
+                          className={`px-3 py-1.5 border rounded-xl cursor-pointer text-xs font-semibold ${
+                            matchWith.includes(item)
+                              ? "bg-black text-white border-black"
+                              : "bg-white border-black/10"
+                          }`}
                         >
                           {item}
                         </span>
@@ -1269,18 +1302,19 @@ const ProductPage = ({ token }) => {
 
             <button
               disabled={saving}
-              className={`mt-6 px-6 py-3 text-white font-black rounded-2xl transition ${saving
-                ? "bg-gray-500 cursor-not-allowed"
-                : "bg-black hover:bg-gray-800"
-                }`}
+              className={`mt-6 px-6 py-3 text-white font-black rounded-2xl transition ${
+                saving
+                  ? "bg-gray-500 cursor-not-allowed"
+                  : "bg-black hover:bg-gray-800"
+              }`}
             >
               {saving
                 ? editId
                   ? "Updating..."
                   : "Adding..."
                 : editId
-                  ? "Update Product"
-                  : "Add Product"}
+                ? "Update Product"
+                : "Add Product"}
             </button>
           </form>
         )}
@@ -1334,8 +1368,9 @@ const ProductPage = ({ token }) => {
             currentItems.map((item, index) => (
               <div
                 key={item._id}
-                className={`grid grid-cols-1 md:grid-cols-[0.75fr_2.3fr_1fr_1fr_1fr_1fr] items-center border-b border-[#ecece6] px-5 py-4 gap-3 ${index % 2 === 0 ? "bg-white" : "bg-[#fcfcfb]"
-                  }`}
+                className={`grid grid-cols-1 md:grid-cols-[0.75fr_2.3fr_1fr_1fr_1fr_1fr] items-center border-b border-[#ecece6] px-5 py-4 gap-3 ${
+                  index % 2 === 0 ? "bg-white" : "bg-[#fcfcfb]"
+                }`}
               >
                 <img
                   src={
@@ -1391,11 +1426,19 @@ const ProductPage = ({ token }) => {
                     </p>
                   )}
 
-                  {Array.isArray(item.styleTags) && item.styleTags.length > 0 && (
-                    <p className="text-[10px] text-[#6b7280] uppercase font-semibold">
-                      Tags: {item.styleTags.join(", ")}
-                    </p>
-                  )}
+                  {item.recommendationSection &&
+                    item.recommendationSection !== "none" && (
+                      <p className="text-[10px] text-[#6b7280] uppercase font-semibold">
+                        Position: {item.recommendationSection}
+                      </p>
+                    )}
+
+                  {Array.isArray(item.styleTags) &&
+                    item.styleTags.length > 0 && (
+                      <p className="text-[10px] text-[#6b7280] uppercase font-semibold">
+                        Tags: {item.styleTags.join(", ")}
+                      </p>
+                    )}
 
                   {item.onSale && Number(item.salePercent) > 0 && (
                     <div className="mt-2 flex flex-wrap gap-2 items-center">
@@ -1462,10 +1505,11 @@ const ProductPage = ({ token }) => {
               <button
                 key={i}
                 onClick={() => setCurrentPage(i + 1)}
-                className={`px-3.5 py-1.5 border rounded-xl font-black ${currentPage === i + 1
-                  ? "bg-black text-white border-black"
-                  : "bg-white/70 text-gray-900 border-[#d7d7d2]"
-                  }`}
+                className={`px-3.5 py-1.5 border rounded-xl font-black ${
+                  currentPage === i + 1
+                    ? "bg-black text-white border-black"
+                    : "bg-white/70 text-gray-900 border-[#d7d7d2]"
+                }`}
               >
                 {i + 1}
               </button>
@@ -1477,4 +1521,4 @@ const ProductPage = ({ token }) => {
   );
 };
 
-export default ProductPage; 
+export default ProductPage;
