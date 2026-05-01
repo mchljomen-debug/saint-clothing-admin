@@ -36,6 +36,10 @@ const ProductPage = ({ token }) => {
 
   const [images, setImages] = useState([null, null, null, null]);
   const [oldImages, setOldImages] = useState([]);
+
+  const [outfitImage, setOutfitImage] = useState(null);
+  const [oldOutfitImage, setOldOutfitImage] = useState("");
+
   const [model3d, setModel3d] = useState(null);
   const [oldModel3d, setOldModel3d] = useState("");
 
@@ -326,6 +330,9 @@ const ProductPage = ({ token }) => {
         setOldSizeChartImage(p.sizeChartImage || "");
         setSizeChartImage(null);
 
+        setOldOutfitImage(p.outfitImage || "");
+        setOutfitImage(null);
+
         let safeColors = [];
         try {
           const raw = p.colors;
@@ -406,6 +413,10 @@ const ProductPage = ({ token }) => {
 
       if (sizeChartImage) {
         formData.append("sizeChartImage", sizeChartImage);
+      }
+
+      if (outfitImage) {
+        formData.append("outfitImage", outfitImage);
       }
 
       formData.append("name", name.trim());
@@ -512,6 +523,8 @@ const ProductPage = ({ token }) => {
     });
     setSizeChartImage(null);
     setOldSizeChartImage("");
+    setOutfitImage(null);
+    setOldOutfitImage("");
     setColors([]);
     setColorInput("");
     setFitType("Regular");
@@ -777,6 +790,43 @@ const ProductPage = ({ token }) => {
                       );
                     })}
                   </div>
+                </div>
+
+                <div className="rounded-[24px] border border-black/[0.06] bg-white/60 p-4">
+                  <p className="text-sm font-black text-[#6b7280] uppercase tracking-[0.18em] mb-3">
+                    Outfit Builder Image
+                  </p>
+
+                  <label className="cursor-pointer inline-block">
+                    <img
+                      className={`w-40 h-40 border border-black/10 rounded-2xl bg-white ${
+                        outfitImage || oldOutfitImage
+                          ? "object-contain"
+                          : "object-contain p-3 opacity-50"
+                      }`}
+                      src={
+                        outfitImage
+                          ? URL.createObjectURL(outfitImage)
+                          : oldOutfitImage
+                          ? getMediaUrl(oldOutfitImage, backendUrl)
+                          : assets.upload_area
+                      }
+                      alt="Outfit builder"
+                    />
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      hidden
+                      onChange={(e) =>
+                        setOutfitImage(e.target.files?.[0] || null)
+                      }
+                    />
+                  </label>
+
+                  <p className="text-xs text-[#6b7280] mt-2">
+                    This image is used only in the 2D outfit builder. Best:
+                    transparent PNG.
+                  </p>
                 </div>
 
                 <div className="rounded-[24px] border border-black/[0.06] bg-white/60 p-4">
@@ -1412,6 +1462,12 @@ const ProductPage = ({ token }) => {
                         {item.colorHex ? `(${item.colorHex})` : ""}
                       </p>
                     </div>
+                  )}
+
+                  {item.outfitImage && (
+                    <p className="text-[10px] text-green-600 uppercase mt-1 font-black">
+                      Outfit image ready
+                    </p>
                   )}
 
                   {item.fitType && (
