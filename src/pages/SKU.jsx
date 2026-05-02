@@ -116,25 +116,18 @@ const SKU = ({ token }) => {
   };
 
   const getInventoryStatus = (totalStock) => {
-    if (totalStock === 0) return "Out of Stock";
+    if (totalStock === 0) return "Out";
     if (totalStock <= 5) return "Critical";
-    if (totalStock <= 10) return "Low Stock";
+    if (totalStock <= 10) return "Low";
     return "Healthy";
   };
 
   const getInventoryStatusClass = (totalStock) => {
-    if (totalStock === 0) {
-      return "bg-red-100 text-red-700 border-red-200";
-    }
-
-    if (totalStock <= 5) {
+    if (totalStock === 0) return "bg-red-100 text-red-700 border-red-200";
+    if (totalStock <= 5)
       return "bg-orange-100 text-orange-700 border-orange-200";
-    }
-
-    if (totalStock <= 10) {
+    if (totalStock <= 10)
       return "bg-amber-100 text-amber-700 border-amber-200";
-    }
-
     return "bg-emerald-100 text-emerald-700 border-emerald-200";
   };
 
@@ -398,7 +391,7 @@ const SKU = ({ token }) => {
   return (
     <div className="w-full font-['Montserrat'] pt-[60px]">
       <div className="rounded-[22px] border border-black/10 bg-[#f7f7f4] shadow-[0_18px_60px_rgba(0,0,0,0.08)] overflow-hidden">
-        <div className="px-6 md:px-8 py-7 bg-[#0A0D17]">
+        <div className="px-5 md:px-7 py-6 bg-[#0A0D17]">
           <p className="text-white/45 text-[10px] font-black uppercase tracking-[0.34em]">
             Saint Clothing Admin
           </p>
@@ -425,58 +418,58 @@ const SKU = ({ token }) => {
           </div>
         </div>
 
-        <div className="p-5 md:p-8">
-          <div className="grid grid-cols-2 xl:grid-cols-5 gap-4">
-            <div className="rounded-[18px] bg-white border border-black/10 p-5">
-              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#0A0D17]/45">
+        <div className="p-4 md:p-6">
+          <div className="grid grid-cols-2 xl:grid-cols-5 gap-3">
+            <div className="rounded-[16px] bg-white border border-black/10 p-4">
+              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#0A0D17]/45">
                 Products
               </p>
-              <p className="mt-3 text-3xl font-black text-[#0A0D17]">
+              <p className="mt-2 text-2xl font-black text-[#0A0D17]">
                 {inventoryStats.products}
               </p>
             </div>
 
-            <div className="rounded-[18px] bg-white border border-black/10 p-5">
-              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#0A0D17]/45">
+            <div className="rounded-[16px] bg-white border border-black/10 p-4">
+              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#0A0D17]/45">
                 Total Units
               </p>
-              <p className="mt-3 text-3xl font-black text-[#0A0D17]">
+              <p className="mt-2 text-2xl font-black text-[#0A0D17]">
                 {inventoryStats.totalStock}
               </p>
             </div>
 
-            <div className="rounded-[18px] bg-white border border-emerald-200 p-5">
-              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-700">
+            <div className="rounded-[16px] bg-white border border-emerald-200 p-4">
+              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-700">
                 Healthy
               </p>
-              <p className="mt-3 text-3xl font-black text-emerald-700">
+              <p className="mt-2 text-2xl font-black text-emerald-700">
                 {inventoryStats.healthyStock}
               </p>
             </div>
 
-            <div className="rounded-[18px] bg-white border border-orange-200 p-5">
-              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-orange-700">
+            <div className="rounded-[16px] bg-white border border-orange-200 p-4">
+              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-orange-700">
                 Critical
               </p>
-              <p className="mt-3 text-3xl font-black text-orange-700">
+              <p className="mt-2 text-2xl font-black text-orange-700">
                 {inventoryStats.criticalStock}
               </p>
             </div>
 
-            <div className="rounded-[18px] bg-white border border-red-200 p-5">
-              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-red-600">
+            <div className="rounded-[16px] bg-white border border-red-200 p-4">
+              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-red-600">
                 Out
               </p>
-              <p className="mt-3 text-3xl font-black text-red-600">
+              <p className="mt-2 text-2xl font-black text-red-600">
                 {inventoryStats.outStock}
               </p>
             </div>
           </div>
 
-          <div className="mt-5 rounded-[18px] bg-white border border-black/10 p-5">
-            <div className="grid grid-cols-1 xl:grid-cols-[1fr_auto_auto] gap-4 items-end">
+          <div className="mt-4 rounded-[16px] bg-white border border-black/10 p-4">
+            <div className="grid grid-cols-1 xl:grid-cols-[1fr_170px_170px] gap-3 items-end">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#0A0D17]/45">
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#0A0D17]/45">
                   Search Inventory
                 </p>
 
@@ -484,19 +477,19 @@ const SKU = ({ token }) => {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search product name or SKU..."
-                  className="mt-3 w-full rounded-xl border border-black/10 px-4 py-3 text-sm font-bold outline-none focus:border-[#0A0D17]"
+                  className="mt-2 w-full rounded-xl border border-black/10 px-4 py-2.5 text-xs font-bold outline-none focus:border-[#0A0D17]"
                 />
               </div>
 
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#0A0D17]/45">
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#0A0D17]/45">
                   Category
                 </p>
 
                 <select
                   value={categoryFilter}
                   onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="mt-3 w-full xl:w-[220px] rounded-xl border border-black/10 px-4 py-3 text-sm font-bold outline-none focus:border-[#0A0D17]"
+                  className="mt-2 w-full rounded-xl border border-black/10 px-3 py-2.5 text-xs font-bold outline-none focus:border-[#0A0D17]"
                 >
                   {FIXED_CATEGORIES.map((cat) => (
                     <option key={cat} value={cat}>
@@ -507,14 +500,14 @@ const SKU = ({ token }) => {
               </div>
 
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#0A0D17]/45">
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#0A0D17]/45">
                   Stock Status
                 </p>
 
                 <select
                   value={stockFilter}
                   onChange={(e) => setStockFilter(e.target.value)}
-                  className="mt-3 w-full xl:w-[220px] rounded-xl border border-black/10 px-4 py-3 text-sm font-bold outline-none focus:border-[#0A0D17]"
+                  className="mt-2 w-full rounded-xl border border-black/10 px-3 py-2.5 text-xs font-bold outline-none focus:border-[#0A0D17]"
                 >
                   <option value="All">All</option>
                   <option value="Healthy">Healthy</option>
@@ -525,173 +518,189 @@ const SKU = ({ token }) => {
               </div>
             </div>
 
-            <div className="mt-5 grid grid-cols-1 sm:grid-cols-4 gap-3">
-              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-700">
+            <div className="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-2">
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
+                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-emerald-700">
                   11+ Healthy
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-700">
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-amber-700">
                   6-10 Low
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-orange-700">
+              <div className="rounded-xl border border-orange-200 bg-orange-50 px-3 py-2">
+                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-orange-700">
                   1-5 Critical
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-red-700">
+              <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2">
+                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-red-700">
                   0 Out
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="mt-5 rounded-[18px] bg-white border border-black/10 overflow-hidden">
-            <div className="px-5 py-4 border-b border-black/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div className="mt-4 rounded-[16px] bg-white border border-black/10 overflow-hidden">
+            <div className="px-4 py-3 border-b border-black/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#0A0D17]/45">
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#0A0D17]/45">
                   Stock Inventory
                 </p>
 
-                <h3 className="text-lg font-black uppercase text-[#0A0D17]">
-                  Product Stock Levels
+                <h3 className="text-base font-black uppercase text-[#0A0D17]">
+                  Product Stock Table
                 </h3>
               </div>
 
-              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#0A0D17]/45">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#0A0D17]/45">
                 {filteredProducts.length} items
               </p>
             </div>
 
-            <div className="divide-y divide-black/10">
-              {paginatedProducts.map((product) => {
-                const totalStock = getTotalStock(product.stock);
-                const status = getInventoryStatus(totalStock);
-                const statusClass = getInventoryStatusClass(totalStock);
+            <div className="w-full overflow-hidden">
+              <table className="w-full table-fixed border-collapse text-[10px]">
+                <thead>
+                  <tr className="bg-[#0A0D17] text-white">
+                    <th className="w-[27%] px-2 py-3 text-left font-black uppercase tracking-[0.1em]">
+                      Product
+                    </th>
+                    <th className="w-[9%] px-1 py-3 text-center font-black uppercase tracking-[0.08em]">
+                      SKU
+                    </th>
+                    <th className="w-[10%] px-1 py-3 text-center font-black uppercase tracking-[0.08em]">
+                      Cat.
+                    </th>
 
-                return (
-                  <div
-                    key={product._id}
-                    className="p-4 hover:bg-[#fafaf8] transition"
-                  >
-                    <div className="grid grid-cols-1 xl:grid-cols-[1.5fr_0.8fr_1fr_auto] gap-4 xl:items-center">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-14 h-14 rounded-xl bg-[#f0f0ed] overflow-hidden border border-black/10 shrink-0">
-                          {getCardImage(product) ? (
-                            <img
-                              src={getCardImage(product)}
-                              alt={product.name}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.currentTarget.style.display = "none";
-                              }}
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-[9px] font-black text-black/30">
-                              IMG
+                    {sizesList.map((size) => (
+                      <th
+                        key={size}
+                        className="w-[5%] px-1 py-3 text-center font-black uppercase tracking-[0.06em]"
+                      >
+                        {size}
+                      </th>
+                    ))}
+
+                    <th className="w-[6%] px-1 py-3 text-center font-black uppercase tracking-[0.06em]">
+                      Total
+                    </th>
+                    <th className="w-[10%] px-1 py-3 text-center font-black uppercase tracking-[0.06em]">
+                      Status
+                    </th>
+                    <th className="w-[8%] px-1 py-3 text-center font-black uppercase tracking-[0.06em]">
+                      Action
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {paginatedProducts.map((product) => {
+                    const totalStock = getTotalStock(product.stock);
+
+                    return (
+                      <tr
+                        key={product._id}
+                        className="border-b border-black/5 hover:bg-[#fafaf8]"
+                      >
+                        <td className="px-2 py-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-9 h-9 rounded-lg bg-[#f0f0ed] overflow-hidden border border-black/10 shrink-0">
+                              {getCardImage(product) ? (
+                                <img
+                                  src={getCardImage(product)}
+                                  alt={product.name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = "none";
+                                  }}
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-[8px] font-black text-black/30">
+                                  IMG
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </div>
 
-                        <div className="min-w-0">
-                          <p className="text-sm font-black uppercase text-[#0A0D17] truncate">
-                            {product.name}
+                            <div className="min-w-0">
+                              <p className="text-[10px] font-black uppercase text-[#0A0D17] truncate">
+                                {product.name}
+                              </p>
+                              <p className="mt-0.5 text-[9px] font-bold text-[#0A0D17]/40 truncate">
+                                ₱{Number(product.price || 0).toLocaleString()}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="px-1 py-2 text-center">
+                          <p className="text-[9px] font-black text-[#0A0D17]/65 truncate">
+                            {product.sku || "N/A"}
                           </p>
+                        </td>
 
-                          <p className="mt-1 text-[10px] font-bold text-[#0A0D17]/45 uppercase tracking-[0.14em]">
-                            SKU: {product.sku || "N/A"}
-                          </p>
+                        <td className="px-1 py-2 text-center">
+                          <span className="inline-flex max-w-full rounded-full bg-[#f3f3f1] border border-black/10 px-2 py-1 text-[8px] font-black uppercase text-[#0A0D17]/60 truncate">
+                            {normalizeCategory(product.category) || "None"}
+                          </span>
+                        </td>
 
-                          <p className="mt-1 text-[10px] font-bold text-[#0A0D17]/35">
-                            ₱{Number(product.price || 0).toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
+                        {sizesList.map((size) => {
+                          const qty = getStock(product.stock, size);
 
-                      <div>
-                        <p className="xl:hidden text-[9px] font-black uppercase tracking-[0.18em] text-[#0A0D17]/35 mb-1">
-                          Category
-                        </p>
-
-                        <span className="inline-flex px-3 py-1 rounded-full bg-[#f3f3f1] border border-black/10 text-[10px] font-black uppercase text-[#0A0D17]/60">
-                          {normalizeCategory(product.category) ||
-                            "Uncategorized"}
-                        </span>
-                      </div>
-
-                      <div>
-                        <p className="xl:hidden text-[9px] font-black uppercase tracking-[0.18em] text-[#0A0D17]/35 mb-2">
-                          Size Stocks
-                        </p>
-
-                        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                          {sizesList.map((size) => {
-                            const qty = getStock(product.stock, size);
-
-                            return (
-                              <div
-                                key={size}
-                                className={`rounded-xl border p-2 text-center ${getStockBoxClass(
+                          return (
+                            <td key={size} className="px-1 py-2 text-center">
+                              <span
+                                className={`inline-flex min-w-[26px] justify-center rounded-md border px-1 py-1 text-[9px] font-black ${getStockBoxClass(
                                   qty
                                 )}`}
                               >
-                                <p className="text-[9px] font-black uppercase">
-                                  {size}
-                                </p>
+                                {qty}
+                              </span>
+                            </td>
+                          );
+                        })}
 
-                                <p className="mt-1 text-sm font-black">
-                                  {qty}
-                                </p>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
+                        <td className="px-1 py-2 text-center text-[10px] font-black text-[#0A0D17]">
+                          {totalStock}
+                        </td>
 
-                      <div className="flex xl:flex-col items-center xl:items-end justify-between gap-3">
-                        <div className="text-left xl:text-right">
-                          <p className="text-[9px] font-black uppercase tracking-[0.18em] text-[#0A0D17]/35">
-                            Total
-                          </p>
-
-                          <p className="text-xl font-black text-[#0A0D17]">
-                            {totalStock}
-                          </p>
-
+                        <td className="px-1 py-2 text-center">
                           <span
-                            className={`mt-2 inline-flex rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] ${statusClass}`}
+                            className={`inline-flex rounded-full border px-2 py-1 text-[8px] font-black uppercase tracking-[0.06em] ${getInventoryStatusClass(
+                              totalStock
+                            )}`}
                           >
-                            {status}
+                            {getInventoryStatus(totalStock)}
                           </span>
-                        </div>
+                        </td>
 
-                        <button
-                          type="button"
-                          onClick={() => setSelectedProduct(product)}
-                          className="px-5 py-2.5 rounded-full bg-[#0A0D17] text-white text-[10px] font-black uppercase tracking-[0.16em] shrink-0"
-                        >
-                          Update
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+                        <td className="px-1 py-2 text-center">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedProduct(product)}
+                            className="px-2.5 py-1.5 rounded-full bg-[#0A0D17] text-white text-[8px] font-black uppercase tracking-[0.1em]"
+                          >
+                            Edit
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+
+              {paginatedProducts.length === 0 && (
+                <div className="py-16 text-center">
+                  <p className="text-sm font-black uppercase tracking-[0.2em] text-[#0A0D17]/35">
+                    No inventory found
+                  </p>
+                </div>
+              )}
             </div>
-
-            {paginatedProducts.length === 0 && (
-              <div className="py-16 text-center">
-                <p className="text-sm font-black uppercase tracking-[0.2em] text-[#0A0D17]/35">
-                  No inventory found
-                </p>
-              </div>
-            )}
           </div>
 
           {totalPages > 1 && (
@@ -718,14 +727,14 @@ const SKU = ({ token }) => {
             </div>
           )}
 
-          <div className="mt-5 rounded-[18px] bg-white border border-black/10 overflow-hidden">
-            <div className="px-5 py-4 border-b border-black/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="mt-5 rounded-[16px] bg-white border border-black/10 overflow-hidden">
+            <div className="px-4 py-3 border-b border-black/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#0A0D17]/45">
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#0A0D17]/45">
                   Inventory History
                 </p>
 
-                <h3 className="text-lg font-black uppercase text-[#0A0D17]">
+                <h3 className="text-base font-black uppercase text-[#0A0D17]">
                   Recent Stock Updates
                 </h3>
               </div>
