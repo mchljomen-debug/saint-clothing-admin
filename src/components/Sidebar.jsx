@@ -22,7 +22,7 @@ const Sidebar = () => {
   const mainLinks = [
     { to: "/", icon: LayoutDashboard, label: "Dashboard" },
     { to: "/products", icon: Package, label: "Products" },
-    { to: "/sku", icon: Barcode, label: "SKU Management" },
+    { to: "/sku", icon: Barcode, label: "Inventory Management" },
     { to: "/orders", icon: ShoppingCart, label: "Orders" },
     { to: "/sales-report", icon: BarChart3, label: "Sales Report" },
   ];
