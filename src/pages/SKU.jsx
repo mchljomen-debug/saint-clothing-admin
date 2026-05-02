@@ -78,11 +78,26 @@ const getAdminName = () =>
   localStorage.getItem("role") ||
   "Admin";
 
+const formatDateInput = (dateValue) => {
+  if (!dateValue) return "";
+
+  try {
+    return new Date(dateValue).toISOString().slice(0, 10);
+  } catch {
+    return "";
+  }
+};
+
 const SKU = ({ token }) => {
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stockUpdates, setStockUpdates] = useState({});
+  const [preorderUpdates, setPreorderUpdates] = useState({});
+  const [preorderEnabled, setPreorderEnabled] = useState(true);
+  const [preorderThreshold, setPreorderThreshold] = useState(5);
+  const [preorderRestockDate, setPreorderRestockDate] = useState("");
+  const [preorderNote, setPreorderNote] = useState("");
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [stockFilter, setStockFilter] = useState("All");
@@ -115,19 +130,30 @@ const SKU = ({ token }) => {
     return `${backendUrl}/uploads/${img}`;
   };
 
-  const getInventoryStatus = (totalStock) => {
-    if (totalStock === 0) return "Out";
-    if (totalStock <= 5) return "Critical";
-    if (totalStock <= 10) return "Low";
+  const getProductPreorderThreshold = (product) =>
+    Number(product?.preorderThreshold ?? 5);
+
+  const getProductStatus = (product) => {
+    const actualTotal = getTotalStock(product?.stock);
+    const preorderTotal = getTotalStock(product?.preorderStock);
+    const threshold = getProductPreorderThreshold(product);
+    const enabled = product?.preorderEnabled !== false;
+
+    if (actualTotal === 0 && (!enabled || preorderTotal <= 0)) return "Out";
+    if (enabled && actualTotal <= threshold && preorderTotal > 0)
+      return "Pre-order";
+    if (actualTotal <= 5) return "Critical";
+    if (actualTotal <= 10) return "Low";
     return "Healthy";
   };
 
-  const getInventoryStatusClass = (totalStock) => {
-    if (totalStock === 0) return "bg-red-100 text-red-700 border-red-200";
-    if (totalStock <= 5)
+  const getInventoryStatusClass = (status) => {
+    if (status === "Out") return "bg-red-100 text-red-700 border-red-200";
+    if (status === "Pre-order")
       return "bg-orange-100 text-orange-700 border-orange-200";
-    if (totalStock <= 10)
-      return "bg-amber-100 text-amber-700 border-amber-200";
+    if (status === "Critical")
+      return "bg-orange-100 text-orange-700 border-orange-200";
+    if (status === "Low") return "bg-amber-100 text-amber-700 border-amber-200";
     return "bg-emerald-100 text-emerald-700 border-emerald-200";
   };
 
@@ -136,6 +162,11 @@ const SKU = ({ token }) => {
     if (qty <= 5) return "bg-orange-50 text-orange-700 border-orange-100";
     if (qty <= 10) return "bg-amber-50 text-amber-700 border-amber-100";
     return "bg-emerald-50 text-emerald-700 border-emerald-100";
+  };
+
+  const getPreorderBoxClass = (qty) => {
+    if (qty <= 0) return "bg-white text-[#0A0D17]/40 border-orange-100";
+    return "bg-orange-50 text-orange-700 border-orange-200";
   };
 
   const loadInventoryLogs = () => {
@@ -164,16 +195,23 @@ const SKU = ({ token }) => {
         setProducts(allProducts);
 
         const initialStock = {};
+        const initialPreorderStock = {};
 
         allProducts.forEach((product) => {
           initialStock[product._id] = {};
+          initialPreorderStock[product._id] = {};
 
           sizesList.forEach((size) => {
             initialStock[product._id][size] = getStock(product.stock, size);
+            initialPreorderStock[product._id][size] = getStock(
+              product.preorderStock,
+              size
+            );
           });
         });
 
         setStockUpdates(initialStock);
+        setPreorderUpdates(initialPreorderStock);
       } else {
         toast.error(res.data.message);
       }
@@ -210,12 +248,13 @@ const SKU = ({ token }) => {
 
     if (stockFilter !== "All") {
       result = result.filter((product) => {
-        const total = getTotalStock(product.stock);
+        const status = getProductStatus(product);
 
-        if (stockFilter === "Healthy") return total > 10;
-        if (stockFilter === "Low") return total > 5 && total <= 10;
-        if (stockFilter === "Critical") return total > 0 && total <= 5;
-        if (stockFilter === "Out") return total === 0;
+        if (stockFilter === "Healthy") return status === "Healthy";
+        if (stockFilter === "Low") return status === "Low";
+        if (stockFilter === "Critical") return status === "Critical";
+        if (stockFilter === "Pre-order") return status === "Pre-order";
+        if (stockFilter === "Out") return status === "Out";
 
         return true;
       });
@@ -231,30 +270,39 @@ const SKU = ({ token }) => {
       0
     );
 
+    const totalPreorder = products.reduce(
+      (sum, product) => sum + getTotalStock(product.preorderStock),
+      0
+    );
+
     const healthyStock = products.filter(
-      (product) => getTotalStock(product.stock) > 10
+      (product) => getProductStatus(product) === "Healthy"
     ).length;
 
-    const lowStock = products.filter((product) => {
-      const total = getTotalStock(product.stock);
-      return total > 5 && total <= 10;
-    }).length;
+    const lowStock = products.filter(
+      (product) => getProductStatus(product) === "Low"
+    ).length;
 
-    const criticalStock = products.filter((product) => {
-      const total = getTotalStock(product.stock);
-      return total > 0 && total <= 5;
-    }).length;
+    const criticalStock = products.filter(
+      (product) => getProductStatus(product) === "Critical"
+    ).length;
+
+    const preorderStock = products.filter(
+      (product) => getProductStatus(product) === "Pre-order"
+    ).length;
 
     const outStock = products.filter(
-      (product) => getTotalStock(product.stock) === 0
+      (product) => getProductStatus(product) === "Out"
     ).length;
 
     return {
       products: products.length,
       totalStock,
+      totalPreorder,
       healthyStock,
       lowStock,
       criticalStock,
+      preorderStock,
       outStock,
     };
   }, [products]);
@@ -271,7 +319,51 @@ const SKU = ({ token }) => {
     }));
   };
 
-  const createStockChangeLogs = (product, oldStock, newStock) => {
+  const handlePreorderChange = (productId, size, value) => {
+    const safeValue = Math.max(0, Number(value) || 0);
+
+    setPreorderUpdates((prev) => ({
+      ...prev,
+      [productId]: {
+        ...prev[productId],
+        [String(size).toUpperCase()]: safeValue,
+      },
+    }));
+  };
+
+  const openInventoryModal = (product) => {
+    const actualInitial = {};
+    const preorderInitial = {};
+
+    sizesList.forEach((size) => {
+      actualInitial[size] = getStock(product.stock, size);
+      preorderInitial[size] = getStock(product.preorderStock, size);
+    });
+
+    setSelectedProduct(product);
+
+    setStockUpdates((prev) => ({
+      ...prev,
+      [product._id]: actualInitial,
+    }));
+
+    setPreorderUpdates((prev) => ({
+      ...prev,
+      [product._id]: preorderInitial,
+    }));
+
+    setPreorderEnabled(product.preorderEnabled !== false);
+    setPreorderThreshold(Number(product.preorderThreshold ?? 5));
+    setPreorderRestockDate(formatDateInput(product.preorderRestockDate));
+    setPreorderNote(product.preorderNote || "");
+  };
+
+  const createStockChangeLogs = (
+    product,
+    oldStock,
+    newStock,
+    type = "Actual"
+  ) => {
     return sizesList
       .map((size) => {
         const oldQty = getStock(oldStock, size);
@@ -280,11 +372,12 @@ const SKU = ({ token }) => {
         if (oldQty === newQty) return null;
 
         return {
-          id: `${Date.now()}-${product._id}-${size}`,
+          id: `${Date.now()}-${product._id}-${type}-${size}`,
           productId: product._id,
           productName: product.name,
           sku: product.sku || "N/A",
           size,
+          stockType: type,
           oldQty,
           newQty,
           difference: newQty - oldQty,
@@ -305,19 +398,37 @@ const SKU = ({ token }) => {
       }
 
       const normalizedStock = {};
+      const normalizedPreorderStock = {};
 
       sizesList.forEach((size) => {
         normalizedStock[size] = Number(stockUpdates?.[productId]?.[size] ?? 0);
+        normalizedPreorderStock[size] = Number(
+          preorderUpdates?.[productId]?.[size] ?? 0
+        );
       });
 
-      const newLogs = createStockChangeLogs(
+      const actualLogs = createStockChangeLogs(
         product,
         product.stock,
-        normalizedStock
+        normalizedStock,
+        "Actual"
       );
 
-      if (newLogs.length === 0) {
-        toast.info("No stock changes detected");
+      const preorderLogs = createStockChangeLogs(
+        product,
+        product.preorderStock,
+        normalizedPreorderStock,
+        "Pre-order"
+      );
+
+      const metaChanged =
+        Boolean(product.preorderEnabled !== false) !== Boolean(preorderEnabled) ||
+        Number(product.preorderThreshold ?? 5) !== Number(preorderThreshold) ||
+        formatDateInput(product.preorderRestockDate) !== preorderRestockDate ||
+        String(product.preorderNote || "") !== String(preorderNote || "");
+
+      if (actualLogs.length === 0 && preorderLogs.length === 0 && !metaChanged) {
+        toast.info("No inventory changes detected");
         return;
       }
 
@@ -325,19 +436,29 @@ const SKU = ({ token }) => {
         `${backendUrl}/api/product/update-stock/${productId}`,
         {
           stock: normalizedStock,
+          preorderStock: normalizedPreorderStock,
+          preorderEnabled,
+          preorderThreshold,
+          preorderRestockDate,
+          preorderNote,
           updatedBy: getAdminName(),
         },
         axiosConfig
       );
 
       if (res.data.success) {
-        toast.success(res.data.message || "Stock updated successfully");
+        toast.success(res.data.message || "Inventory updated successfully");
 
         const updatedProducts = products.map((item) =>
           item._id === productId
             ? {
                 ...item,
                 stock: { ...normalizedStock },
+                preorderStock: { ...normalizedPreorderStock },
+                preorderEnabled,
+                preorderThreshold,
+                preorderRestockDate: preorderRestockDate || null,
+                preorderNote,
               }
             : item
         );
@@ -349,11 +470,39 @@ const SKU = ({ token }) => {
             ? {
                 ...prev,
                 stock: { ...normalizedStock },
+                preorderStock: { ...normalizedPreorderStock },
+                preorderEnabled,
+                preorderThreshold,
+                preorderRestockDate: preorderRestockDate || null,
+                preorderNote,
               }
-            : null
+            : prev
         );
 
-        saveInventoryLogs([...newLogs, ...inventoryLogs]);
+        const metaLog = metaChanged
+          ? [
+              {
+                id: `${Date.now()}-${product._id}-preorder-settings`,
+                productId: product._id,
+                productName: product.name,
+                sku: product.sku || "N/A",
+                size: "Settings",
+                stockType: "Pre-order",
+                oldQty: "-",
+                newQty: "-",
+                difference: 0,
+                updatedBy: getAdminName(),
+                updatedAt: new Date().toISOString(),
+              },
+            ]
+          : [];
+
+        saveInventoryLogs([
+          ...actualLogs,
+          ...preorderLogs,
+          ...metaLog,
+          ...inventoryLogs,
+        ]);
       } else {
         toast.error(res.data.message);
       }
@@ -403,8 +552,8 @@ const SKU = ({ token }) => {
               </h2>
 
               <p className="mt-2 text-sm text-white/60 max-w-2xl">
-                Monitor stock levels, update size inventory, and track critical
-                stock before it becomes unavailable in the storefront.
+                Manage actual stock, pre-order allocation, auto pre-order
+                threshold, and expected restock date.
               </p>
             </div>
 
@@ -419,7 +568,7 @@ const SKU = ({ token }) => {
         </div>
 
         <div className="p-4 md:p-6">
-          <div className="grid grid-cols-2 xl:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 xl:grid-cols-6 gap-3">
             <div className="rounded-[16px] bg-white border border-black/10 p-4">
               <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#0A0D17]/45">
                 Products
@@ -431,10 +580,19 @@ const SKU = ({ token }) => {
 
             <div className="rounded-[16px] bg-white border border-black/10 p-4">
               <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#0A0D17]/45">
-                Total Units
+                Actual Units
               </p>
               <p className="mt-2 text-2xl font-black text-[#0A0D17]">
                 {inventoryStats.totalStock}
+              </p>
+            </div>
+
+            <div className="rounded-[16px] bg-white border border-orange-200 p-4">
+              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-orange-700">
+                Pre-order Units
+              </p>
+              <p className="mt-2 text-2xl font-black text-orange-700">
+                {inventoryStats.totalPreorder}
               </p>
             </div>
 
@@ -449,10 +607,10 @@ const SKU = ({ token }) => {
 
             <div className="rounded-[16px] bg-white border border-orange-200 p-4">
               <p className="text-[9px] font-black uppercase tracking-[0.2em] text-orange-700">
-                Critical
+                Pre-order
               </p>
               <p className="mt-2 text-2xl font-black text-orange-700">
-                {inventoryStats.criticalStock}
+                {inventoryStats.preorderStock}
               </p>
             </div>
 
@@ -467,7 +625,7 @@ const SKU = ({ token }) => {
           </div>
 
           <div className="mt-4 rounded-[16px] bg-white border border-black/10 p-4">
-            <div className="grid grid-cols-1 xl:grid-cols-[1fr_170px_170px] gap-3 items-end">
+            <div className="grid grid-cols-1 xl:grid-cols-[1fr_170px_190px] gap-3 items-end">
               <div>
                 <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#0A0D17]/45">
                   Search Inventory
@@ -513,33 +671,40 @@ const SKU = ({ token }) => {
                   <option value="Healthy">Healthy</option>
                   <option value="Low">Low Stock</option>
                   <option value="Critical">Critical</option>
+                  <option value="Pre-order">Pre-order</option>
                   <option value="Out">Out of Stock</option>
                 </select>
               </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-2">
+            <div className="mt-4 grid grid-cols-2 lg:grid-cols-5 gap-2">
               <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
                 <p className="text-[9px] font-black uppercase tracking-[0.14em] text-emerald-700">
-                  11+ Healthy
+                  Healthy
                 </p>
               </div>
 
               <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
                 <p className="text-[9px] font-black uppercase tracking-[0.14em] text-amber-700">
-                  6-10 Low
+                  Low
                 </p>
               </div>
 
               <div className="rounded-xl border border-orange-200 bg-orange-50 px-3 py-2">
                 <p className="text-[9px] font-black uppercase tracking-[0.14em] text-orange-700">
-                  1-5 Critical
+                  Critical
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-orange-300 bg-orange-100 px-3 py-2">
+                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-orange-800">
+                  Pre-order
                 </p>
               </div>
 
               <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2">
                 <p className="text-[9px] font-black uppercase tracking-[0.14em] text-red-700">
-                  0 Out
+                  Out
                 </p>
               </div>
             </div>
@@ -566,13 +731,13 @@ const SKU = ({ token }) => {
               <table className="w-full table-fixed border-collapse text-[10px]">
                 <thead>
                   <tr className="bg-[#0A0D17] text-white">
-                    <th className="w-[27%] px-2 py-3 text-left font-black uppercase tracking-[0.1em]">
+                    <th className="w-[25%] px-2 py-3 text-left font-black uppercase tracking-[0.1em]">
                       Product
                     </th>
                     <th className="w-[9%] px-1 py-3 text-center font-black uppercase tracking-[0.08em]">
                       SKU
                     </th>
-                    <th className="w-[10%] px-1 py-3 text-center font-black uppercase tracking-[0.08em]">
+                    <th className="w-[9%] px-1 py-3 text-center font-black uppercase tracking-[0.08em]">
                       Cat.
                     </th>
 
@@ -586,12 +751,17 @@ const SKU = ({ token }) => {
                     ))}
 
                     <th className="w-[6%] px-1 py-3 text-center font-black uppercase tracking-[0.06em]">
-                      Total
+                      Actual
                     </th>
+
+                    <th className="w-[6%] px-1 py-3 text-center font-black uppercase tracking-[0.06em]">
+                      Pre
+                    </th>
+
                     <th className="w-[10%] px-1 py-3 text-center font-black uppercase tracking-[0.06em]">
                       Status
                     </th>
-                    <th className="w-[8%] px-1 py-3 text-center font-black uppercase tracking-[0.06em]">
+                    <th className="w-[7%] px-1 py-3 text-center font-black uppercase tracking-[0.06em]">
                       Action
                     </th>
                   </tr>
@@ -600,6 +770,8 @@ const SKU = ({ token }) => {
                 <tbody>
                   {paginatedProducts.map((product) => {
                     const totalStock = getTotalStock(product.stock);
+                    const totalPreorder = getTotalStock(product.preorderStock);
+                    const status = getProductStatus(product);
 
                     return (
                       <tr
@@ -668,20 +840,24 @@ const SKU = ({ token }) => {
                           {totalStock}
                         </td>
 
+                        <td className="px-1 py-2 text-center text-[10px] font-black text-orange-700">
+                          {totalPreorder}
+                        </td>
+
                         <td className="px-1 py-2 text-center">
                           <span
                             className={`inline-flex rounded-full border px-2 py-1 text-[8px] font-black uppercase tracking-[0.06em] ${getInventoryStatusClass(
-                              totalStock
+                              status
                             )}`}
                           >
-                            {getInventoryStatus(totalStock)}
+                            {status}
                           </span>
                         </td>
 
                         <td className="px-1 py-2 text-center">
                           <button
                             type="button"
-                            onClick={() => setSelectedProduct(product)}
+                            onClick={() => openInventoryModal(product)}
                             className="px-2.5 py-1.5 rounded-full bg-[#0A0D17] text-white text-[8px] font-black uppercase tracking-[0.1em]"
                           >
                             Edit
@@ -714,7 +890,7 @@ const SKU = ({ token }) => {
               </button>
 
               <div className="px-4 py-3 rounded-full bg-white border border-black/10 text-[10px] font-black uppercase tracking-[0.2em]">
-                {currentPage} / {totalPages}
+                {currentPage} / {totalPages || 1}
               </div>
 
               <button
@@ -735,7 +911,7 @@ const SKU = ({ token }) => {
                 </p>
 
                 <h3 className="text-base font-black uppercase text-[#0A0D17]">
-                  Recent Stock Updates
+                  Recent Inventory Updates
                 </h3>
               </div>
 
@@ -753,7 +929,7 @@ const SKU = ({ token }) => {
             <div className="divide-y divide-black/10">
               {inventoryLogs.length === 0 ? (
                 <div className="px-4 py-10 text-center text-xs font-black uppercase tracking-[0.2em] text-[#0A0D17]/35">
-                  No stock update logs yet
+                  No inventory update logs yet
                 </div>
               ) : (
                 inventoryLogs.slice(0, 10).map((log) => (
@@ -767,7 +943,8 @@ const SKU = ({ token }) => {
                       </p>
 
                       <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[#0A0D17]/45">
-                        SKU: {log.sku} • Size {log.size}
+                        SKU: {log.sku} • {log.stockType || "Actual"} • Size{" "}
+                        {log.size}
                       </p>
                     </div>
 
@@ -784,7 +961,9 @@ const SKU = ({ token }) => {
                         className={`rounded-full px-3 py-1 text-[10px] font-black ${
                           log.difference > 0
                             ? "bg-emerald-50 text-emerald-700"
-                            : "bg-red-50 text-red-600"
+                            : log.difference < 0
+                            ? "bg-red-50 text-red-600"
+                            : "bg-orange-50 text-orange-700"
                         }`}
                       >
                         {log.difference > 0
@@ -810,7 +989,7 @@ const SKU = ({ token }) => {
 
       {selectedProduct && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm p-4 flex items-start justify-center pt-14 md:pt-20 overflow-y-auto">
-          <div className="w-full max-w-4xl rounded-[22px] overflow-hidden bg-white shadow-[0_28px_100px_rgba(0,0,0,0.35)]">
+          <div className="w-full max-w-5xl rounded-[22px] overflow-hidden bg-white shadow-[0_28px_100px_rgba(0,0,0,0.35)]">
             <div className="px-6 py-5 bg-[#0A0D17] flex justify-between gap-4">
               <div>
                 <p className="text-white/45 text-[10px] font-black uppercase tracking-[0.28em]">
@@ -837,7 +1016,7 @@ const SKU = ({ token }) => {
 
             <div className="p-6 bg-[#f7f7f4]">
               <div className="grid lg:grid-cols-[240px_1fr] gap-5">
-                <div className="rounded-[18px] bg-white border border-black/10 overflow-hidden">
+                <div className="rounded-[18px] bg-white border border-black/10 overflow-hidden h-fit">
                   <div className="h-[240px] bg-[#eeeeeb]">
                     {getCardImage(selectedProduct) ? (
                       <img
@@ -854,75 +1033,191 @@ const SKU = ({ token }) => {
 
                   <div className="p-4">
                     <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45">
-                      Current Total Stock
+                      Actual Stock
                     </p>
 
                     <p className="mt-1 text-3xl font-black text-[#0A0D17]">
                       {getTotalStock(selectedProduct.stock)}
                     </p>
 
+                    <p className="mt-4 text-[10px] font-black uppercase tracking-[0.22em] text-orange-700">
+                      Pre-order Stock
+                    </p>
+
+                    <p className="mt-1 text-3xl font-black text-orange-700">
+                      {getTotalStock(selectedProduct.preorderStock)}
+                    </p>
+
                     <span
                       className={`mt-3 inline-flex rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] ${getInventoryStatusClass(
-                        getTotalStock(selectedProduct.stock)
+                        getProductStatus(selectedProduct)
                       )}`}
                     >
-                      {getInventoryStatus(getTotalStock(selectedProduct.stock))}
+                      {getProductStatus(selectedProduct)}
                     </span>
                   </div>
                 </div>
 
-                <div className="rounded-[18px] bg-white border border-black/10 p-5">
-                  <p className="text-[10px] font-black uppercase tracking-[0.28em] text-[#0A0D17]/45">
-                    Stock Per Size
-                  </p>
-
-                  <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 gap-4">
-                    {sizesList.map((size) => {
-                      const qty = Number(
-                        stockUpdates[selectedProduct._id]?.[size] ?? 0
-                      );
-
-                      return (
-                        <div
-                          key={size}
-                          className={`rounded-2xl border p-4 ${getStockBoxClass(
-                            qty
-                          )}`}
-                        >
-                          <p className="text-[10px] font-black uppercase tracking-[0.18em]">
-                            Size {size}
-                          </p>
-
-                          <input
-                            type="number"
-                            min={0}
-                            value={qty}
-                            onChange={(e) =>
-                              handleStockChange(
-                                selectedProduct._id,
-                                size,
-                                e.target.value
-                              )
-                            }
-                            className="mt-3 w-full rounded-xl border border-black/10 bg-white px-3 py-3 text-center text-base font-black text-[#0A0D17] outline-none focus:border-[#0A0D17]"
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <div className="mt-6 rounded-2xl border border-orange-200 bg-orange-50 p-4">
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-700">
-                      Critical Stock Reminder
+                <div className="space-y-5">
+                  <div className="rounded-[18px] bg-white border border-black/10 p-5">
+                    <p className="text-[10px] font-black uppercase tracking-[0.28em] text-[#0A0D17]/45">
+                      Actual Stock Per Size
                     </p>
 
-                    <p className="mt-2 text-xs font-bold leading-5 text-orange-700/80">
-                      If total stock reaches 1-5, it will be marked as Critical.
-                      If it reaches 0, it becomes Out of Stock.
-                    </p>
+                    <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 gap-4">
+                      {sizesList.map((size) => {
+                        const qty = Number(
+                          stockUpdates[selectedProduct._id]?.[size] ?? 0
+                        );
+
+                        return (
+                          <div
+                            key={size}
+                            className={`rounded-2xl border p-4 ${getStockBoxClass(
+                              qty
+                            )}`}
+                          >
+                            <p className="text-[10px] font-black uppercase tracking-[0.18em]">
+                              Size {size}
+                            </p>
+
+                            <input
+                              type="number"
+                              min={0}
+                              value={qty}
+                              onChange={(e) =>
+                                handleStockChange(
+                                  selectedProduct._id,
+                                  size,
+                                  e.target.value
+                                )
+                              }
+                              className="mt-3 w-full rounded-xl border border-black/10 bg-white px-3 py-3 text-center text-base font-black text-[#0A0D17] outline-none focus:border-[#0A0D17]"
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
 
-                  <div className="mt-6 flex flex-wrap gap-3">
+                  <div className="rounded-[18px] bg-white border border-orange-200 p-5">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.28em] text-orange-700">
+                          Pre-order Inventory
+                        </p>
+                        <p className="mt-1 text-xs font-bold text-orange-700/70">
+                          Used when actual stock reaches the threshold.
+                        </p>
+                      </div>
+
+                      <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.14em] text-[#0A0D17]">
+                        <input
+                          type="checkbox"
+                          checked={preorderEnabled}
+                          onChange={(e) =>
+                            setPreorderEnabled(e.target.checked)
+                          }
+                        />
+                        Enable Pre-order
+                      </label>
+                    </div>
+
+                    <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 gap-4">
+                      {sizesList.map((size) => {
+                        const qty = Number(
+                          preorderUpdates[selectedProduct._id]?.[size] ?? 0
+                        );
+
+                        return (
+                          <div
+                            key={size}
+                            className={`rounded-2xl border p-4 ${getPreorderBoxClass(
+                              qty
+                            )}`}
+                          >
+                            <p className="text-[10px] font-black uppercase tracking-[0.18em]">
+                              Pre-order {size}
+                            </p>
+
+                            <input
+                              type="number"
+                              min={0}
+                              value={qty}
+                              onChange={(e) =>
+                                handlePreorderChange(
+                                  selectedProduct._id,
+                                  size,
+                                  e.target.value
+                                )
+                              }
+                              className="mt-3 w-full rounded-xl border border-black/10 bg-white px-3 py-3 text-center text-base font-black text-[#0A0D17] outline-none focus:border-orange-500"
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#0A0D17]/45">
+                          Auto Pre-order Threshold
+                        </p>
+
+                        <input
+                          type="number"
+                          min={0}
+                          value={preorderThreshold}
+                          onChange={(e) =>
+                            setPreorderThreshold(Number(e.target.value) || 5)
+                          }
+                          className="mt-2 w-full rounded-xl border border-black/10 px-3 py-3 text-sm font-black outline-none focus:border-orange-500"
+                        />
+                      </div>
+
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#0A0D17]/45">
+                          Expected Restock Date
+                        </p>
+
+                        <input
+                          type="date"
+                          value={preorderRestockDate}
+                          onChange={(e) =>
+                            setPreorderRestockDate(e.target.value)
+                          }
+                          className="mt-2 w-full rounded-xl border border-black/10 px-3 py-3 text-sm font-black outline-none focus:border-orange-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-4">
+                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#0A0D17]/45">
+                        Pre-order Note
+                      </p>
+
+                      <textarea
+                        value={preorderNote}
+                        onChange={(e) => setPreorderNote(e.target.value)}
+                        placeholder="Example: Ships once restocked."
+                        className="mt-2 w-full min-h-[90px] rounded-xl border border-black/10 px-3 py-3 text-sm font-bold outline-none focus:border-orange-500"
+                      />
+                    </div>
+
+                    <div className="mt-5 rounded-2xl border border-orange-200 bg-orange-50 p-4">
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-700">
+                        Auto Pre-order Rule
+                      </p>
+
+                      <p className="mt-2 text-xs font-bold leading-5 text-orange-700/80">
+                        If actual stock is less than or equal to the threshold
+                        and pre-order stock is available, the frontend will show
+                        this product as Pre-order.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-3">
                     <button
                       type="button"
                       onClick={() => updateStock(selectedProduct._id)}
@@ -944,7 +1239,7 @@ const SKU = ({ token }) => {
 
               <div className="mt-5 rounded-[18px] bg-white border border-black/10 p-5">
                 <p className="text-[10px] font-black uppercase tracking-[0.28em] text-[#0A0D17]/45">
-                  Product Stock History
+                  Product Inventory History
                 </p>
 
                 <div className="mt-4 space-y-2 max-h-[240px] overflow-y-auto">
@@ -952,7 +1247,7 @@ const SKU = ({ token }) => {
                     (log) => log.productId === selectedProduct._id
                   ).length === 0 ? (
                     <p className="text-xs font-bold text-[#0A0D17]/40">
-                      No stock history for this product yet.
+                      No inventory history for this product yet.
                     </p>
                   ) : (
                     inventoryLogs
@@ -964,14 +1259,17 @@ const SKU = ({ token }) => {
                         >
                           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                             <p className="text-[11px] font-black uppercase text-[#0A0D17]">
-                              Size {log.size}: {log.oldQty} → {log.newQty}
+                              {log.stockType || "Actual"} • Size {log.size}:{" "}
+                              {log.oldQty} → {log.newQty}
                             </p>
 
                             <span
                               className={`w-fit rounded-full px-3 py-1 text-[10px] font-black ${
                                 log.difference > 0
                                   ? "bg-emerald-50 text-emerald-700"
-                                  : "bg-red-50 text-red-600"
+                                  : log.difference < 0
+                                  ? "bg-red-50 text-red-600"
+                                  : "bg-orange-50 text-orange-700"
                               }`}
                             >
                               {log.difference > 0
