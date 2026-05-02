@@ -942,7 +942,56 @@ const SKU = ({ token }) => {
                 </div>
               </div>
 
-              {/* keep your existing product inventory history section here unchanged */}
+              <div className="mt-5 rounded-[18px] bg-white border border-black/10 p-5">
+                <p className="text-[10px] font-black uppercase tracking-[0.28em] text-[#0A0D17]/45">
+                  Product Inventory History
+                </p>
+
+                <div className="mt-4 space-y-2 max-h-[240px] overflow-y-auto">
+                  {inventoryLogs.filter(
+                    (log) => log.productId === selectedProduct._id
+                  ).length === 0 ? (
+                    <p className="text-xs font-bold text-[#0A0D17]/40">
+                      No inventory history for this product yet.
+                    </p>
+                  ) : (
+                    inventoryLogs
+                      .filter((log) => log.productId === selectedProduct._id)
+                      .map((log) => (
+                        <div
+                          key={log.id}
+                          className="rounded-xl border border-black/10 bg-[#fafaf8] p-3"
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                            <p className="text-[11px] font-black uppercase text-[#0A0D17]">
+                              {log.stockType || "Actual"} • Size {log.size}:{" "}
+                              {log.oldQty} → {log.newQty}
+                            </p>
+
+                            <span
+                              className={`w-fit rounded-full px-3 py-1 text-[10px] font-black ${
+                                log.difference > 0
+                                  ? "bg-emerald-50 text-emerald-700"
+                                  : log.difference < 0
+                                  ? "bg-red-50 text-red-600"
+                                  : "bg-orange-50 text-orange-700"
+                              }`}
+                            >
+                              {log.difference > 0
+                                ? `+${log.difference}`
+                                : log.difference}
+                            </span>
+                          </div>
+
+                          <p className="mt-1 text-[10px] font-bold text-[#0A0D17]/45">
+                            Updated by {log.updatedBy} •{" "}
+                            {new Date(log.updatedAt).toLocaleString()}
+                          </p>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
