@@ -280,35 +280,18 @@ const SKU = ({ token }) => {
       0
     );
 
-    const healthyStock = products.filter(
-      (product) => getProductStatus(product) === "Healthy"
-    ).length;
-
-    const lowStock = products.filter(
-      (product) => getProductStatus(product) === "Low"
-    ).length;
-
-    const criticalStock = products.filter(
-      (product) => getProductStatus(product) === "Critical"
-    ).length;
-
-    const preorderStock = products.filter(
-      (product) => getProductStatus(product) === "Pre-order"
-    ).length;
-
-    const outStock = products.filter(
-      (product) => getProductStatus(product) === "Out"
-    ).length;
-
     return {
       products: products.length,
       totalStock,
       totalPreorder,
-      healthyStock,
-      lowStock,
-      criticalStock,
-      preorderStock,
-      outStock,
+      healthyStock: products.filter((p) => getProductStatus(p) === "Healthy")
+        .length,
+      lowStock: products.filter((p) => getProductStatus(p) === "Low").length,
+      criticalStock: products.filter((p) => getProductStatus(p) === "Critical")
+        .length,
+      preorderStock: products.filter((p) => getProductStatus(p) === "Pre-order")
+        .length,
+      outStock: products.filter((p) => getProductStatus(p) === "Out").length,
     };
   }, [products]);
 
@@ -462,7 +445,9 @@ const SKU = ({ token }) => {
         toast.success(res.data.message || "Inventory updated successfully");
 
         const updatedProductFromServer = res.data.product || {};
-
+        const finalStock = updatedProductFromServer.stock || {
+          ...normalizedStock,
+        };
         const finalPreorderStock =
           updatedProductFromServer.preorderStock || normalizedPreorderStock;
 
@@ -470,7 +455,7 @@ const SKU = ({ token }) => {
           item._id === productId
             ? {
                 ...item,
-                stock: updatedProductFromServer.stock || { ...normalizedStock },
+                stock: finalStock,
                 preorderStock: finalPreorderStock,
                 preorderEnabled,
                 preorderThreshold,
@@ -488,7 +473,7 @@ const SKU = ({ token }) => {
           prev && prev._id === productId
             ? {
                 ...prev,
-                stock: updatedProductFromServer.stock || { ...normalizedStock },
+                stock: finalStock,
                 preorderStock: finalPreorderStock,
                 preorderEnabled,
                 preorderThreshold,
@@ -653,12 +638,333 @@ const SKU = ({ token }) => {
             </div>
           </div>
 
-          {/* keep your product table and inventory history exactly the same */}
-
           <div className="mt-4 rounded-[16px] bg-white border border-black/10 p-4">
-            <p className="text-xs font-bold text-[#0A0D17]/60">
-              Keep your existing table section here unchanged.
-            </p>
+            <div className="grid grid-cols-1 xl:grid-cols-[1fr_170px_190px] gap-3 items-end">
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#0A0D17]/45">
+                  Search Inventory
+                </p>
+
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search product name or SKU..."
+                  className="mt-2 w-full rounded-xl border border-black/10 px-4 py-2.5 text-xs font-bold outline-none focus:border-[#0A0D17]"
+                />
+              </div>
+
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#0A0D17]/45">
+                  Category
+                </p>
+
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="mt-2 w-full rounded-xl border border-black/10 px-3 py-2.5 text-xs font-bold outline-none focus:border-[#0A0D17]"
+                >
+                  {FIXED_CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#0A0D17]/45">
+                  Stock Status
+                </p>
+
+                <select
+                  value={stockFilter}
+                  onChange={(e) => setStockFilter(e.target.value)}
+                  className="mt-2 w-full rounded-xl border border-black/10 px-3 py-2.5 text-xs font-bold outline-none focus:border-[#0A0D17]"
+                >
+                  <option value="All">All</option>
+                  <option value="Healthy">Healthy</option>
+                  <option value="Low">Low Stock</option>
+                  <option value="Critical">Critical</option>
+                  <option value="Pre-order">Pre-order</option>
+                  <option value="Out">Out of Stock</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-[16px] bg-white border border-black/10 overflow-hidden">
+            <div className="px-4 py-3 border-b border-black/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#0A0D17]/45">
+                  Stock Inventory
+                </p>
+
+                <h3 className="text-base font-black uppercase text-[#0A0D17]">
+                  Product Stock Table
+                </h3>
+              </div>
+
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#0A0D17]/45">
+                {filteredProducts.length} items
+              </p>
+            </div>
+
+            <div className="w-full overflow-hidden">
+              <table className="w-full table-fixed border-collapse text-[10px]">
+                <thead>
+                  <tr className="bg-[#0A0D17] text-white">
+                    <th className="w-[25%] px-2 py-3 text-left font-black uppercase tracking-[0.1em]">
+                      Product
+                    </th>
+                    <th className="w-[9%] px-1 py-3 text-center font-black uppercase tracking-[0.08em]">
+                      SKU
+                    </th>
+                    <th className="w-[9%] px-1 py-3 text-center font-black uppercase tracking-[0.08em]">
+                      Cat.
+                    </th>
+
+                    {sizesList.map((size) => (
+                      <th
+                        key={size}
+                        className="w-[5%] px-1 py-3 text-center font-black uppercase tracking-[0.06em]"
+                      >
+                        {size}
+                      </th>
+                    ))}
+
+                    <th className="w-[6%] px-1 py-3 text-center font-black uppercase tracking-[0.06em]">
+                      Actual
+                    </th>
+
+                    <th className="w-[6%] px-1 py-3 text-center font-black uppercase tracking-[0.06em]">
+                      Pre
+                    </th>
+
+                    <th className="w-[10%] px-1 py-3 text-center font-black uppercase tracking-[0.06em]">
+                      Status
+                    </th>
+                    <th className="w-[7%] px-1 py-3 text-center font-black uppercase tracking-[0.06em]">
+                      Action
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {paginatedProducts.map((product) => {
+                    const totalStock = getTotalStock(product.stock);
+                    const totalPreorder = getTotalStock(product.preorderStock);
+                    const status = getProductStatus(product);
+
+                    return (
+                      <tr
+                        key={product._id}
+                        className="border-b border-black/5 hover:bg-[#fafaf8]"
+                      >
+                        <td className="px-2 py-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-9 h-9 rounded-lg bg-[#f0f0ed] overflow-hidden border border-black/10 shrink-0">
+                              {getCardImage(product) ? (
+                                <img
+                                  src={getCardImage(product)}
+                                  alt={product.name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = "none";
+                                  }}
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-[8px] font-black text-black/30">
+                                  IMG
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="min-w-0">
+                              <p className="text-[10px] font-black uppercase text-[#0A0D17] truncate">
+                                {product.name}
+                              </p>
+                              <p className="mt-0.5 text-[9px] font-bold text-[#0A0D17]/40 truncate">
+                                ₱{Number(product.price || 0).toLocaleString()}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="px-1 py-2 text-center">
+                          <p className="text-[9px] font-black text-[#0A0D17]/65 truncate">
+                            {product.sku || "N/A"}
+                          </p>
+                        </td>
+
+                        <td className="px-1 py-2 text-center">
+                          <span className="inline-flex max-w-full rounded-full bg-[#f3f3f1] border border-black/10 px-2 py-1 text-[8px] font-black uppercase text-[#0A0D17]/60 truncate">
+                            {normalizeCategory(product.category) || "None"}
+                          </span>
+                        </td>
+
+                        {sizesList.map((size) => {
+                          const qty = getStock(product.stock, size);
+
+                          return (
+                            <td key={size} className="px-1 py-2 text-center">
+                              <span
+                                className={`inline-flex min-w-[26px] justify-center rounded-md border px-1 py-1 text-[9px] font-black ${getStockBoxClass(
+                                  qty
+                                )}`}
+                              >
+                                {qty}
+                              </span>
+                            </td>
+                          );
+                        })}
+
+                        <td className="px-1 py-2 text-center text-[10px] font-black text-[#0A0D17]">
+                          {totalStock}
+                        </td>
+
+                        <td className="px-1 py-2 text-center text-[10px] font-black text-orange-700">
+                          {totalPreorder}
+                        </td>
+
+                        <td className="px-1 py-2 text-center">
+                          <span
+                            className={`inline-flex rounded-full border px-2 py-1 text-[8px] font-black uppercase tracking-[0.06em] ${getInventoryStatusClass(
+                              status
+                            )}`}
+                          >
+                            {status}
+                          </span>
+                        </td>
+
+                        <td className="px-1 py-2 text-center">
+                          <button
+                            type="button"
+                            onClick={() => openInventoryModal(product)}
+                            className="px-2.5 py-1.5 rounded-full bg-[#0A0D17] text-white text-[8px] font-black uppercase tracking-[0.1em]"
+                          >
+                            Edit
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+
+              {paginatedProducts.length === 0 && (
+                <div className="py-16 text-center">
+                  <p className="text-sm font-black uppercase tracking-[0.2em] text-[#0A0D17]/35">
+                    No inventory found
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {totalPages > 1 && (
+            <div className="mt-5 flex justify-center items-center gap-3">
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((prev) => prev - 1)}
+                className="px-5 py-3 rounded-full bg-[#0A0D17] text-white disabled:opacity-30 text-[10px] font-black uppercase tracking-[0.2em]"
+              >
+                Prev
+              </button>
+
+              <div className="px-4 py-3 rounded-full bg-white border border-black/10 text-[10px] font-black uppercase tracking-[0.2em]">
+                {currentPage} / {totalPages || 1}
+              </div>
+
+              <button
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((prev) => prev + 1)}
+                className="px-5 py-3 rounded-full bg-[#0A0D17] text-white disabled:opacity-30 text-[10px] font-black uppercase tracking-[0.2em]"
+              >
+                Next
+              </button>
+            </div>
+          )}
+
+          <div className="mt-5 rounded-[16px] bg-white border border-black/10 overflow-hidden">
+            <div className="px-4 py-3 border-b border-black/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#0A0D17]/45">
+                  Inventory History
+                </p>
+
+                <h3 className="text-base font-black uppercase text-[#0A0D17]">
+                  Recent Inventory Updates
+                </h3>
+              </div>
+
+              {inventoryLogs.length > 0 && (
+                <button
+                  type="button"
+                  onClick={clearInventoryLogs}
+                  className="px-4 py-2 rounded-full border border-black/10 text-[10px] font-black uppercase tracking-[0.16em]"
+                >
+                  Clear Logs
+                </button>
+              )}
+            </div>
+
+            <div className="divide-y divide-black/10">
+              {inventoryLogs.length === 0 ? (
+                <div className="px-4 py-10 text-center text-xs font-black uppercase tracking-[0.2em] text-[#0A0D17]/35">
+                  No inventory update logs yet
+                </div>
+              ) : (
+                inventoryLogs.slice(0, 10).map((log) => (
+                  <div
+                    key={log.id}
+                    className="p-4 grid grid-cols-1 lg:grid-cols-[1fr_auto_auto_auto] gap-3 lg:items-center"
+                  >
+                    <div>
+                      <p className="text-xs font-black uppercase text-[#0A0D17]">
+                        {log.productName}
+                      </p>
+
+                      <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[#0A0D17]/45">
+                        SKU: {log.sku} • {log.stockType || "Actual"} • Size{" "}
+                        {log.size}
+                      </p>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <span className="rounded-full bg-[#f3f3f1] px-3 py-1 text-[10px] font-black text-[#0A0D17]/60">
+                        Old: {log.oldQty}
+                      </span>
+
+                      <span className="rounded-full bg-[#f3f3f1] px-3 py-1 text-[10px] font-black text-[#0A0D17]/60">
+                        New: {log.newQty}
+                      </span>
+
+                      <span
+                        className={`rounded-full px-3 py-1 text-[10px] font-black ${
+                          log.difference > 0
+                            ? "bg-emerald-50 text-emerald-700"
+                            : log.difference < 0
+                            ? "bg-red-50 text-red-600"
+                            : "bg-orange-50 text-orange-700"
+                        }`}
+                      >
+                        {log.difference > 0
+                          ? `+${log.difference}`
+                          : log.difference}
+                      </span>
+                    </div>
+
+                    <p className="text-[10px] font-bold text-[#0A0D17]/45">
+                      Updated by {log.updatedBy}
+                    </p>
+
+                    <p className="text-[10px] font-bold text-[#0A0D17]/35">
+                      {new Date(log.updatedAt).toLocaleString()}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -783,7 +1089,8 @@ const SKU = ({ token }) => {
                           Pre-order Inventory
                         </p>
                         <p className="mt-1 text-xs font-bold text-orange-700/70">
-                          Auto-generates slots when actual stock reaches the threshold.
+                          Auto-generates slots when actual stock reaches the
+                          threshold.
                         </p>
                       </div>
 
@@ -917,7 +1224,8 @@ const SKU = ({ token }) => {
                       <p className="mt-2 text-xs font-bold leading-5 text-orange-700/80">
                         If actual stock is less than or equal to the threshold
                         and Auto Generate is enabled, saving inventory will
-                        create pre-order slots using the Auto Generate Slots value.
+                        create pre-order slots using the Auto Generate Slots
+                        value.
                       </p>
                     </div>
                   </div>
@@ -940,6 +1248,7 @@ const SKU = ({ token }) => {
                     </button>
                   </div>
                 </div>
+              </div>
 
               <div className="mt-5 rounded-[18px] bg-white border border-black/10 p-5">
                 <p className="text-[10px] font-black uppercase tracking-[0.28em] text-[#0A0D17]/45">
@@ -994,10 +1303,8 @@ const SKU = ({ token }) => {
             </div>
           </div>
         </div>
-        </div>
       )}
     </div>
-    
   );
 };
 
