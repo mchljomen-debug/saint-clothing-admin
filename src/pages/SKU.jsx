@@ -940,7 +940,6 @@ const SKU = ({ token }) => {
                     </button>
                   </div>
                 </div>
-              </div>
 
               <div className="mt-5 rounded-[18px] bg-white border border-black/10 p-5">
                 <p className="text-[10px] font-black uppercase tracking-[0.28em] text-[#0A0D17]/45">
@@ -995,8 +994,10 @@ const SKU = ({ token }) => {
             </div>
           </div>
         </div>
+        </div>
       )}
     </div>
+    
   );
 };
 
