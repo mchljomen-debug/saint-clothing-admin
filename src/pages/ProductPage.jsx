@@ -273,8 +273,8 @@ const ProductPage = ({ token }) => {
         const products = Array.isArray(res.data.products)
           ? res.data.products
           : Array.isArray(res.data.product)
-          ? res.data.product
-          : [];
+            ? res.data.product
+            : [];
 
         setList([...products].reverse());
       } else {
@@ -306,7 +306,7 @@ const ProductPage = ({ token }) => {
         setCategory(p.category || "Tshirt");
         setBranch(
           p.branch ||
-            (role === "admin" ? activeBranches[0]?.code || "" : userBranch)
+          (role === "admin" ? activeBranches[0]?.code || "" : userBranch)
         );
         setBestseller(!!p.bestseller);
         setNewArrival(!!p.newArrival);
@@ -457,23 +457,23 @@ const ProductPage = ({ token }) => {
 
       const response = editId
         ? await axios.put(
-            `${backendUrl}/api/product/update/${editId}`,
-            formData,
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-                token,
-                "Content-Type": "multipart/form-data",
-              },
-            }
-          )
-        : await axios.post(`${backendUrl}/api/product/add`, formData, {
+          `${backendUrl}/api/product/update/${editId}`,
+          formData,
+          {
             headers: {
               Authorization: `Bearer ${token}`,
               token,
               "Content-Type": "multipart/form-data",
             },
-          });
+          }
+        )
+        : await axios.post(`${backendUrl}/api/product/add`, formData, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            token,
+            "Content-Type": "multipart/form-data",
+          },
+        });
 
       if (response.data.success) {
         toast.success(
@@ -491,8 +491,8 @@ const ProductPage = ({ token }) => {
       console.log("PRODUCT SUBMIT RESPONSE:", err?.response?.data);
       toast.error(
         err?.response?.data?.message ||
-          err?.message ||
-          "Failed to save product"
+        err?.message ||
+        "Failed to save product"
       );
     } finally {
       setSaving(false);
@@ -759,17 +759,16 @@ const ProductPage = ({ token }) => {
                       return (
                         <label key={i} className="cursor-pointer">
                           <img
-                            className={`w-24 h-28 border border-black/10 rounded-2xl bg-white ${
-                              hasImage
+                            className={`w-24 h-28 border border-black/10 rounded-2xl bg-white ${hasImage
                                 ? "object-cover"
                                 : "object-contain p-2 opacity-50"
-                            }`}
+                              }`}
                             src={
                               img
                                 ? URL.createObjectURL(img)
                                 : oldImages[i]
-                                ? getMediaUrl(oldImages[i], backendUrl)
-                                : assets.upload_area
+                                  ? getMediaUrl(oldImages[i], backendUrl)
+                                  : assets.upload_area
                             }
                             alt=""
                           />
@@ -799,17 +798,16 @@ const ProductPage = ({ token }) => {
 
                   <label className="cursor-pointer inline-block">
                     <img
-                      className={`w-40 h-40 border border-black/10 rounded-2xl bg-white ${
-                        outfitImage || oldOutfitImage
+                      className={`w-40 h-40 border border-black/10 rounded-2xl bg-white ${outfitImage || oldOutfitImage
                           ? "object-contain"
                           : "object-contain p-3 opacity-50"
-                      }`}
+                        }`}
                       src={
                         outfitImage
                           ? URL.createObjectURL(outfitImage)
                           : oldOutfitImage
-                          ? getMediaUrl(oldOutfitImage, backendUrl)
-                          : assets.upload_area
+                            ? getMediaUrl(oldOutfitImage, backendUrl)
+                            : assets.upload_area
                       }
                       alt="Outfit builder"
                     />
@@ -836,17 +834,16 @@ const ProductPage = ({ token }) => {
 
                   <label className="cursor-pointer inline-block">
                     <img
-                      className={`w-40 h-40 border border-black/10 rounded-2xl bg-white ${
-                        sizeChartImage || oldSizeChartImage
+                      className={`w-40 h-40 border border-black/10 rounded-2xl bg-white ${sizeChartImage || oldSizeChartImage
                           ? "object-cover"
                           : "object-contain p-3 opacity-50"
-                      }`}
+                        }`}
                       src={
                         sizeChartImage
                           ? URL.createObjectURL(sizeChartImage)
                           : oldSizeChartImage
-                          ? getMediaUrl(oldSizeChartImage, backendUrl)
-                          : assets.upload_area
+                            ? getMediaUrl(oldSizeChartImage, backendUrl)
+                            : assets.upload_area
                       }
                       alt="Size chart"
                     />
@@ -871,12 +868,12 @@ const ProductPage = ({ token }) => {
                   </p>
                   <input
                     type="file"
-                    accept=".glb,.gltf,.obj,.fbx,.mp4,.webm,.ogg"
+                    accept=".glb,.gltf,.usdz,.mp4,.webm,.ogg"
                     onChange={(e) => setModel3d(e.target.files?.[0] || null)}
                     className="w-full border border-black/10 rounded-2xl px-3 py-2.5 bg-white"
                   />
                   <p className="text-xs text-[#6b7280] mt-2">
-                    Supported: GLB, GLTF, OBJ, FBX, MP4, WEBM, OGG
+                    Supported: GLB, GLTF, USDZ, MP4, WEBM, OGG
                   </p>
                   {oldModel3d && !model3d && (
                     <p className="text-xs text-green-600 mt-2">
@@ -1080,11 +1077,10 @@ const ProductPage = ({ token }) => {
                               : [...prev, size]
                           )
                         }
-                        className={`px-3 py-2 border rounded-xl cursor-pointer text-sm font-semibold ${
-                          sizes.includes(size)
+                        className={`px-3 py-2 border rounded-xl cursor-pointer text-sm font-semibold ${sizes.includes(size)
                             ? "bg-black text-white border-black"
                             : "bg-white border-black/10"
-                        }`}
+                          }`}
                       >
                         {size}
                       </span>
@@ -1228,11 +1224,10 @@ const ProductPage = ({ token }) => {
                         <span
                           key={pos}
                           onClick={() => setRecommendationSection(pos)}
-                          className={`px-3 py-1.5 border rounded-xl cursor-pointer text-xs font-semibold ${
-                            recommendationSection === pos
+                          className={`px-3 py-1.5 border rounded-xl cursor-pointer text-xs font-semibold ${recommendationSection === pos
                               ? "bg-black text-white border-black"
                               : "bg-white border-black/10"
-                          }`}
+                            }`}
                         >
                           {pos.toUpperCase()}
                         </span>
@@ -1317,11 +1312,10 @@ const ProductPage = ({ token }) => {
                                 : [...prev, item]
                             )
                           }
-                          className={`px-3 py-1.5 border rounded-xl cursor-pointer text-xs font-semibold ${
-                            matchWith.includes(item)
+                          className={`px-3 py-1.5 border rounded-xl cursor-pointer text-xs font-semibold ${matchWith.includes(item)
                               ? "bg-black text-white border-black"
                               : "bg-white border-black/10"
-                          }`}
+                            }`}
                         >
                           {item}
                         </span>
@@ -1352,19 +1346,18 @@ const ProductPage = ({ token }) => {
 
             <button
               disabled={saving}
-              className={`mt-6 px-6 py-3 text-white font-black rounded-2xl transition ${
-                saving
+              className={`mt-6 px-6 py-3 text-white font-black rounded-2xl transition ${saving
                   ? "bg-gray-500 cursor-not-allowed"
                   : "bg-black hover:bg-gray-800"
-              }`}
+                }`}
             >
               {saving
                 ? editId
                   ? "Updating..."
                   : "Adding..."
                 : editId
-                ? "Update Product"
-                : "Add Product"}
+                  ? "Update Product"
+                  : "Add Product"}
             </button>
           </form>
         )}
@@ -1418,9 +1411,8 @@ const ProductPage = ({ token }) => {
             currentItems.map((item, index) => (
               <div
                 key={item._id}
-                className={`grid grid-cols-1 md:grid-cols-[0.75fr_2.3fr_1fr_1fr_1fr_1fr] items-center border-b border-[#ecece6] px-5 py-4 gap-3 ${
-                  index % 2 === 0 ? "bg-white" : "bg-[#fcfcfb]"
-                }`}
+                className={`grid grid-cols-1 md:grid-cols-[0.75fr_2.3fr_1fr_1fr_1fr_1fr] items-center border-b border-[#ecece6] px-5 py-4 gap-3 ${index % 2 === 0 ? "bg-white" : "bg-[#fcfcfb]"
+                  }`}
               >
                 <img
                   src={
@@ -1561,11 +1553,10 @@ const ProductPage = ({ token }) => {
               <button
                 key={i}
                 onClick={() => setCurrentPage(i + 1)}
-                className={`px-3.5 py-1.5 border rounded-xl font-black ${
-                  currentPage === i + 1
+                className={`px-3.5 py-1.5 border rounded-xl font-black ${currentPage === i + 1
                     ? "bg-black text-white border-black"
                     : "bg-white/70 text-gray-900 border-[#d7d7d2]"
-                }`}
+                  }`}
               >
                 {i + 1}
               </button>
