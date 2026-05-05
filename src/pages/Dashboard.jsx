@@ -28,6 +28,11 @@ import {
   FaStore,
   FaFilter,
   FaSyncAlt,
+  FaPlus,
+  FaClipboardList,
+  FaExclamationTriangle,
+  FaFire,
+  FaClock,
 } from "react-icons/fa";
 import {
   exportDashboardWorkbook,
@@ -213,6 +218,15 @@ const Dashboard = () => {
   const textMuted = "text-[#6b7280]";
   const textStrong = "text-[#0A0D17]";
   const tableRow = "border-[#ecece6]";
+
+  const formatTimeAMPM = (date) =>
+    date
+      ? date.toLocaleTimeString([], {
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true,
+        })
+      : "--";
 
   const selectedBranchName = useMemo(() => {
     if (role !== "admin") return branch;
@@ -900,6 +914,55 @@ const Dashboard = () => {
     });
   };
 
+  const todayOrders = filterOrdersByRange(rawOrders, "today");
+  const todayPaidOrders = todayOrders.filter(isPaidOrder);
+  const todayRevenue = todayPaidOrders.reduce(
+    (sum, order) => sum + (Number(order.amount) || 0),
+    0
+  );
+
+  const pendingOrdersCount = rawOrders.filter((order) => {
+    const status = String(order?.status || "").toLowerCase();
+    return (
+      status === "order placed" ||
+      status === "pending payment" ||
+      status === "packing"
+    );
+  }).length;
+
+  const unpaidCount = rawOrders.filter((order) => {
+    const paymentStatus = String(order?.paymentStatus || "").toLowerCase();
+    const method = String(order?.paymentMethod || "").toLowerCase();
+
+    if (method === "cod") return false;
+    return paymentStatus === "pending" || paymentStatus === "verifying";
+  }).length;
+
+  const topProductToday = useMemo(() => {
+    const productMap = {};
+
+    todayPaidOrders.forEach((order) => {
+      (order.items || []).forEach((item) => {
+        const key = item.name || item.productName || "Unknown Product";
+        const qty = Number(item.quantity) || 0;
+        const amount = (Number(item.price) || 0) * qty;
+
+        if (!productMap[key]) {
+          productMap[key] = { name: key, sold: 0, revenue: 0 };
+        }
+
+        productMap[key].sold += qty;
+        productMap[key].revenue += amount;
+      });
+    });
+
+    return (
+      Object.values(productMap).sort((a, b) => b.revenue - a.revenue)[0] || null
+    );
+  }, [rawOrders]);
+
+  const maxCategorySales = Math.max(...categorySales.data, 1);
+
   const lastMonthRevenue = monthlySales.revenue.at(-1) || 0;
   const prevMonthRevenue = monthlySales.revenue.at(-2) || 0;
   const lastMonthProfit = monthlySales.netProfit.at(-1) || 0;
@@ -1015,7 +1078,7 @@ const Dashboard = () => {
         <RangeSelect value={rangeValue} onChange={setRange} />
         <button
           onClick={onExport}
-          className="inline-flex items-center gap-2 px-3 py-2.5 rounded-[5px] text-xs sm:text-sm font-bold transition whitespace-nowrap bg-black hover:bg-[#2a2a2a] text-white"
+          className="inline-flex items-center gap-2 px-3 py-2.5 rounded-[5px] text-xs sm:text-sm font-bold transition whitespace-nowrap bg-[#0A0D17] hover:bg-[#1f2937] text-white"
         >
           <FaFileExcel className="shrink-0" />
           Export
@@ -1110,49 +1173,125 @@ const Dashboard = () => {
       : "grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3";
 
   return (
-    <div className="min-h-screen bg-transparent px-2.5 sm:px-3 pt-20 sm:pt-24 pb-4">
-      <div className="max-w-[1500px] mx-auto grid grid-cols-1 xl:grid-cols-[250px_1fr] gap-3">
+    <div className="min-h-screen bg-transparent px-2.5 sm:px-3 pt-20 sm:pt-24 pb-4 font-['Montserrat']">
+      <div className="max-w-[1500px] mx-auto grid grid-cols-1 xl:grid-cols-[285px_1fr] gap-3">
         <aside
-          className={`${panelBg} rounded-[5px] p-4 xl:sticky xl:top-24 xl:min-h-[calc(100vh-7rem)]`}
+          className={`${panelBg} rounded-[5px] p-0 xl:sticky xl:top-24 xl:h-[calc(100vh-7rem)] overflow-hidden`}
         >
           <div className="flex h-full flex-col">
-            <div className="border-b border-black/10 pb-4 mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-[5px] bg-black flex items-center justify-center text-white shrink-0 shadow-md">
+            <div className="bg-[#0A0D17] px-4 py-5 text-white">
+              <p className="text-[9px] font-black uppercase tracking-[0.34em] text-white/40">
+                Saint Clothing Admin
+              </p>
+
+              <div className="mt-3 flex items-center gap-3">
+                <div className="w-11 h-11 rounded-[5px] bg-white/10 border border-white/10 flex items-center justify-center text-white shrink-0">
                   <FaStore />
                 </div>
+
                 <div className="min-w-0">
-                  <h2
-                    className={`font-black text-sm uppercase tracking-[0.12em] ${textStrong} truncate`}
-                  >
-                    Saint Clothing
+                  <h2 className="font-black text-sm uppercase tracking-[0.14em] truncate">
+                    Control Center
                   </h2>
-                  <p className={`text-[11px] ${textMuted}`}>Control Center</p>
+                  <p className="text-[11px] text-white/50">
+                    Store command panel
+                  </p>
                 </div>
               </div>
             </div>
 
-            <div className="flex-1 space-y-3">
-              <div className={`${softPanelBg} rounded-[5px] p-3.5`}>
-                <p
-                  className={`text-[10px] uppercase tracking-[0.22em] ${textMuted}`}
-                >
-                  View
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#f7f7f4]">
+              <div className="rounded-[5px] bg-white border border-black/10 p-4">
+                <p className="text-[9px] font-black uppercase tracking-[0.24em] text-[#0A0D17]/45">
+                  Today Snapshot
                 </p>
-                <p
-                  className={`font-bold mt-1 text-xs sm:text-sm ${textStrong}`}
-                >
-                  {role === "admin"
-                    ? "Admin Dashboard"
-                    : `${branch} Branch Dashboard`}
-                </p>
+
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <div className="rounded-[5px] bg-[#0A0D17] p-3 text-white">
+                    <p className="text-[9px] font-black uppercase tracking-[0.18em] text-white/45">
+                      Sales
+                    </p>
+                    <p className="mt-1 text-lg font-black">
+                      {formatCompactCurrency(todayRevenue)}
+                    </p>
+                  </div>
+
+                  <div className="rounded-[5px] bg-[#FAFAF8] border border-black/10 p-3">
+                    <p className="text-[9px] font-black uppercase tracking-[0.18em] text-[#0A0D17]/45">
+                      Orders
+                    </p>
+                    <p className="mt-1 text-lg font-black text-[#0A0D17]">
+                      {todayOrders.length}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-2 flex items-center gap-1 text-[11px] font-bold">
+                  {dailyTrend.isUp ? (
+                    <FaArrowUp className="text-green-600" />
+                  ) : (
+                    <FaArrowDown className="text-red-500" />
+                  )}
+                  <span
+                    className={
+                      dailyTrend.isUp ? "text-green-600" : "text-red-500"
+                    }
+                  >
+                    {dailyTrend.percent}%
+                  </span>
+                  <span className="text-[#0A0D17]/45">vs previous point</span>
+                </div>
               </div>
 
-              <div className={`${softPanelBg} rounded-[5px] p-3.5`}>
+              <div className="rounded-[5px] bg-white border border-black/10 p-4">
+                <p className="text-[9px] font-black uppercase tracking-[0.24em] text-[#0A0D17]/45">
+                  Alerts
+                </p>
+
+                <div className="mt-3 space-y-2">
+                  <div className="flex items-center justify-between rounded-[5px] border border-red-100 bg-red-50 px-3 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <FaExclamationTriangle className="text-red-500" />
+                      <span className="text-xs font-black text-red-700">
+                        Low Stock
+                      </span>
+                    </div>
+                    <span className="text-xs font-black text-red-700">
+                      {stats.lowStockCount}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-[5px] border border-orange-100 bg-orange-50 px-3 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <FaClipboardList className="text-orange-600" />
+                      <span className="text-xs font-black text-orange-700">
+                        Pending
+                      </span>
+                    </div>
+                    <span className="text-xs font-black text-orange-700">
+                      {pendingOrdersCount}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-[5px] border border-amber-100 bg-amber-50 px-3 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <FaClock className="text-amber-600" />
+                      <span className="text-xs font-black text-amber-700">
+                        Unpaid
+                      </span>
+                    </div>
+                    <span className="text-xs font-black text-amber-700">
+                      {unpaidCount}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-[5px] bg-white border border-black/10 p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <FaFilter className={textMuted} />
-                  <p className={`font-bold text-xs sm:text-sm ${textStrong}`}>
-                    Branch Filter
+                  <FaFilter className="text-[#0A0D17]/45" />
+                  <p className="text-[9px] font-black uppercase tracking-[0.24em] text-[#0A0D17]/45">
+                    Branch
                   </p>
                 </div>
 
@@ -1160,7 +1299,7 @@ const Dashboard = () => {
                   <select
                     value={selectedBranch}
                     onChange={(e) => setSelectedBranch(e.target.value)}
-                    className="mt-1 w-full rounded-[5px] px-3 py-2.5 text-sm outline-none bg-white text-gray-900 border border-black/10"
+                    className="mt-1 w-full rounded-[5px] px-3 py-2.5 text-sm outline-none bg-[#FAFAF8] text-gray-900 border border-black/10"
                   >
                     <option value="all">All Branches</option>
                     {availableBranches.map((b) => (
@@ -1170,24 +1309,49 @@ const Dashboard = () => {
                     ))}
                   </select>
                 ) : (
-                  <div
-                    className={`mt-1 rounded-[5px] px-3 py-2.5 text-sm bg-white border border-black/10 ${textStrong}`}
-                  >
+                  <div className="mt-1 rounded-[5px] px-3 py-2.5 text-sm bg-[#FAFAF8] border border-black/10 text-[#0A0D17]">
                     {selectedBranchName}
                   </div>
                 )}
+
+                <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.16em] text-[#0A0D17]/40">
+                  Viewing: {selectedBranchName}
+                </p>
               </div>
 
-              <div className={`${softPanelBg} rounded-[5px] p-3.5`}>
-                <p
-                  className={`font-bold mb-2 text-xs sm:text-sm ${textStrong}`}
-                >
+              <div className="rounded-[5px] bg-white border border-black/10 p-4">
+                <p className="text-[9px] font-black uppercase tracking-[0.24em] text-[#0A0D17]/45">
                   Quick Actions
                 </p>
-                <div className="space-y-1.5">
+
+                <div className="mt-3 grid grid-cols-1 gap-1.5">
+                  <Link
+                    to="/add"
+                    className="flex items-center gap-2 rounded-[5px] px-3 py-2.5 text-sm font-bold hover:bg-[#FAFAF8] text-gray-900 transition"
+                  >
+                    <FaPlus />
+                    Add Product
+                  </Link>
+
+                  <Link
+                    to="/sku"
+                    className="flex items-center gap-2 rounded-[5px] px-3 py-2.5 text-sm font-bold hover:bg-[#FAFAF8] text-gray-900 transition"
+                  >
+                    <FaBoxes />
+                    Manage Inventory
+                  </Link>
+
+                  <Link
+                    to="/orders"
+                    className="flex items-center gap-2 rounded-[5px] px-3 py-2.5 text-sm font-bold hover:bg-[#FAFAF8] text-gray-900 transition"
+                  >
+                    <FaShoppingBag />
+                    View Orders
+                  </Link>
+
                   <Link
                     to="/sales-report"
-                    className="flex items-center gap-2 rounded-[5px] px-3 py-2.5 text-sm hover:bg-white text-gray-900 transition"
+                    className="flex items-center gap-2 rounded-[5px] px-3 py-2.5 text-sm font-bold hover:bg-[#FAFAF8] text-gray-900 transition"
                   >
                     <FaChartLine />
                     Sales Report
@@ -1195,57 +1359,107 @@ const Dashboard = () => {
 
                   <button
                     onClick={exportAllDashboardExcel}
-                    className="w-full flex items-center gap-2 rounded-[5px] px-3 py-2.5 text-sm text-left hover:bg-white text-gray-900 transition"
+                    className="w-full flex items-center gap-2 rounded-[5px] px-3 py-2.5 text-sm font-bold text-left hover:bg-[#FAFAF8] text-gray-900 transition"
                   >
                     <FaFileExcel />
-                    Export All Dashboard
+                    Export Data
                   </button>
                 </div>
               </div>
 
-              <div className={`${softPanelBg} rounded-[5px] p-3.5`}>
-                <p
-                  className={`font-bold mb-2 text-xs sm:text-sm ${textStrong}`}
-                >
-                  Categories
+              <div className="rounded-[5px] bg-white border border-black/10 p-4">
+                <p className="text-[9px] font-black uppercase tracking-[0.24em] text-[#0A0D17]/45">
+                  Category Performance
                 </p>
-                <div className="space-y-1.5">
-                  {FIXED_CATEGORIES.map((cat) => (
-                    <div
-                      key={cat}
-                      className="flex items-center justify-between rounded-[5px] px-3 py-2.5 bg-white border border-black/10"
-                    >
-                      <span className={`text-xs sm:text-sm ${textStrong}`}>
-                        {cat}
-                      </span>
-                      <span
-                        className={`text-xs sm:text-sm font-black ${textStrong}`}
-                      >
-                        {categorySales.labels.includes(cat)
-                          ? categorySales.data[
-                              categorySales.labels.indexOf(cat)
-                            ]
-                          : 0}
-                      </span>
-                    </div>
-                  ))}
+
+                <div className="mt-3 space-y-3">
+                  {FIXED_CATEGORIES.map((cat) => {
+                    const value = categorySales.labels.includes(cat)
+                      ? categorySales.data[categorySales.labels.indexOf(cat)]
+                      : 0;
+
+                    const percent = Math.min(
+                      100,
+                      Math.round((value / maxCategorySales) * 100)
+                    );
+
+                    return (
+                      <div key={cat}>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-black text-[#0A0D17]">
+                            {cat}
+                          </span>
+                          <span className="text-xs font-black text-[#0A0D17]/60">
+                            {value}
+                          </span>
+                        </div>
+
+                        <div className="mt-1 h-1.5 rounded-full bg-[#ecece6] overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-[#0A0D17]"
+                            style={{ width: `${percent}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
+              </div>
+
+              <div className="rounded-[5px] bg-white border border-black/10 p-4">
+                <div className="flex items-center gap-2">
+                  <FaFire className="text-orange-600" />
+                  <p className="text-[9px] font-black uppercase tracking-[0.24em] text-[#0A0D17]/45">
+                    Top Today
+                  </p>
+                </div>
+
+                {topProductToday ? (
+                  <div className="mt-3">
+                    <p className="text-sm font-black uppercase text-[#0A0D17] truncate">
+                      {topProductToday.name}
+                    </p>
+                    <p className="mt-1 text-xs font-bold text-[#0A0D17]/50">
+                      {topProductToday.sold} units sold
+                    </p>
+                    <p className="mt-2 text-xl font-black text-[#0A0D17]">
+                      {formatCurrency(topProductToday.revenue)}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="mt-3 text-xs font-bold text-[#0A0D17]/40">
+                    No paid sales yet today.
+                  </p>
+                )}
               </div>
             </div>
 
-            <div className="mt-4 border-t border-black/10 pt-4">
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-gray-400">
-                Saint Admin
-              </p>
-              <p className="mt-1 text-xs text-gray-500">
-                Inventory and sales monitoring
-              </p>
+            <div className="border-t border-black/10 bg-white px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-[0.22em] text-gray-400">
+                    Auto Sync
+                  </p>
+                  <p className="text-xs font-bold text-gray-500">
+                    Every 10 minutes
+                  </p>
+                </div>
+
+                <div className="text-right">
+                  <p className="text-[9px] font-black uppercase tracking-[0.22em] text-gray-400">
+                    Updated
+                  </p>
+                  <p className="text-xs font-black text-[#0A0D17]">
+                    {formatTimeAMPM(lastUpdated)}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </aside>
 
         <main className="min-w-0">
-          <div className="rounded-[5px] bg-black p-5 sm:p-6 shadow-[0_18px_45px_rgba(0,0,0,0.18)] mb-4 text-white border border-black overflow-hidden relative">
+          <div className="rounded-[5px] bg-[#0A0D17] p-5 sm:p-6 shadow-[0_18px_60px_rgba(0,0,0,0.08)] mb-4 text-white border border-black/10 overflow-hidden relative">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-[10px] font-black uppercase tracking-[0.34em] text-white/50 mb-2">
@@ -1268,8 +1482,7 @@ const Dashboard = () => {
                       Sales, inventory, payment activity, and branch performance.
                     </p>
                     <p className="text-[11px] sm:text-xs text-white/45 mt-1">
-                      Last updated:{" "}
-                      {lastUpdated ? lastUpdated.toLocaleTimeString() : "--"}
+                      Last updated: {formatTimeAMPM(lastUpdated)}
                     </p>
                   </div>
                 </div>
