@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { backendUrl } from "../App";
 import { toast } from "react-toastify";
+import { Pagination } from "antd";
+import "antd/dist/reset.css";
 import {
   FaUsers,
   FaUserCheck,
@@ -17,12 +19,16 @@ import {
   FaPlus,
 } from "react-icons/fa";
 
+const DEFAULT_ITEMS_PER_PAGE = 9;
+
 const EmployeesPage = () => {
   const [employees, setEmployees] = useState([]);
   const [branches, setBranches] = useState([]);
   const [roleFilter, setRoleFilter] = useState("All");
   const [branchFilter, setBranchFilter] = useState("All");
   const [search, setSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_ITEMS_PER_PAGE);
   const [editingId, setEditingId] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -149,17 +155,9 @@ const EmployeesPage = () => {
       );
       submitData.append("isActive", formData.isActive);
 
-      if (formData.password) {
-        submitData.append("password", formData.password);
-      }
-
-      if (formData.resume) {
-        submitData.append("resume", formData.resume);
-      }
-
-      if (formData.picture) {
-        submitData.append("picture", formData.picture);
-      }
+      if (formData.password) submitData.append("password", formData.password);
+      if (formData.resume) submitData.append("resume", formData.resume);
+      if (formData.picture) submitData.append("picture", formData.picture);
 
       const res = editingId
         ? await axios.put(
@@ -262,6 +260,26 @@ const EmployeesPage = () => {
     });
   }, [employees, roleFilter, branchFilter, search]);
 
+  const indexOfLastItem = currentPage * pageSize;
+  const indexOfFirstItem = indexOfLastItem - pageSize;
+
+  const paginatedEmployees = filteredEmployees.slice(
+    indexOfFirstItem,
+    indexOfLastItem
+  );
+
+  const totalPages = Math.ceil(filteredEmployees.length / pageSize) || 1;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, roleFilter, branchFilter]);
+
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
   const summary = useMemo(() => {
     return {
       total: employees.length,
@@ -274,14 +292,9 @@ const EmployeesPage = () => {
   }, [employees]);
 
   const getRoleClass = (role) => {
-    if (role === "admin") {
-      return "bg-[#0A0D17] text-white border-[#0A0D17]";
-    }
-
-    if (role === "manager") {
+    if (role === "admin") return "bg-[#0A0D17] text-white border-[#0A0D17]";
+    if (role === "manager")
       return "bg-amber-50 text-amber-700 border-amber-200";
-    }
-
     return "bg-sky-50 text-sky-700 border-sky-200";
   };
 
@@ -445,7 +458,11 @@ const EmployeesPage = () => {
                   Editing Mode
                 </span>
 
-                <button type="button" onClick={resetForm} className={buttonLight}>
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className={buttonLight}
+                >
                   Cancel Edit
                 </button>
               </div>
@@ -651,7 +668,7 @@ const EmployeesPage = () => {
           <div className="px-4 sm:px-5 py-5 border-b border-black/10">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div>
-                <p className={labelClass}>Employee Table</p>
+                <p className={labelClass}>Employee Directory</p>
 
                 <h3 className="mt-2 text-xl font-black uppercase tracking-tight text-[#0A0D17]">
                   Employee List
@@ -659,170 +676,184 @@ const EmployeesPage = () => {
               </div>
 
               <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#0A0D17]/45">
-                {filteredEmployees.length} items
+                {filteredEmployees.length === 0
+                  ? "0 items"
+                  : `Showing ${indexOfFirstItem + 1}-${Math.min(
+                      indexOfLastItem,
+                      filteredEmployees.length
+                    )} of ${filteredEmployees.length} items`}
               </p>
             </div>
           </div>
 
-          <div className="overflow-auto">
-            <table className="w-full min-w-[1100px] text-sm">
-              <thead className="bg-[#0A0D17] text-white">
-                <tr>
-                  <th className="p-4 text-left text-[11px] font-black uppercase tracking-[0.18em]">
-                    Picture
-                  </th>
-                  <th className="p-4 text-left text-[11px] font-black uppercase tracking-[0.18em]">
-                    Name
-                  </th>
-                  <th className="p-4 text-left text-[11px] font-black uppercase tracking-[0.18em]">
-                    Email
-                  </th>
-                  <th className="p-4 text-left text-[11px] font-black uppercase tracking-[0.18em]">
-                    Role
-                  </th>
-                  <th className="p-4 text-left text-[11px] font-black uppercase tracking-[0.18em]">
-                    Branch
-                  </th>
-                  <th className="p-4 text-left text-[11px] font-black uppercase tracking-[0.18em]">
-                    Manager
-                  </th>
-                  <th className="p-4 text-left text-[11px] font-black uppercase tracking-[0.18em]">
-                    Resume
-                  </th>
-                  <th className="p-4 text-left text-[11px] font-black uppercase tracking-[0.18em]">
-                    Status
-                  </th>
-                  <th className="p-4 text-left text-[11px] font-black uppercase tracking-[0.18em]">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
+          <div className="p-4 sm:p-5 bg-[#FAFAF8]">
+            {filteredEmployees.length > 0 ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
+                {paginatedEmployees.map((employee) => (
+                  <div
+                    key={employee._id}
+                    className="rounded-[5px] border border-black/10 bg-white p-4 shadow-[0_8px_24px_rgba(0,0,0,0.04)]"
+                  >
+                    <div className="flex items-start gap-3">
+                      {employee.picture ? (
+                        <img
+                          src={getImageUrl(employee.picture)}
+                          alt={employee.name}
+                          className="w-14 h-14 rounded-[5px] object-cover border border-black/10"
+                        />
+                      ) : (
+                        <div className="w-14 h-14 rounded-[5px] bg-[#ececec] flex items-center justify-center text-[9px] text-gray-500 font-black uppercase shrink-0">
+                          No Img
+                        </div>
+                      )}
 
-              <tbody>
-                {filteredEmployees.length > 0 ? (
-                  filteredEmployees.map((employee, index) => (
-                    <tr
-                      key={employee._id}
-                      className={`border-b border-[#ecece6] transition-colors hover:bg-[#fafaf8] ${
-                        index % 2 === 0 ? "bg-white" : "bg-[#fcfcfb]"
-                      }`}
-                    >
-                      <td className="p-4 align-top">
-                        {employee.picture ? (
-                          <img
-                            src={getImageUrl(employee.picture)}
-                            alt={employee.name}
-                            className="w-12 h-12 rounded-[5px] object-cover border border-black/10 shadow-sm"
-                          />
-                        ) : (
-                          <div className="w-12 h-12 rounded-[5px] bg-[#ececec] flex items-center justify-center text-[9px] text-gray-500 font-black uppercase">
-                            No Img
-                          </div>
-                        )}
-                      </td>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-black text-[#0A0D17] truncate">
+                          {employee.name}
+                        </p>
 
-                      <td className="p-4 font-black text-[#0A0D17] align-top">
-                        {employee.name}
-                      </td>
+                        <p className="text-xs text-[#0A0D17]/60 break-all">
+                          {employee.email}
+                        </p>
+                      </div>
+                    </div>
 
-                      <td className="p-4 text-[#0A0D17]/75 font-semibold align-top break-all">
-                        {employee.email}
-                      </td>
-
-                      <td className="p-4 align-top">
+                    <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <p className={labelClass}>Role</p>
                         <span
-                          className={`inline-flex rounded-[5px] border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] ${getRoleClass(
+                          className={`mt-1 inline-flex rounded-[5px] border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] ${getRoleClass(
                             employee.role
                           )}`}
                         >
                           {employee.role}
                         </span>
-                      </td>
+                      </div>
 
-                      <td className="p-4 text-[#0A0D17] font-semibold align-top">
-                        {getBranchName(employee.branch)}
-                      </td>
-
-                      <td className="p-4 text-[#0A0D17]/75 font-semibold align-top">
-                        {employee.role === "manager" ? "Yes" : "No"}
-                      </td>
-
-                      <td className="p-4 align-top">
-                        {employee.resume ? (
-                          <a
-                            href={`${backendUrl}/uploads/${employee.resume}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex rounded-[5px] border border-sky-200 bg-sky-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-sky-700 hover:bg-sky-100"
-                          >
-                            View Resume
-                          </a>
-                        ) : (
-                          <span className="text-[#0A0D17]/40 font-semibold">
-                            No File
-                          </span>
-                        )}
-                      </td>
-
-                      <td className="p-4 align-top">
+                      <div>
+                        <p className={labelClass}>Status</p>
                         <span
-                          className={`inline-flex rounded-[5px] border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] ${getStatusClass(
+                          className={`mt-1 inline-flex rounded-[5px] border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] ${getStatusClass(
                             employee.isActive
                           )}`}
                         >
                           {employee.isActive ? "Active" : "Inactive"}
                         </span>
-                      </td>
+                      </div>
 
-                      <td className="p-4 align-top">
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            onClick={() => startEdit(employee)}
-                            className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#0A0D17] text-white rounded-[5px] text-xs font-black hover:bg-[#1d2433] transition"
-                          >
-                            <FaEdit />
-                            Edit
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => removeEmployee(employee._id)}
-                            className="inline-flex items-center gap-1.5 px-3 py-2 border border-red-200 bg-red-50 text-red-600 rounded-[5px] text-xs font-black hover:bg-red-500 hover:text-white transition"
-                          >
-                            <FaTrash />
-                            Remove
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td
-                      colSpan="9"
-                      className="p-12 text-center text-gray-500 bg-white"
-                    >
-                      <div className="flex flex-col items-center justify-center">
-                        <div className="w-14 h-14 rounded-[5px] bg-[#f3f3f1] border border-black/5 flex items-center justify-center text-[#0A0D17]/35 text-lg font-black">
-                          E
-                        </div>
-
-                        <p className="mt-4 text-sm font-black uppercase tracking-[0.24em] text-[#0A0D17]/45">
-                          No employees found
-                        </p>
-
-                        <p className="mt-2 text-xs text-[#0A0D17]/35">
-                          Try changing the search or filters.
+                      <div className="col-span-2">
+                        <p className={labelClass}>Branch</p>
+                        <p className="mt-1 font-bold text-[#0A0D17]">
+                          {getBranchName(employee.branch)}
                         </p>
                       </div>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+
+                      <div>
+                        <p className={labelClass}>Manager</p>
+                        <p className="mt-1 font-bold text-[#0A0D17]/70">
+                          {employee.role === "manager" ? "Yes" : "No"}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className={labelClass}>Resume</p>
+                        {employee.resume ? (
+                          <a
+                            href={`${backendUrl}/uploads/${employee.resume}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-1 inline-flex rounded-[5px] border border-sky-200 bg-sky-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-sky-700 hover:bg-sky-100"
+                          >
+                            View
+                          </a>
+                        ) : (
+                          <p className="mt-1 font-bold text-[#0A0D17]/40">
+                            No File
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => startEdit(employee)}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#0A0D17] text-white rounded-[5px] text-xs font-black hover:bg-[#1d2433] transition"
+                      >
+                        <FaEdit />
+                        Edit
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => removeEmployee(employee._id)}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 border border-red-200 bg-red-50 text-red-600 rounded-[5px] text-xs font-black hover:bg-red-500 hover:text-white transition"
+                      >
+                        <FaTrash />
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-[5px] border border-dashed border-black/15 bg-white p-12 text-center text-gray-500">
+                <div className="flex flex-col items-center justify-center">
+                  <div className="w-14 h-14 rounded-[5px] bg-[#f3f3f1] border border-black/5 flex items-center justify-center text-[#0A0D17]/35 text-lg font-black">
+                    E
+                  </div>
+
+                  <p className="mt-4 text-sm font-black uppercase tracking-[0.24em] text-[#0A0D17]/45">
+                    No employees found
+                  </p>
+
+                  <p className="mt-2 text-xs text-[#0A0D17]/35">
+                    Try changing the search or filters.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
+
+        {filteredEmployees.length > pageSize && (
+          <div className={`${panelBg} mt-4 rounded-[5px] px-4 py-4`}>
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45">
+                  Page Control
+                </p>
+
+                <p className="mt-1 text-xs font-semibold text-[#6b7280]">
+                  Showing {indexOfFirstItem + 1} -{" "}
+                  {Math.min(indexOfLastItem, filteredEmployees.length)} of{" "}
+                  {filteredEmployees.length} employees
+                </p>
+              </div>
+
+              <Pagination
+                className="saint-pagination"
+                current={currentPage}
+                pageSize={pageSize}
+                total={filteredEmployees.length}
+                showSizeChanger
+                pageSizeOptions={["9", "18", "36", "72"]}
+                responsive
+                showTotal={(total, range) =>
+                  `${range[0]}-${range[1]} of ${total} employees`
+                }
+                onChange={(page, size) => {
+                  setCurrentPage(page);
+                  setPageSize(size);
+                }}
+                onShowSizeChange={(_, size) => {
+                  setCurrentPage(1);
+                  setPageSize(size);
+                }}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

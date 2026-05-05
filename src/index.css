@@ -108,3 +108,25 @@ nav {
     page-break-before: always !important;
   }
 }
+.ant-pagination-item {
+  border-radius: 5px !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
+
+.ant-pagination-item-active {
+  background: #0A0D17 !important;
+  border-color: #0A0D17 !important;
+}
+
+.ant-pagination-item-active a {
+  color: white !important;
+}
+
+.ant-pagination-item a {
+  font-weight: 800 !important;
+}
+
+.ant-pagination-prev,
+.ant-pagination-next {
+  border-radius: 5px !important;
+}

@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { backendUrl } from "../App";
 import { toast } from "react-toastify";
+import { Pagination } from "antd";
+import "antd/dist/reset.css";
 import {
   FaUsers,
   FaSearch,
@@ -17,11 +19,10 @@ import {
   FaEnvelope,
   FaPhone,
   FaMapMarkerAlt,
-  FaCalendarAlt,
   FaTimes,
 } from "react-icons/fa";
 
-const ITEMS_PER_PAGE = 8;
+const DEFAULT_ITEMS_PER_PAGE = 8;
 
 const UsersPage = () => {
   const [users, setUsers] = useState([]);
@@ -30,6 +31,7 @@ const UsersPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_ITEMS_PER_PAGE);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -191,16 +193,22 @@ const UsersPage = () => {
     });
   }, [users, searchTerm, statusFilter]);
 
-  const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE) || 1;
+  const indexOfLastItem = currentPage * pageSize;
+  const indexOfFirstItem = indexOfLastItem - pageSize;
 
-  const paginatedUsers = filteredUsers.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
+  const paginatedUsers = filteredUsers.slice(indexOfFirstItem, indexOfLastItem);
+
+  const totalPages = Math.ceil(filteredUsers.length / pageSize) || 1;
 
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, statusFilter]);
+
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const summary = useMemo(() => {
     return {
@@ -211,24 +219,6 @@ const UsersPage = () => {
       deleted: users.filter((u) => getUserStatus(u) === "Deleted").length,
     };
   }, [users]);
-
-  const getPaginationNumbers = () => {
-    const pages = [];
-    const maxButtons = 5;
-
-    let start = Math.max(1, currentPage - 2);
-    let end = Math.min(totalPages, start + maxButtons - 1);
-
-    if (end - start < maxButtons - 1) {
-      start = Math.max(1, end - maxButtons + 1);
-    }
-
-    for (let page = start; page <= end; page += 1) {
-      pages.push(page);
-    }
-
-    return pages;
-  };
 
   if (loading) {
     return (
@@ -393,7 +383,12 @@ const UsersPage = () => {
             <div className="rounded-[5px] border border-black/10 bg-[#FAFAF8] px-4 py-3">
               <p className={labelClass}>Showing</p>
               <p className="mt-1 text-sm font-black text-[#0A0D17]">
-                {paginatedUsers.length} / {filteredUsers.length}
+                {filteredUsers.length === 0
+                  ? "0 / 0"
+                  : `${indexOfFirstItem + 1}-${Math.min(
+                      indexOfLastItem,
+                      filteredUsers.length
+                    )} / ${filteredUsers.length}`}
               </p>
             </div>
           </div>
@@ -502,11 +497,7 @@ const UsersPage = () => {
                         <button
                           type="button"
                           onClick={() =>
-                            handleUserAction(
-                              "block",
-                              user._id,
-                              "User blocked"
-                            )
+                            handleUserAction("block", user._id, "User blocked")
                           }
                           disabled={actionLoading === `block-${user._id}`}
                           className="px-2.5 py-1.5 rounded-[5px] bg-red-50 border border-red-100 text-red-600 text-[9px] font-black uppercase hover:bg-red-500 hover:text-white disabled:opacity-50"
@@ -542,9 +533,7 @@ const UsersPage = () => {
                               "User deactivated"
                             )
                           }
-                          disabled={
-                            actionLoading === `deactivate-${user._id}`
-                          }
+                          disabled={actionLoading === `deactivate-${user._id}`}
                           className="px-2.5 py-1.5 rounded-[5px] bg-amber-50 border border-amber-100 text-amber-700 text-[9px] font-black uppercase hover:bg-amber-500 hover:text-white disabled:opacity-50"
                         >
                           Off
@@ -561,9 +550,7 @@ const UsersPage = () => {
                               "User reactivated"
                             )
                           }
-                          disabled={
-                            actionLoading === `reactivate-${user._id}`
-                          }
+                          disabled={actionLoading === `reactivate-${user._id}`}
                           className="px-2.5 py-1.5 rounded-[5px] bg-blue-50 border border-blue-100 text-blue-700 text-[9px] font-black uppercase hover:bg-blue-600 hover:text-white disabled:opacity-50"
                         >
                           On
@@ -574,11 +561,7 @@ const UsersPage = () => {
                         <button
                           type="button"
                           onClick={() =>
-                            handleUserAction(
-                              "delete",
-                              user._id,
-                              "User deleted"
-                            )
+                            handleUserAction("delete", user._id, "User deleted")
                           }
                           disabled={actionLoading === `delete-${user._id}`}
                           className="px-2.5 py-1.5 rounded-[5px] bg-[#0A0D17] text-white text-[9px] font-black uppercase hover:bg-black disabled:opacity-50"
@@ -704,9 +687,7 @@ const UsersPage = () => {
                                   "User unblocked"
                                 )
                               }
-                              disabled={
-                                actionLoading === `unblock-${user._id}`
-                              }
+                              disabled={actionLoading === `unblock-${user._id}`}
                               className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[5px] bg-emerald-50 border border-emerald-100 text-emerald-700 text-[9px] font-black uppercase"
                             >
                               <FaUndo />
@@ -764,9 +745,7 @@ const UsersPage = () => {
                                   "User deleted"
                                 )
                               }
-                              disabled={
-                                actionLoading === `delete-${user._id}`
-                              }
+                              disabled={actionLoading === `delete-${user._id}`}
                               className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[5px] bg-[#0A0D17] text-white text-[9px] font-black uppercase"
                             >
                               <FaTrash />
@@ -787,49 +766,41 @@ const UsersPage = () => {
           </div>
         </div>
 
-        {totalPages > 1 && (
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-4">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#0A0D17]/45">
-              Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1}-
-              {Math.min(currentPage * ITEMS_PER_PAGE, filteredUsers.length)} of{" "}
-              {filteredUsers.length}
-            </p>
+        {filteredUsers.length > pageSize && (
+          <div className={`${panelBg} mt-4 rounded-[5px] px-4 py-4`}>
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45">
+                  Page Control
+                </p>
 
-            <div className="flex justify-center sm:justify-end gap-2 flex-wrap">
-              <button
-                type="button"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                className={buttonLight}
-              >
-                Prev
-              </button>
+                <p className="mt-1 text-xs font-semibold text-[#6b7280]">
+                  Showing {indexOfFirstItem + 1} -{" "}
+                  {Math.min(indexOfLastItem, filteredUsers.length)} of{" "}
+                  {filteredUsers.length} users
+                </p>
+              </div>
 
-              {getPaginationNumbers().map((page) => (
-                <button
-                  key={page}
-                  type="button"
-                  onClick={() => setCurrentPage(page)}
-                  className={`px-3.5 py-2 border rounded-[5px] font-black text-sm ${
-                    currentPage === page
-                      ? "bg-[#0A0D17] text-white border-[#0A0D17]"
-                      : "bg-white text-gray-900 border-[#d7d7d2]"
-                  }`}
-                >
-                  {page}
-                </button>
-              ))}
-
-              <button
-                type="button"
-                disabled={currentPage === totalPages}
-                onClick={() =>
-                  setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+              <Pagination
+                className="saint-pagination"
+                current={currentPage}
+                pageSize={pageSize}
+                total={filteredUsers.length}
+                showSizeChanger
+                pageSizeOptions={["8", "16", "32", "64"]}
+                responsive
+                showTotal={(total, range) =>
+                  `${range[0]}-${range[1]} of ${total} users`
                 }
-                className={buttonDark}
-              >
-                Next
-              </button>
+                onChange={(page, size) => {
+                  setCurrentPage(page);
+                  setPageSize(size);
+                }}
+                onShowSizeChange={(_, size) => {
+                  setCurrentPage(1);
+                  setPageSize(size);
+                }}
+              />
             </div>
           </div>
         )}
@@ -1023,4 +994,4 @@ const UsersPage = () => {
   );
 };
 
-export default UsersPage; 
+export default UsersPage;

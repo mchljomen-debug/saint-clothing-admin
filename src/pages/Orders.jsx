@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 import { assets } from "../assets/assets";
 import axios from "axios";
+import { Pagination } from "antd";
+import "antd/dist/reset.css";
 import {
   FaClipboardList,
   FaCheckCircle,
@@ -42,7 +44,14 @@ const PRODUCT_CATEGORIES = [
   "Crop Jersey",
 ];
 
-const PAYMENT_METHOD_FILTERS = ["All", "COD", "GCash", "Maya", "GoTyme", "Stripe"];
+const PAYMENT_METHOD_FILTERS = [
+  "All",
+  "COD",
+  "GCash",
+  "Maya",
+  "GoTyme",
+  "Stripe",
+];
 
 const PAYMENT_STATUS_FILTERS = [
   "All",
@@ -53,6 +62,8 @@ const PAYMENT_STATUS_FILTERS = [
   "Payment Failed",
   "Collected on Delivery",
 ];
+
+const ORDER_AGE_FILTERS = ["All", "New Orders", "Today", "Last 7 Days"];
 
 const MANUAL_PAYMENT_METHODS = ["GCash", "Maya", "GoTyme"];
 
@@ -106,6 +117,7 @@ const Orders = () => {
   const [statusFilter, setStatusFilter] = useState("All");
   const [paymentMethodFilter, setPaymentMethodFilter] = useState("All");
   const [paymentStatusFilter, setPaymentStatusFilter] = useState("All");
+  const [orderAgeFilter, setOrderAgeFilter] = useState("All");
 
   const [proofModalOpen, setProofModalOpen] = useState(false);
   const [selectedProof, setSelectedProof] = useState("");
@@ -124,8 +136,6 @@ const Orders = () => {
     "w-full rounded-[5px] border border-black/10 bg-white px-3 py-2.5 text-sm text-[#0A0D17] outline-none transition focus:border-black";
   const labelClass =
     "text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45";
-  const buttonDark =
-    "inline-flex items-center justify-center gap-2 rounded-[5px] bg-[#0A0D17] px-4 py-2.5 text-sm font-black text-white transition hover:bg-[#1f2937] disabled:opacity-50";
   const buttonLight =
     "inline-flex items-center justify-center gap-2 rounded-[5px] border border-black/10 bg-white px-4 py-2.5 text-sm font-black text-[#0A0D17] transition hover:bg-[#FAFAF8] disabled:opacity-50";
 
@@ -196,6 +206,31 @@ const Orders = () => {
         new Date(b.createdAt || b.date || 0) -
         new Date(a.createdAt || a.date || 0)
     );
+  };
+
+  const isNewOrder = (item) => {
+    const orderDate = new Date(item.createdAt || item.date || 0);
+    const now = new Date();
+    const diffHours = (now - orderDate) / (1000 * 60 * 60);
+    return diffHours <= 24;
+  };
+
+  const isTodayOrder = (item) => {
+    const orderDate = new Date(item.createdAt || item.date || 0);
+    const now = new Date();
+
+    return (
+      orderDate.getFullYear() === now.getFullYear() &&
+      orderDate.getMonth() === now.getMonth() &&
+      orderDate.getDate() === now.getDate()
+    );
+  };
+
+  const isLast7DaysOrder = (item) => {
+    const orderDate = new Date(item.createdAt || item.date || 0);
+    const now = new Date();
+    const diffDays = (now - orderDate) / (1000 * 60 * 60 * 24);
+    return diffDays <= 7;
   };
 
   const extractImageValue = (input) => {
@@ -341,7 +376,9 @@ const Orders = () => {
               expectedRestockDate: item.expectedRestockDate || null,
               preorderNote: item.preorderNote || "",
               preorderShipDate:
-                order.preorderShipDate || order.deliveryEstimate?.shipsOn || null,
+                order.preorderShipDate ||
+                order.deliveryEstimate?.shipsOn ||
+                null,
               deliveryEstimate: order.deliveryEstimate || null,
             });
           });
@@ -452,7 +489,8 @@ const Orders = () => {
 
     if (category !== "All") {
       temp = temp.filter(
-        (item) => normalizeCategory(item.category) === normalizeCategory(category)
+        (item) =>
+          normalizeCategory(item.category) === normalizeCategory(category)
       );
     }
 
@@ -471,7 +509,21 @@ const Orders = () => {
     }
 
     if (paymentStatusFilter !== "All") {
-      temp = temp.filter((item) => item.paymentStatusLabel === paymentStatusFilter);
+      temp = temp.filter(
+        (item) => item.paymentStatusLabel === paymentStatusFilter
+      );
+    }
+
+    if (orderAgeFilter === "New Orders") {
+      temp = temp.filter((item) => isNewOrder(item));
+    }
+
+    if (orderAgeFilter === "Today") {
+      temp = temp.filter((item) => isTodayOrder(item));
+    }
+
+    if (orderAgeFilter === "Last 7 Days") {
+      temp = temp.filter((item) => isLast7DaysOrder(item));
     }
 
     temp = sortItems(temp);
@@ -483,6 +535,7 @@ const Orders = () => {
     statusFilter,
     paymentMethodFilter,
     paymentStatusFilter,
+    orderAgeFilter,
     itemsList,
   ]);
 
@@ -509,7 +562,6 @@ const Orders = () => {
   const indexOfLast = currentPage * itemsPerPage;
   const indexOfFirst = indexOfLast - itemsPerPage;
   const currentItems = filteredItems.slice(indexOfFirst, indexOfLast);
-  const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
 
   const getStatusColor = (status) => {
     switch (normalizeStatus(status)) {
@@ -551,6 +603,7 @@ const Orders = () => {
 
   return (
     <div className="min-h-screen bg-transparent px-2.5 sm:px-3 pt-20 sm:pt-24 pb-4 font-['Montserrat']">
+
       <div className="max-w-[1500px] mx-auto">
         <div className="rounded-[5px] bg-[#0A0D17] p-5 sm:p-6 shadow-[0_18px_60px_rgba(0,0,0,0.08)] mb-4 text-white border border-black/10 overflow-hidden relative">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
@@ -569,7 +622,8 @@ const Orders = () => {
                     Order Management
                   </h1>
                   <p className="text-[11px] sm:text-sm text-white/65 mt-1">
-                    Track orders, payments, dispatch progress, pre-orders, and proof submissions.
+                    Track orders, payments, dispatch progress, pre-orders, and
+                    proof submissions.
                   </p>
                 </div>
               </div>
@@ -661,7 +715,7 @@ const Orders = () => {
             <p className={labelClass}>Order Filters</p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
@@ -709,6 +763,18 @@ const Orders = () => {
                 </option>
               ))}
             </select>
+
+            <select
+              value={orderAgeFilter}
+              onChange={(e) => setOrderAgeFilter(e.target.value)}
+              className={inputClass}
+            >
+              {ORDER_AGE_FILTERS.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -728,7 +794,7 @@ const Orders = () => {
             </div>
           </div>
 
-          <div className="flex flex-col gap-3 p-4 sm:p-5 bg-[#FAFAF8]">
+          <div className="flex flex-col gap-3 p-3 sm:p-4 bg-[#FAFAF8]">
             {currentItems.length === 0 && (
               <div className="rounded-[5px] border border-dashed border-black/15 bg-white py-16 text-center">
                 <p className="text-sm font-black uppercase tracking-[0.24em] text-[#0A0D17]/40">
@@ -748,10 +814,10 @@ const Orders = () => {
                   key={`${item.orderId}-${item._id || item.productId || index}`}
                   className="rounded-[5px] overflow-hidden border border-black/10 bg-white shadow-[0_8px_24px_rgba(0,0,0,0.04)]"
                 >
-                  <div className="grid grid-cols-1 xl:grid-cols-[1.25fr_1.35fr_1fr_0.75fr]">
-                    <div className="p-4 sm:p-5 border-b xl:border-b-0 xl:border-r border-black/10">
-                      <div className="flex items-start gap-4">
-                        <div className="w-16 h-16 rounded-[5px] bg-[#f4f4f3] border border-black/10 flex items-center justify-center shrink-0 overflow-hidden">
+                  <div className="grid grid-cols-1 xl:grid-cols-[1.15fr_1fr_0.9fr]">
+                    <div className="p-4 border-b xl:border-b-0 xl:border-r border-black/10">
+                      <div className="flex items-start gap-3">
+                        <div className="w-14 h-14 rounded-[5px] bg-[#f4f4f3] border border-black/10 flex items-center justify-center shrink-0 overflow-hidden">
                           <img
                             src={getOrderImageUrl(item.image)}
                             className="w-full h-full object-cover"
@@ -778,7 +844,7 @@ const Orders = () => {
                         </div>
                       </div>
 
-                      <div className="mt-5">
+                      <div className="mt-4">
                         <p className={labelClass}>Product</p>
 
                         <div className="mt-1 flex flex-wrap items-center gap-2">
@@ -789,6 +855,12 @@ const Orders = () => {
                           {item.isPreorder && (
                             <span className="px-2.5 py-1 rounded-[5px] bg-amber-100 text-amber-700 text-[10px] font-black uppercase tracking-[0.14em]">
                               Pre-order
+                            </span>
+                          )}
+
+                          {isNewOrder(item) && (
+                            <span className="px-2.5 py-1 rounded-[5px] bg-green-100 text-green-700 text-[10px] font-black uppercase tracking-[0.14em]">
+                              New
                             </span>
                           )}
 
@@ -822,6 +894,19 @@ const Orders = () => {
                         <div className="mt-3 text-xs text-[#0A0D17]/55 space-y-1">
                           <p>SKU: {item.sku || "N/A"}</p>
                           <p>Group Code: {item.groupCode || "N/A"}</p>
+                          <p>
+                            Date:{" "}
+                            {new Date(
+                              item.createdAt || item.date || Date.now()
+                            ).toLocaleString("en-US", {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                              hour: "numeric",
+                              minute: "2-digit",
+                              hour12: true,
+                            })}
+                          </p>
                         </div>
 
                         {item.isPreorder && (
@@ -843,7 +928,7 @@ const Orders = () => {
                       </div>
                     </div>
 
-                    <div className="p-4 sm:p-5 border-b xl:border-b-0 xl:border-r border-black/10">
+                    <div className="p-4 border-b xl:border-b-0 xl:border-r border-black/10">
                       <p className={labelClass}>Delivery Address</p>
                       <p className="mt-2 text-sm text-[#0A0D17] leading-6 break-words">
                         {item.fullAddress}
@@ -889,129 +974,105 @@ const Orders = () => {
                       </div>
                     </div>
 
-                    <div className="p-4 sm:p-5 border-b xl:border-b-0 xl:border-r border-black/10">
-                      <div className="space-y-4 text-xs">
+                    <div className="p-4 flex flex-col gap-4 bg-[#fafaf8]">
+                      <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <p className={labelClass}>Payment Method</p>
+                          <p className={labelClass}>Amount</p>
+                          <p className="mt-2 text-2xl font-black text-[#0A0D17]">
+                            {currency}
+                            {Number(item.price || 0).toLocaleString()}
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className={labelClass}>Payment</p>
                           <p className="mt-2 text-sm font-black text-[#0A0D17]">
                             {item.paymentMethod || "COD"}
                           </p>
                         </div>
-
-                        <div>
-                          <p className={labelClass}>Payment Status</p>
-                          <span
-                            className={`mt-2 inline-flex rounded-[5px] border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] ${getPaymentStatusColor(
-                              item.paymentStatusLabel
-                            )}`}
-                          >
-                            {item.paymentStatusLabel}
-                          </span>
-
-                          {verifying && (
-                            <p className="mt-2 text-[11px] font-bold text-violet-700">
-                              Proof uploaded. Review before shipping.
-                            </p>
-                          )}
-
-                          {failed && (
-                            <p className="mt-2 text-[11px] font-bold text-red-700">
-                              Payment rejected. Shipping is locked.
-                            </p>
-                          )}
-                        </div>
-
-                        {item.isPreorder && (
-                          <div>
-                            <p className={labelClass}>Pre-order Ship Date</p>
-                            <p className="mt-2 text-sm font-black text-amber-700">
-                              {formatDateLong(shipDate)}
-                            </p>
-                          </div>
-                        )}
-
-                        {(item.paymentMethod === "GCash" ||
-                          item.paymentMethod === "Maya" ||
-                          item.paymentMethod === "GoTyme") && (
-                          <>
-                            <div>
-                              <p className={labelClass}>Reference No.</p>
-                              <p className="mt-2 break-all text-sm text-[#0A0D17]">
-                                {item.referenceNumber || "Not Available"}
-                              </p>
-                            </div>
-
-                            <div>
-                              <p className={`${labelClass} mb-2`}>
-                                Payment Proof
-                              </p>
-
-                              {item.paymentProofImage ? (
-                                <div className="space-y-3">
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      openProofModal(item.paymentProofImage, item.name)
-                                    }
-                                    className="block"
-                                  >
-                                    <img
-                                      src={getProofUrl(item.paymentProofImage)}
-                                      alt="Payment Proof"
-                                      className="w-24 h-24 object-cover rounded-[5px] border border-black/10 hover:opacity-90 transition"
-                                      loading="lazy"
-                                      onError={(e) => {
-                                        e.currentTarget.onerror = null;
-                                        e.currentTarget.src = assets.fallback_image;
-                                      }}
-                                    />
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      openProofModal(item.paymentProofImage, item.name)
-                                    }
-                                    className={buttonLight}
-                                  >
-                                    View Proof
-                                  </button>
-                                </div>
-                              ) : (
-                                <p className="text-[#0A0D17]/40">
-                                  No payment proof uploaded
-                                </p>
-                              )}
-                            </div>
-                          </>
-                        )}
-
-                        <div>
-                          <p className={labelClass}>Date</p>
-                          <p className="mt-2 text-sm text-[#0A0D17]">
-                            {new Date(
-                              item.createdAt || item.date || Date.now()
-                            ).toLocaleString("en-US", {
-                              year: "numeric",
-                              month: "short",
-                              day: "numeric",
-                              hour: "numeric",
-                              minute: "2-digit",
-                              hour12: true,
-                            })}
-                          </p>
-                        </div>
                       </div>
-                    </div>
 
-                    <div className="p-4 sm:p-5 flex flex-col justify-between gap-5 bg-[#fafaf8]">
                       <div>
-                        <p className={labelClass}>Amount</p>
-                        <p className="mt-2 text-2xl font-black text-[#0A0D17]">
-                          {currency}
-                          {Number(item.price || 0).toLocaleString()}
-                        </p>
+                        <p className={labelClass}>Payment Status</p>
+                        <span
+                          className={`mt-2 inline-flex rounded-[5px] border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] ${getPaymentStatusColor(
+                            item.paymentStatusLabel
+                          )}`}
+                        >
+                          {item.paymentStatusLabel}
+                        </span>
+
+                        {verifying && (
+                          <p className="mt-2 text-[11px] font-bold text-violet-700">
+                            Proof uploaded. Review before shipping.
+                          </p>
+                        )}
+
+                        {failed && (
+                          <p className="mt-2 text-[11px] font-bold text-red-700">
+                            Payment rejected. Shipping is locked.
+                          </p>
+                        )}
                       </div>
+
+                      {(item.paymentMethod === "GCash" ||
+                        item.paymentMethod === "Maya" ||
+                        item.paymentMethod === "GoTyme") && (
+                        <div className="rounded-[5px] border border-black/10 bg-white p-3">
+                          <p className={labelClass}>Reference No.</p>
+                          <p className="mt-2 break-all text-sm text-[#0A0D17]">
+                            {item.referenceNumber || "Not Available"}
+                          </p>
+
+                          <p className={`${labelClass} mt-3 mb-2`}>
+                            Payment Proof
+                          </p>
+
+                          {item.paymentProofImage ? (
+                            <div className="flex items-center gap-3">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  openProofModal(
+                                    item.paymentProofImage,
+                                    item.name
+                                  )
+                                }
+                                className="block"
+                              >
+                                <img
+                                  src={getProofUrl(item.paymentProofImage)}
+                                  alt="Payment Proof"
+                                  className="w-16 h-16 object-cover rounded-[5px] border border-black/10 hover:opacity-90 transition"
+                                  loading="lazy"
+                                  onError={(e) => {
+                                    e.currentTarget.onerror = null;
+                                    e.currentTarget.src =
+                                      assets.fallback_image;
+                                  }}
+                                />
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  openProofModal(
+                                    item.paymentProofImage,
+                                    item.name
+                                  )
+                                }
+                                className={buttonLight}
+                              >
+                                View Proof
+                              </button>
+                            </div>
+                          ) : (
+                            <p className="text-[#0A0D17]/40 text-xs">
+                              No payment proof uploaded
+                            </p>
+                          )}
+                        </div>
+                      )}
 
                       {verifying && (
                         <div className="rounded-[5px] border border-violet-200 bg-violet-50 p-3">
@@ -1019,19 +1080,20 @@ const Orders = () => {
                             Pending Approval
                           </p>
                           <p className="mt-1 text-[11px] font-bold text-violet-700/80">
-                            Check reference number and proof image before approving.
+                            Check reference number and proof image before
+                            approving.
                           </p>
                         </div>
                       )}
 
                       {verifying && (
-                        <div className="flex flex-col gap-2">
+                        <div className="grid grid-cols-2 gap-2">
                           <button
                             type="button"
                             onClick={() => approvePayment(item.orderId)}
                             className="w-full rounded-[5px] bg-emerald-600 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-white hover:bg-emerald-700 transition"
                           >
-                            Approve Payment
+                            Approve
                           </button>
 
                           <button
@@ -1039,17 +1101,21 @@ const Orders = () => {
                             onClick={() => rejectPayment(item.orderId)}
                             className="w-full rounded-[5px] border border-red-500 bg-white py-3 text-[10px] font-black uppercase tracking-[0.18em] text-red-600 hover:bg-red-50 transition"
                           >
-                            Reject Payment
+                            Reject
                           </button>
                         </div>
                       )}
 
                       <div>
-                        <p className={`${labelClass} mb-2`}>Delivery Status</p>
+                        <p className={`${labelClass} mb-2`}>
+                          Delivery Status
+                        </p>
 
                         <select
                           value={normalizeStatus(item.status)}
-                          onChange={(e) => statusHandler(e, item.orderId, item)}
+                          onChange={(e) =>
+                            statusHandler(e, item.orderId, item)
+                          }
                           disabled={locked}
                           title={
                             locked
@@ -1058,7 +1124,11 @@ const Orders = () => {
                           }
                           className={`w-full border p-3 text-xs font-black rounded-[5px] outline-none ${getStatusColor(
                             item.status
-                          )} ${locked ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
+                          )} ${
+                            locked
+                              ? "cursor-not-allowed opacity-60"
+                              : "cursor-pointer"
+                          }`}
                         >
                           {ORDER_STATUSES.map((status) => (
                             <option key={status} value={status}>
@@ -1081,21 +1151,15 @@ const Orders = () => {
           </div>
         </div>
 
-        {totalPages > 1 && (
-          <div className="flex justify-center mt-4 gap-2 flex-wrap">
-            {[...Array(totalPages)].map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setCurrentPage(i + 1)}
-                className={`px-3.5 py-1.5 border rounded-[5px] font-black ${
-                  currentPage === i + 1
-                    ? "bg-[#0A0D17] text-white border-[#0A0D17]"
-                    : "bg-white text-gray-900 border-[#d7d7d2]"
-                }`}
-              >
-                {i + 1}
-              </button>
-            ))}
+        {filteredItems.length > itemsPerPage && (
+          <div className="flex justify-center mt-6">
+            <Pagination
+              current={currentPage}
+              pageSize={itemsPerPage}
+              total={filteredItems.length}
+              onChange={(page) => setCurrentPage(page)}
+              showSizeChanger={false}
+            />
           </div>
         )}
       </div>

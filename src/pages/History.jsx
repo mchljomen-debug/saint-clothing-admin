@@ -2,6 +2,8 @@ import axios from "axios";
 import { useEffect, useMemo, useState } from "react";
 import { backendUrl } from "../App";
 import { toast } from "react-toastify";
+import { Pagination } from "antd";
+import "antd/dist/reset.css";
 import {
   FaHistory,
   FaSearch,
@@ -22,9 +24,8 @@ const History = ({ token }) => {
   const [search, setSearch] = useState("");
   const [entityFilter, setEntityFilter] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [loading, setLoading] = useState(false);
-
-  const pageSize = 10;
 
   const panelBg =
     "bg-white border border-black/10 shadow-[0_8px_24px_rgba(0,0,0,0.05)]";
@@ -33,8 +34,6 @@ const History = ({ token }) => {
     "w-full rounded-[5px] border border-black/10 bg-white px-3 py-2.5 text-sm text-[#0A0D17] outline-none transition focus:border-black";
   const labelClass =
     "text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45";
-  const buttonLight =
-    "inline-flex items-center justify-center gap-2 rounded-[5px] border border-black/10 bg-white px-4 py-2.5 text-sm font-black text-[#0A0D17] transition hover:bg-[#FAFAF8] disabled:opacity-50";
 
   const fetchLogs = async () => {
     if (!token) return;
@@ -102,6 +101,12 @@ const History = ({ token }) => {
   const indexOfFirstItem = indexOfLastItem - pageSize;
   const currentLogs = filteredLogs.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredLogs.length / pageSize);
+
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const handlePrint = () => window.print();
 
@@ -487,21 +492,42 @@ const History = ({ token }) => {
           </div>
         </div>
 
-        {filteredLogs.length > 0 && totalPages > 1 && (
-          <div className="flex justify-center mt-4 gap-2 flex-wrap print:hidden">
-            {[...Array(totalPages)].map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setCurrentPage(i + 1)}
-                className={`px-3.5 py-1.5 border rounded-[5px] font-black ${
-                  currentPage === i + 1
-                    ? "bg-[#0A0D17] text-white border-[#0A0D17]"
-                    : "bg-white text-gray-900 border-[#d7d7d2]"
-                }`}
-              >
-                {i + 1}
-              </button>
-            ))}
+        {filteredLogs.length > pageSize && (
+          <div className={`${panelBg} mt-4 rounded-[5px] px-4 py-4 print:hidden`}>
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45">
+                  Page Control
+                </p>
+
+                <p className="mt-1 text-xs font-semibold text-[#6b7280]">
+                  Showing {indexOfFirstItem + 1} -{" "}
+                  {Math.min(indexOfLastItem, filteredLogs.length)} of{" "}
+                  {filteredLogs.length} logs
+                </p>
+              </div>
+
+              <Pagination
+                className="saint-pagination"
+                current={currentPage}
+                pageSize={pageSize}
+                total={filteredLogs.length}
+                showSizeChanger
+                pageSizeOptions={["10", "20", "50", "100"]}
+                responsive
+                showTotal={(total, range) =>
+                  `${range[0]}-${range[1]} of ${total} logs`
+                }
+                onChange={(page, size) => {
+                  setCurrentPage(page);
+                  setPageSize(size);
+                }}
+                onShowSizeChange={(_, size) => {
+                  setCurrentPage(1);
+                  setPageSize(size);
+                }}
+              />
+            </div>
           </div>
         )}
 

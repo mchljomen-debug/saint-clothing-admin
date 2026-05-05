@@ -15,6 +15,7 @@ import {
   FaUserTie,
   FaCheckCircle,
   FaBan,
+  FaTrash,
 } from "react-icons/fa";
 
 const ITEMS_PER_PAGE = 8;
@@ -65,6 +66,8 @@ const BranchesPage = () => {
     "inline-flex items-center justify-center gap-2 rounded-[5px] bg-[#0A0D17] px-4 py-2.5 text-sm font-black text-white transition hover:bg-[#1f2937] disabled:opacity-50";
   const buttonLight =
     "inline-flex items-center justify-center gap-2 rounded-[5px] border border-black/10 bg-white px-4 py-2.5 text-sm font-black text-[#0A0D17] transition hover:bg-[#FAFAF8] disabled:opacity-50";
+  const buttonDanger =
+    "inline-flex items-center justify-center gap-2 rounded-[5px] border border-red-100 bg-red-50 px-4 py-2.5 text-sm font-black text-red-600 transition hover:bg-red-500 hover:text-white disabled:opacity-50";
 
   const fetchBranches = async (silent = false) => {
     try {
@@ -205,6 +208,47 @@ const BranchesPage = () => {
     }
   };
 
+  const deleteBranch = async (branch) => {
+    const confirmDelete = window.confirm(
+      `Delete branch "${branch.name}" (${branch.code})? This cannot be undone.`
+    );
+
+    if (!confirmDelete) return;
+
+    try {
+      setSaving(true);
+
+      const res = await axios.delete(
+        `${backendUrl}/api/branch/delete/${branch._id}`,
+        axiosConfig
+      );
+
+      if (res.data.success) {
+        toast.success(res.data.message || "Branch deleted successfully");
+
+        if (editingId === branch._id) {
+          cancelEdit();
+        }
+
+        const nextCount = filteredBranches.length - 1;
+        const nextTotalPages = Math.ceil(nextCount / ITEMS_PER_PAGE) || 1;
+
+        if (currentPage > nextTotalPages) {
+          setCurrentPage(nextTotalPages);
+        }
+
+        fetchBranches(true);
+      } else {
+        toast.error(res.data.message || "Failed to delete branch");
+      }
+    } catch (err) {
+      console.log(err);
+      toast.error(err.response?.data?.message || "Failed to delete branch");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const filteredBranches = useMemo(() => {
     const term = search.trim().toLowerCase();
 
@@ -275,11 +319,13 @@ const BranchesPage = () => {
       <div className="min-h-screen bg-transparent p-3 pt-24 font-['Montserrat']">
         <div className="animate-pulse space-y-3">
           <div className="h-24 rounded-[5px] bg-white/70" />
+
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             {[...Array(4)].map((_, i) => (
               <div key={i} className="h-28 rounded-[5px] bg-white/70" />
             ))}
           </div>
+
           <div className="h-44 rounded-[5px] bg-white/70" />
           <div className="h-96 rounded-[5px] bg-white/70" />
         </div>
@@ -527,7 +573,7 @@ const BranchesPage = () => {
           </div>
 
           <div className="hidden xl:block">
-            <div className="grid grid-cols-[1.1fr_120px_1.7fr_145px_1.1fr_105px_150px] bg-[#0A0D17] text-white px-5 py-4 font-black text-[10px] uppercase tracking-[0.12em]">
+            <div className="grid grid-cols-[1.1fr_120px_1.7fr_145px_1.1fr_105px_205px] bg-[#0A0D17] text-white px-5 py-4 font-black text-[10px] uppercase tracking-[0.12em]">
               <span>Name</span>
               <span>Code</span>
               <span>Address</span>
@@ -541,7 +587,7 @@ const BranchesPage = () => {
               paginatedBranches.map((branch, index) => (
                 <div
                   key={branch._id}
-                  className={`grid grid-cols-[1.1fr_120px_1.7fr_145px_1.1fr_105px_150px] items-center border-b border-[#ecece6] px-5 py-4 gap-3 ${
+                  className={`grid grid-cols-[1.1fr_120px_1.7fr_145px_1.1fr_105px_205px] items-center border-b border-[#ecece6] px-5 py-4 gap-3 ${
                     index % 2 === 0 ? "bg-white" : "bg-[#fcfcfb]"
                   }`}
                 >
@@ -664,14 +710,26 @@ const BranchesPage = () => {
                         </button>
                       </>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={() => startEdit(branch)}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[5px] bg-[#0A0D17] text-white text-[9px] font-black uppercase hover:bg-black"
-                      >
-                        <FaEdit />
-                        Edit
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => startEdit(branch)}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[5px] bg-[#0A0D17] text-white text-[9px] font-black uppercase hover:bg-black"
+                        >
+                          <FaEdit />
+                          Edit
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => deleteBranch(branch)}
+                          disabled={saving}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[5px] bg-red-50 border border-red-100 text-red-600 text-[9px] font-black uppercase hover:bg-red-500 hover:text-white disabled:opacity-50"
+                        >
+                          <FaTrash />
+                          Delete
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -733,6 +791,7 @@ const BranchesPage = () => {
                           onChange={onEditChangeHandler}
                           className="w-4 h-4 accent-[#0A0D17]"
                         />
+
                         <span className="text-xs font-black uppercase text-[#0A0D17]">
                           Active Branch
                         </span>
@@ -787,6 +846,7 @@ const BranchesPage = () => {
                             <FaMapMarkerAlt />
                             <p className={labelClass}>Address</p>
                           </div>
+
                           <p className="mt-1 text-xs font-semibold text-[#0A0D17]/70">
                             {branch.address || "-"}
                           </p>
@@ -798,6 +858,7 @@ const BranchesPage = () => {
                               <FaPhone />
                               <p className={labelClass}>Contact</p>
                             </div>
+
                             <p className="mt-1 text-xs font-semibold text-[#0A0D17]/70">
                               {branch.contactNumber || "-"}
                             </p>
@@ -808,6 +869,7 @@ const BranchesPage = () => {
                               <FaUserTie />
                               <p className={labelClass}>Manager</p>
                             </div>
+
                             <p className="mt-1 text-xs font-semibold text-[#0A0D17]/70">
                               {branch.managerName || "-"}
                             </p>
@@ -815,7 +877,7 @@ const BranchesPage = () => {
                         </div>
                       </div>
 
-                      <div className="mt-4">
+                      <div className="mt-4 flex flex-wrap gap-2">
                         <button
                           type="button"
                           onClick={() => startEdit(branch)}
@@ -823,6 +885,16 @@ const BranchesPage = () => {
                         >
                           <FaEdit />
                           Edit Branch
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => deleteBranch(branch)}
+                          disabled={saving}
+                          className={buttonDanger}
+                        >
+                          <FaTrash />
+                          Delete Branch
                         </button>
                       </div>
                     </div>

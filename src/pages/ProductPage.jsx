@@ -3,6 +3,8 @@ import { assets } from "../assets/assets";
 import axios from "axios";
 import { backendUrl, currency } from "../App";
 import { toast } from "react-toastify";
+import { Pagination } from "antd";
+import "antd/dist/reset.css";
 import {
   FaBoxes,
   FaPlus,
@@ -43,7 +45,7 @@ const ProductPage = ({ token }) => {
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(10);
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
   const [search, setSearch] = useState("");
@@ -664,6 +666,12 @@ const ProductPage = ({ token }) => {
   const indexOfFirstItem = indexOfLastItem - pageSize;
   const currentItems = filteredList.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredList.length / pageSize);
+
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   useEffect(() => {
     if (token) {
@@ -1650,21 +1658,79 @@ const ProductPage = ({ token }) => {
             </div>
           </div>
 
-          {totalPages > 1 && (
-            <div className="flex justify-center mt-4 gap-2 flex-wrap">
-              {[...Array(totalPages)].map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setCurrentPage(i + 1)}
-                  className={`px-3.5 py-1.5 border rounded-[5px] font-black ${
-                    currentPage === i + 1
-                      ? "bg-[#0A0D17] text-white border-[#0A0D17]"
-                      : "bg-white text-gray-900 border-[#d7d7d2]"
-                  }`}
-                >
-                  {i + 1}
-                </button>
-              ))}
+          {filteredList.length > 0 && (
+            <div className={`${panelBg} mt-4 rounded-[5px] px-4 py-4`}>
+              <style>
+                {`
+                  .saint-pagination .ant-pagination-item {
+                    border-radius: 5px !important;
+                    border-color: rgba(0,0,0,0.12) !important;
+                    font-weight: 900 !important;
+                  }
+
+                  .saint-pagination .ant-pagination-item-active {
+                    background: #0A0D17 !important;
+                    border-color: #0A0D17 !important;
+                  }
+
+                  .saint-pagination .ant-pagination-item-active a {
+                    color: #ffffff !important;
+                  }
+
+                  .saint-pagination .ant-pagination-prev button,
+                  .saint-pagination .ant-pagination-next button {
+                    border-radius: 5px !important;
+                    border-color: rgba(0,0,0,0.12) !important;
+                    font-weight: 900 !important;
+                  }
+
+                  .saint-pagination .ant-select-selector {
+                    border-radius: 5px !important;
+                    border-color: rgba(0,0,0,0.12) !important;
+                    font-weight: 800 !important;
+                  }
+
+                  .saint-pagination .ant-pagination-total-text {
+                    color: #6b7280 !important;
+                    font-size: 12px !important;
+                    font-weight: 800 !important;
+                    text-transform: uppercase !important;
+                    letter-spacing: 0.08em !important;
+                  }
+                `}
+              </style>
+
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45">
+                    Page Control
+                  </p>
+                  <p className="mt-1 text-xs font-semibold text-[#6b7280]">
+                    Showing {indexOfFirstItem + 1} - {Math.min(indexOfLastItem, filteredList.length)} of {filteredList.length} products
+                  </p>
+                </div>
+
+                <Pagination
+                  className="saint-pagination"
+                  current={currentPage}
+                  pageSize={pageSize}
+                  total={filteredList.length}
+                  showSizeChanger
+                  pageSizeOptions={["5", "10", "20", "50"]}
+                  responsive
+                  showTotal={(total, range) =>
+                    `${range[0]}-${range[1]} of ${total} items`
+                  }
+                  onChange={(page, size) => {
+                    setCurrentPage(page);
+                    setPageSize(size);
+                  }}
+                  onShowSizeChange={(_, size) => {
+                    setCurrentPage(1);
+                    setPageSize(size);
+                  }}
+                />
+              </div>
             </div>
           )}
         </main>

@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { backendUrl } from "../App";
 import { toast } from "react-toastify";
+import { Pagination } from "antd";
+import "antd/dist/reset.css";
 import {
   FaBoxes,
   FaSearch,
@@ -16,7 +18,7 @@ import {
 } from "react-icons/fa";
 
 const sizesList = ["S", "M", "L", "XL", "2XL", "3XL"];
-const ITEMS_PER_PAGE = 20;
+const DEFAULT_ITEMS_PER_PAGE = 20;
 const INVENTORY_LOG_KEY = "saint_inventory_logs";
 
 const FIXED_CATEGORIES = [
@@ -121,6 +123,7 @@ const SKU = ({ token }) => {
   const [stockFilter, setStockFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_ITEMS_PER_PAGE);
   const [inventoryLogs, setInventoryLogs] = useState([]);
 
   const axiosConfig = {
@@ -442,7 +445,7 @@ const SKU = ({ token }) => {
         Boolean(product.preorderEnabled !== false) !== Boolean(preorderEnabled) ||
         Number(product.preorderThreshold ?? 5) !== Number(preorderThreshold) ||
         Boolean(product.preorderAutoGenerate !== false) !==
-        Boolean(preorderAutoGenerate) ||
+          Boolean(preorderAutoGenerate) ||
         Number(product.preorderAutoStock ?? 20) !== Number(preorderAutoStock) ||
         formatDateInput(product.preorderRestockDate) !== preorderRestockDate ||
         String(product.preorderNote || "") !== String(preorderNote || "");
@@ -481,16 +484,16 @@ const SKU = ({ token }) => {
         const updatedProducts = products.map((item) =>
           item._id === productId
             ? {
-              ...item,
-              stock: finalStock,
-              preorderStock: finalPreorderStock,
-              preorderEnabled,
-              preorderThreshold,
-              preorderAutoGenerate,
-              preorderAutoStock,
-              preorderRestockDate: preorderRestockDate || null,
-              preorderNote,
-            }
+                ...item,
+                stock: finalStock,
+                preorderStock: finalPreorderStock,
+                preorderEnabled,
+                preorderThreshold,
+                preorderAutoGenerate,
+                preorderAutoStock,
+                preorderRestockDate: preorderRestockDate || null,
+                preorderNote,
+              }
             : item
         );
 
@@ -499,16 +502,16 @@ const SKU = ({ token }) => {
         setSelectedProduct((prev) =>
           prev && prev._id === productId
             ? {
-              ...prev,
-              stock: finalStock,
-              preorderStock: finalPreorderStock,
-              preorderEnabled,
-              preorderThreshold,
-              preorderAutoGenerate,
-              preorderAutoStock,
-              preorderRestockDate: preorderRestockDate || null,
-              preorderNote,
-            }
+                ...prev,
+                stock: finalStock,
+                preorderStock: finalPreorderStock,
+                preorderEnabled,
+                preorderThreshold,
+                preorderAutoGenerate,
+                preorderAutoStock,
+                preorderRestockDate: preorderRestockDate || null,
+                preorderNote,
+              }
             : prev
         );
 
@@ -522,20 +525,20 @@ const SKU = ({ token }) => {
 
         const metaLog = metaChanged
           ? [
-            {
-              id: `${Date.now()}-${product._id}-preorder-settings`,
-              productId: product._id,
-              productName: product.name,
-              sku: product.sku || "N/A",
-              size: "Settings",
-              stockType: "Pre-order",
-              oldQty: "-",
-              newQty: "-",
-              difference: 0,
-              updatedBy: getAdminName(),
-              updatedAt: new Date().toISOString(),
-            },
-          ]
+              {
+                id: `${Date.now()}-${product._id}-preorder-settings`,
+                productId: product._id,
+                productName: product.name,
+                sku: product.sku || "N/A",
+                size: "Settings",
+                stockType: "Pre-order",
+                oldQty: "-",
+                newQty: "-",
+                difference: 0,
+                updatedBy: getAdminName(),
+                updatedAt: new Date().toISOString(),
+              },
+            ]
           : [];
 
         saveInventoryLogs([
@@ -558,12 +561,21 @@ const SKU = ({ token }) => {
     toast.success("Inventory logs cleared");
   };
 
-  const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
+  const indexOfLastItem = currentPage * pageSize;
+  const indexOfFirstItem = indexOfLastItem - pageSize;
 
   const paginatedProducts = filteredProducts.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
+    indexOfFirstItem,
+    indexOfLastItem
   );
+
+  const totalPages = Math.ceil(filteredProducts.length / pageSize);
+
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   if (loading) {
     return (
@@ -789,8 +801,9 @@ const SKU = ({ token }) => {
                   return (
                     <div
                       key={product._id}
-                      className={`grid grid-cols-[2.2fr_1fr_1fr_repeat(6,70px)_90px_90px_120px_100px] items-center border-b border-[#ecece6] px-5 py-4 gap-2 ${index % 2 === 0 ? "bg-white" : "bg-[#fcfcfb]"
-                        }`}
+                      className={`grid grid-cols-[2.2fr_1fr_1fr_repeat(6,70px)_90px_90px_120px_100px] items-center border-b border-[#ecece6] px-5 py-4 gap-2 ${
+                        index % 2 === 0 ? "bg-white" : "bg-[#fcfcfb]"
+                      }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-12 h-14 rounded-[5px] bg-[#f0f0ed] overflow-hidden border border-black/10 shrink-0">
@@ -886,20 +899,42 @@ const SKU = ({ token }) => {
           </div>
         </div>
 
-        {totalPages > 1 && (
-          <div className="flex justify-center mt-4 gap-2 flex-wrap">
-            {[...Array(totalPages)].map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setCurrentPage(i + 1)}
-                className={`px-3.5 py-1.5 border rounded-[5px] font-black ${currentPage === i + 1
-                    ? "bg-[#0A0D17] text-white border-[#0A0D17]"
-                    : "bg-white text-gray-900 border-[#d7d7d2]"
-                  }`}
-              >
-                {i + 1}
-              </button>
-            ))}
+        {filteredProducts.length > pageSize && (
+          <div className={`${panelBg} mt-4 mb-4 rounded-[5px] px-4 py-4`}>
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45">
+                  Page Control
+                </p>
+
+                <p className="mt-1 text-xs font-semibold text-[#6b7280]">
+                  Showing {indexOfFirstItem + 1} -{" "}
+                  {Math.min(indexOfLastItem, filteredProducts.length)} of{" "}
+                  {filteredProducts.length} inventory items
+                </p>
+              </div>
+
+              <Pagination
+                className="saint-pagination"
+                current={currentPage}
+                pageSize={pageSize}
+                total={filteredProducts.length}
+                showSizeChanger
+                pageSizeOptions={["10", "20", "50", "100"]}
+                responsive
+                showTotal={(total, range) =>
+                  `${range[0]}-${range[1]} of ${total} items`
+                }
+                onChange={(page, size) => {
+                  setCurrentPage(page);
+                  setPageSize(size);
+                }}
+                onShowSizeChange={(_, size) => {
+                  setCurrentPage(1);
+                  setPageSize(size);
+                }}
+              />
+            </div>
           </div>
         )}
 
@@ -956,12 +991,13 @@ const SKU = ({ token }) => {
                     </span>
 
                     <span
-                      className={`rounded-[5px] px-3 py-1 text-[10px] font-black ${log.difference > 0
+                      className={`rounded-[5px] px-3 py-1 text-[10px] font-black ${
+                        log.difference > 0
                           ? "bg-emerald-50 text-emerald-700"
                           : log.difference < 0
                             ? "bg-red-50 text-red-600"
                             : "bg-orange-50 text-orange-700"
-                        }`}
+                      }`}
                     >
                       {log.difference > 0
                         ? `+${log.difference}`
@@ -1280,12 +1316,13 @@ const SKU = ({ token }) => {
                             </p>
 
                             <span
-                              className={`w-fit rounded-[5px] px-3 py-1 text-[10px] font-black ${log.difference > 0
+                              className={`w-fit rounded-[5px] px-3 py-1 text-[10px] font-black ${
+                                log.difference > 0
                                   ? "bg-emerald-50 text-emerald-700"
                                   : log.difference < 0
                                     ? "bg-red-50 text-red-600"
                                     : "bg-orange-50 text-orange-700"
-                                }`}
+                              }`}
                             >
                               {log.difference > 0
                                 ? `+${log.difference}`
