@@ -19,7 +19,7 @@ import BranchesPage from "./pages/BranchesPage";
 import HeroManager from "./pages/HeroManager";
 import PoliciesManager from "./pages/PoliciesManager";
 import CategoryManager from "./pages/CategoryManager";
-
+import SocialFeedManager from "./pages/SocialFeedManager";
 export const backendUrl = import.meta.env.VITE_BACKEND_URL;
 export const currency = "₱";
 
@@ -125,6 +125,10 @@ const App = () => {
                 />
 
                 <Route path="*" element={<Navigate to="/" replace />} />
+                <Route
+                  path="/social-feed"
+                  element={<SocialFeedManager token={token} />}
+                />
               </Routes>
             </div>
           </div>

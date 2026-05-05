@@ -1176,9 +1176,9 @@ const Dashboard = () => {
     <div className="min-h-screen bg-transparent px-2.5 sm:px-3 pt-20 sm:pt-24 pb-4 font-['Montserrat']">
       <div className="max-w-[1500px] mx-auto grid grid-cols-1 xl:grid-cols-[285px_1fr] gap-3">
         <aside
-          className={`${panelBg} rounded-[5px] p-0 xl:sticky xl:top-24 xl:h-[calc(100vh-7rem)] overflow-hidden`}
+          className={`${panelBg} rounded-[5px] p-0 xl:sticky xl:top-24 xl:h-fit overflow-hidden`}
         >
-          <div className="flex h-full flex-col">
+          <div className="flex flex-col">
             <div className="bg-[#0A0D17] px-4 py-5 text-white">
               <p className="text-[9px] font-black uppercase tracking-[0.34em] text-white/40">
                 Saint Clothing Admin
@@ -1200,7 +1200,7 @@ const Dashboard = () => {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#f7f7f4]">
+            <div className="p-4 space-y-3 bg-[#f7f7f4]">
               <div className="rounded-[5px] bg-white border border-black/10 p-4">
                 <p className="text-[9px] font-black uppercase tracking-[0.24em] text-[#0A0D17]/45">
                   Today Snapshot
