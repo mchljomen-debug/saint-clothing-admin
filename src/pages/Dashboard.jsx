@@ -254,19 +254,15 @@ const Dashboard = () => {
 
       const [productRes, ordersRes, usersRes, branchRes] = await Promise.all([
         axios.get(`${backendUrl}/api/product/list`),
-        axios.post(
-          `${backendUrl}/api/order/list`,
-          {},
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        ),
+        axios.get(`${backendUrl}/api/order/list`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
         role === "admin"
           ? axios
-              .get(`${backendUrl}/api/admin/users`, {
-                headers: { Authorization: `Bearer ${token}` },
-              })
-              .catch(() => ({ data: { users: [] } }))
+            .get(`${backendUrl}/api/admin/users`, {
+              headers: { Authorization: `Bearer ${token}` },
+            })
+            .catch(() => ({ data: { users: [] } }))
           : Promise.resolve({ data: { users: [] } }),
         axios
           .get(`${backendUrl}/api/branch/list`, {
@@ -700,9 +696,9 @@ const Dashboard = () => {
       headers: ["Label", "Sales"],
       rows: weeklySales.labels.length
         ? weeklySales.labels.map((label, index) => [
-            label,
-            Number(weeklySales.data[index] || 0),
-          ])
+          label,
+          Number(weeklySales.data[index] || 0),
+        ])
         : [["No data available", ""]],
       currencyColumns: [2],
     });
@@ -716,10 +712,10 @@ const Dashboard = () => {
       headers: ["Label", "Revenue", "Profit"],
       rows: monthlySales.labels.length
         ? monthlySales.labels.map((label, index) => [
-            label,
-            Number(monthlySales.revenue[index] || 0),
-            Number(monthlySales.netProfit[index] || 0),
-          ])
+          label,
+          Number(monthlySales.revenue[index] || 0),
+          Number(monthlySales.netProfit[index] || 0),
+        ])
         : [["No data available", "", ""]],
       currencyColumns: [2, 3],
     });
@@ -733,9 +729,9 @@ const Dashboard = () => {
       headers: ["Category", "Sold"],
       rows: categorySales.labels.length
         ? categorySales.labels.map((label, index) => [
-            label,
-            Number(categorySales.data[index] || 0),
-          ])
+          label,
+          Number(categorySales.data[index] || 0),
+        ])
         : [["No data available", ""]],
       numberColumns: [2],
     });
@@ -749,10 +745,10 @@ const Dashboard = () => {
       headers: ["Product", "Units Sold", "Revenue"],
       rows: topProducts.length
         ? topProducts.map((item) => [
-            item.name,
-            Number(item.sold || 0),
-            Number(item.revenue || 0),
-          ])
+          item.name,
+          Number(item.sold || 0),
+          Number(item.revenue || 0),
+        ])
         : [["No data available", "", ""]],
       numberColumns: [2],
       currencyColumns: [3],
@@ -767,12 +763,12 @@ const Dashboard = () => {
       headers: ["Product", "Category", "Branch", "Stock Left", "Price"],
       rows: lowStockProducts.length
         ? lowStockProducts.map((item) => [
-            item.name,
-            item.category,
-            item.branch,
-            Number(item.stock || 0),
-            Number(item.price || 0),
-          ])
+          item.name,
+          item.category,
+          item.branch,
+          Number(item.stock || 0),
+          Number(item.price || 0),
+        ])
         : [["No data available", "", "", "", ""]],
       numberColumns: [4],
       currencyColumns: [5],
@@ -794,15 +790,14 @@ const Dashboard = () => {
       ],
       rows: recentOrders.length
         ? recentOrders.map((order) => [
-            order._id,
-            `${order.address?.firstName || ""} ${
-              order.address?.lastName || ""
+          order._id,
+          `${order.address?.firstName || ""} ${order.address?.lastName || ""
             }`.trim() || "Customer",
-            Number(order.amount || 0),
-            order.status || "Pending",
-            order.paymentMethod || "COD",
-            new Date(order.date || order.createdAt).toLocaleString(),
-          ])
+          Number(order.amount || 0),
+          order.status || "Pending",
+          order.paymentMethod || "COD",
+          new Date(order.date || order.createdAt).toLocaleString(),
+        ])
         : [["No data available", "", "", "", "", ""]],
       currencyColumns: [3],
     });
@@ -1442,9 +1437,8 @@ const Dashboard = () => {
               )}
 
               <div
-                className={`${
-                  lowStockProducts.length > 5 ? "max-h-[320px] overflow-y-auto pr-1" : ""
-                } space-y-2`}
+                className={`${lowStockProducts.length > 5 ? "max-h-[320px] overflow-y-auto pr-1" : ""
+                  } space-y-2`}
               >
                 {lowStockProducts.length ? (
                   lowStockProducts.map((item) => (
@@ -1490,9 +1484,8 @@ const Dashboard = () => {
             )}
 
             <div
-              className={`overflow-x-auto ${
-                recentOrders.length > 10 ? "max-h-[430px] overflow-y-auto pr-1" : ""
-              }`}
+              className={`overflow-x-auto ${recentOrders.length > 10 ? "max-h-[430px] overflow-y-auto pr-1" : ""
+                }`}
             >
               <table className="w-full text-sm">
                 <thead className="bg-[#f7f7f4]">
@@ -1519,9 +1512,8 @@ const Dashboard = () => {
                         className={`border-b last:border-b-0 ${tableRow}`}
                       >
                         <td className={`py-3 pr-3 font-semibold ${textStrong}`}>
-                          {`${order.address?.firstName || ""} ${
-                            order.address?.lastName || ""
-                          }`.trim() || "Customer"}
+                          {`${order.address?.firstName || ""} ${order.address?.lastName || ""
+                            }`.trim() || "Customer"}
                         </td>
                         <td className={`py-3 pr-3 ${textStrong}`}>
                           {formatCurrency(order.amount || 0)}
