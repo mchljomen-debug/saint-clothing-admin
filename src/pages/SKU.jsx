@@ -442,7 +442,7 @@ const SKU = ({ token }) => {
         Boolean(product.preorderEnabled !== false) !== Boolean(preorderEnabled) ||
         Number(product.preorderThreshold ?? 5) !== Number(preorderThreshold) ||
         Boolean(product.preorderAutoGenerate !== false) !==
-          Boolean(preorderAutoGenerate) ||
+        Boolean(preorderAutoGenerate) ||
         Number(product.preorderAutoStock ?? 20) !== Number(preorderAutoStock) ||
         formatDateInput(product.preorderRestockDate) !== preorderRestockDate ||
         String(product.preorderNote || "") !== String(preorderNote || "");
@@ -481,16 +481,16 @@ const SKU = ({ token }) => {
         const updatedProducts = products.map((item) =>
           item._id === productId
             ? {
-                ...item,
-                stock: finalStock,
-                preorderStock: finalPreorderStock,
-                preorderEnabled,
-                preorderThreshold,
-                preorderAutoGenerate,
-                preorderAutoStock,
-                preorderRestockDate: preorderRestockDate || null,
-                preorderNote,
-              }
+              ...item,
+              stock: finalStock,
+              preorderStock: finalPreorderStock,
+              preorderEnabled,
+              preorderThreshold,
+              preorderAutoGenerate,
+              preorderAutoStock,
+              preorderRestockDate: preorderRestockDate || null,
+              preorderNote,
+            }
             : item
         );
 
@@ -499,16 +499,16 @@ const SKU = ({ token }) => {
         setSelectedProduct((prev) =>
           prev && prev._id === productId
             ? {
-                ...prev,
-                stock: finalStock,
-                preorderStock: finalPreorderStock,
-                preorderEnabled,
-                preorderThreshold,
-                preorderAutoGenerate,
-                preorderAutoStock,
-                preorderRestockDate: preorderRestockDate || null,
-                preorderNote,
-              }
+              ...prev,
+              stock: finalStock,
+              preorderStock: finalPreorderStock,
+              preorderEnabled,
+              preorderThreshold,
+              preorderAutoGenerate,
+              preorderAutoStock,
+              preorderRestockDate: preorderRestockDate || null,
+              preorderNote,
+            }
             : prev
         );
 
@@ -522,20 +522,20 @@ const SKU = ({ token }) => {
 
         const metaLog = metaChanged
           ? [
-              {
-                id: `${Date.now()}-${product._id}-preorder-settings`,
-                productId: product._id,
-                productName: product.name,
-                sku: product.sku || "N/A",
-                size: "Settings",
-                stockType: "Pre-order",
-                oldQty: "-",
-                newQty: "-",
-                difference: 0,
-                updatedBy: getAdminName(),
-                updatedAt: new Date().toISOString(),
-              },
-            ]
+            {
+              id: `${Date.now()}-${product._id}-preorder-settings`,
+              productId: product._id,
+              productName: product.name,
+              sku: product.sku || "N/A",
+              size: "Settings",
+              stockType: "Pre-order",
+              oldQty: "-",
+              newQty: "-",
+              difference: 0,
+              updatedBy: getAdminName(),
+              updatedAt: new Date().toISOString(),
+            },
+          ]
           : [];
 
         saveInventoryLogs([
@@ -789,9 +789,8 @@ const SKU = ({ token }) => {
                   return (
                     <div
                       key={product._id}
-                      className={`grid grid-cols-[2.2fr_1fr_1fr_repeat(6,70px)_90px_90px_120px_100px] items-center border-b border-[#ecece6] px-5 py-4 gap-2 ${
-                        index % 2 === 0 ? "bg-white" : "bg-[#fcfcfb]"
-                      }`}
+                      className={`grid grid-cols-[2.2fr_1fr_1fr_repeat(6,70px)_90px_90px_120px_100px] items-center border-b border-[#ecece6] px-5 py-4 gap-2 ${index % 2 === 0 ? "bg-white" : "bg-[#fcfcfb]"
+                        }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-12 h-14 rounded-[5px] bg-[#f0f0ed] overflow-hidden border border-black/10 shrink-0">
@@ -888,26 +887,19 @@ const SKU = ({ token }) => {
         </div>
 
         {totalPages > 1 && (
-          <div className="mb-4 flex justify-center items-center gap-2 flex-wrap">
-            <button
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage((prev) => prev - 1)}
-              className={buttonDark}
-            >
-              Prev
-            </button>
-
-            <div className="px-4 py-2.5 rounded-[5px] bg-white border border-black/10 text-xs font-black uppercase tracking-[0.16em]">
-              {currentPage} / {totalPages || 1}
-            </div>
-
-            <button
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage((prev) => prev + 1)}
-              className={buttonDark}
-            >
-              Next
-            </button>
+          <div className="flex justify-center mt-4 gap-2 flex-wrap">
+            {[...Array(totalPages)].map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setCurrentPage(i + 1)}
+                className={`px-3.5 py-1.5 border rounded-[5px] font-black ${currentPage === i + 1
+                    ? "bg-[#0A0D17] text-white border-[#0A0D17]"
+                    : "bg-white text-gray-900 border-[#d7d7d2]"
+                  }`}
+              >
+                {i + 1}
+              </button>
+            ))}
           </div>
         )}
 
@@ -964,13 +956,12 @@ const SKU = ({ token }) => {
                     </span>
 
                     <span
-                      className={`rounded-[5px] px-3 py-1 text-[10px] font-black ${
-                        log.difference > 0
+                      className={`rounded-[5px] px-3 py-1 text-[10px] font-black ${log.difference > 0
                           ? "bg-emerald-50 text-emerald-700"
                           : log.difference < 0
                             ? "bg-red-50 text-red-600"
                             : "bg-orange-50 text-orange-700"
-                      }`}
+                        }`}
                     >
                       {log.difference > 0
                         ? `+${log.difference}`
@@ -1289,13 +1280,12 @@ const SKU = ({ token }) => {
                             </p>
 
                             <span
-                              className={`w-fit rounded-[5px] px-3 py-1 text-[10px] font-black ${
-                                log.difference > 0
+                              className={`w-fit rounded-[5px] px-3 py-1 text-[10px] font-black ${log.difference > 0
                                   ? "bg-emerald-50 text-emerald-700"
                                   : log.difference < 0
                                     ? "bg-red-50 text-red-600"
                                     : "bg-orange-50 text-orange-700"
-                              }`}
+                                }`}
                             >
                               {log.difference > 0
                                 ? `+${log.difference}`
