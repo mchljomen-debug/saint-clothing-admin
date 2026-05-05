@@ -1112,115 +1112,134 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-transparent px-2.5 sm:px-3 pt-20 sm:pt-24 pb-4">
       <div className="max-w-[1500px] mx-auto grid grid-cols-1 xl:grid-cols-[250px_1fr] gap-3">
-        <aside className={`${panelBg} rounded-[5px] p-4 h-fit`}>
-          <div className="border-b border-black/10 pb-4 mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-[5px] bg-black flex items-center justify-center text-white shrink-0 shadow-md">
-                <FaStore />
+        <aside
+          className={`${panelBg} rounded-[5px] p-4 xl:sticky xl:top-24 xl:min-h-[calc(100vh-7rem)]`}
+        >
+          <div className="flex h-full flex-col">
+            <div className="border-b border-black/10 pb-4 mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-[5px] bg-black flex items-center justify-center text-white shrink-0 shadow-md">
+                  <FaStore />
+                </div>
+                <div className="min-w-0">
+                  <h2
+                    className={`font-black text-sm uppercase tracking-[0.12em] ${textStrong} truncate`}
+                  >
+                    Saint Clothing
+                  </h2>
+                  <p className={`text-[11px] ${textMuted}`}>Control Center</p>
+                </div>
               </div>
-              <div className="min-w-0">
-                <h2
-                  className={`font-black text-sm uppercase tracking-[0.12em] ${textStrong} truncate`}
+            </div>
+
+            <div className="flex-1 space-y-3">
+              <div className={`${softPanelBg} rounded-[5px] p-3.5`}>
+                <p
+                  className={`text-[10px] uppercase tracking-[0.22em] ${textMuted}`}
                 >
-                  Saint Clothing
-                </h2>
-                <p className={`text-[11px] ${textMuted}`}>Control Center</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <div className={`${softPanelBg} rounded-[5px] p-3.5`}>
-              <p
-                className={`text-[10px] uppercase tracking-[0.22em] ${textMuted}`}
-              >
-                View
-              </p>
-              <p className={`font-bold mt-1 text-xs sm:text-sm ${textStrong}`}>
-                {role === "admin"
-                  ? "Admin Dashboard"
-                  : `${branch} Branch Dashboard`}
-              </p>
-            </div>
-
-            <div className={`${softPanelBg} rounded-[5px] p-3.5`}>
-              <div className="flex items-center gap-2 mb-2">
-                <FaFilter className={textMuted} />
-                <p className={`font-bold text-xs sm:text-sm ${textStrong}`}>
-                  Branch Filter
+                  View
+                </p>
+                <p
+                  className={`font-bold mt-1 text-xs sm:text-sm ${textStrong}`}
+                >
+                  {role === "admin"
+                    ? "Admin Dashboard"
+                    : `${branch} Branch Dashboard`}
                 </p>
               </div>
 
-              {role === "admin" ? (
-                <select
-                  value={selectedBranch}
-                  onChange={(e) => setSelectedBranch(e.target.value)}
-                  className="mt-1 w-full rounded-[5px] px-3 py-2.5 text-sm outline-none bg-white text-gray-900 border border-black/10"
-                >
-                  <option value="all">All Branches</option>
-                  {availableBranches.map((b) => (
-                    <option key={b._id || b.code} value={b.code}>
-                      {b.name}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <div
-                  className={`mt-1 rounded-[5px] px-3 py-2.5 text-sm bg-white border border-black/10 ${textStrong}`}
-                >
-                  {selectedBranchName}
+              <div className={`${softPanelBg} rounded-[5px] p-3.5`}>
+                <div className="flex items-center gap-2 mb-2">
+                  <FaFilter className={textMuted} />
+                  <p className={`font-bold text-xs sm:text-sm ${textStrong}`}>
+                    Branch Filter
+                  </p>
                 </div>
-              )}
-            </div>
 
-            <div className={`${softPanelBg} rounded-[5px] p-3.5`}>
-              <p className={`font-bold mb-2 text-xs sm:text-sm ${textStrong}`}>
-                Quick Actions
-              </p>
-              <div className="space-y-1.5">
-                <Link
-                  to="/sales-report"
-                  className="flex items-center gap-2 rounded-[5px] px-3 py-2.5 text-sm hover:bg-white text-gray-900 transition"
-                >
-                  <FaChartLine />
-                  Sales Report
-                </Link>
-
-                <button
-                  onClick={exportAllDashboardExcel}
-                  className="w-full flex items-center gap-2 rounded-[5px] px-3 py-2.5 text-sm text-left hover:bg-white text-gray-900 transition"
-                >
-                  <FaFileExcel />
-                  Export All Dashboard
-                </button>
-              </div>
-            </div>
-
-            <div className={`${softPanelBg} rounded-[5px] p-3.5`}>
-              <p className={`font-bold mb-2 text-xs sm:text-sm ${textStrong}`}>
-                Categories
-              </p>
-              <div className="space-y-1.5">
-                {FIXED_CATEGORIES.map((cat) => (
-                  <div
-                    key={cat}
-                    className="flex items-center justify-between rounded-[5px] px-3 py-2.5 bg-white border border-black/10"
+                {role === "admin" ? (
+                  <select
+                    value={selectedBranch}
+                    onChange={(e) => setSelectedBranch(e.target.value)}
+                    className="mt-1 w-full rounded-[5px] px-3 py-2.5 text-sm outline-none bg-white text-gray-900 border border-black/10"
                   >
-                    <span className={`text-xs sm:text-sm ${textStrong}`}>
-                      {cat}
-                    </span>
-                    <span
-                      className={`text-xs sm:text-sm font-black ${textStrong}`}
-                    >
-                      {categorySales.labels.includes(cat)
-                        ? categorySales.data[
-                            categorySales.labels.indexOf(cat)
-                          ]
-                        : 0}
-                    </span>
+                    <option value="all">All Branches</option>
+                    {availableBranches.map((b) => (
+                      <option key={b._id || b.code} value={b.code}>
+                        {b.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div
+                    className={`mt-1 rounded-[5px] px-3 py-2.5 text-sm bg-white border border-black/10 ${textStrong}`}
+                  >
+                    {selectedBranchName}
                   </div>
-                ))}
+                )}
               </div>
+
+              <div className={`${softPanelBg} rounded-[5px] p-3.5`}>
+                <p
+                  className={`font-bold mb-2 text-xs sm:text-sm ${textStrong}`}
+                >
+                  Quick Actions
+                </p>
+                <div className="space-y-1.5">
+                  <Link
+                    to="/sales-report"
+                    className="flex items-center gap-2 rounded-[5px] px-3 py-2.5 text-sm hover:bg-white text-gray-900 transition"
+                  >
+                    <FaChartLine />
+                    Sales Report
+                  </Link>
+
+                  <button
+                    onClick={exportAllDashboardExcel}
+                    className="w-full flex items-center gap-2 rounded-[5px] px-3 py-2.5 text-sm text-left hover:bg-white text-gray-900 transition"
+                  >
+                    <FaFileExcel />
+                    Export All Dashboard
+                  </button>
+                </div>
+              </div>
+
+              <div className={`${softPanelBg} rounded-[5px] p-3.5`}>
+                <p
+                  className={`font-bold mb-2 text-xs sm:text-sm ${textStrong}`}
+                >
+                  Categories
+                </p>
+                <div className="space-y-1.5">
+                  {FIXED_CATEGORIES.map((cat) => (
+                    <div
+                      key={cat}
+                      className="flex items-center justify-between rounded-[5px] px-3 py-2.5 bg-white border border-black/10"
+                    >
+                      <span className={`text-xs sm:text-sm ${textStrong}`}>
+                        {cat}
+                      </span>
+                      <span
+                        className={`text-xs sm:text-sm font-black ${textStrong}`}
+                      >
+                        {categorySales.labels.includes(cat)
+                          ? categorySales.data[
+                              categorySales.labels.indexOf(cat)
+                            ]
+                          : 0}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 border-t border-black/10 pt-4">
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-gray-400">
+                Saint Admin
+              </p>
+              <p className="mt-1 text-xs text-gray-500">
+                Inventory and sales monitoring
+              </p>
             </div>
           </div>
         </aside>
@@ -1340,7 +1359,9 @@ const Dashboard = () => {
                 >
                   {formatCompactNumber(displayStats.totalOrders)}
                 </h2>
-                <p className={`text-xs mt-1.5 ${textMuted}`}>Orders in range</p>
+                <p className={`text-xs mt-1.5 ${textMuted}`}>
+                  Orders in range
+                </p>
               </div>
 
               <div
@@ -1633,28 +1654,20 @@ const Dashboard = () => {
               exportOrdersExcel
             )}
 
-            <div
-              className={`overflow-x-auto ${
-                recentOrders.length > 10
-                  ? "max-h-[430px] overflow-y-auto pr-1"
-                  : ""
-              }`}
-            >
-              <table className="w-full text-sm">
-                <thead className="bg-[#f7f7f4]">
+            <div className="max-h-[430px] overflow-auto pr-1">
+              <table className="w-full min-w-[720px] text-sm">
+                <thead className="sticky top-0 z-10 bg-[#f7f7f4]">
                   <tr className={`text-left ${textMuted} border-b ${tableRow}`}>
-                    <th className="py-3 pr-3 sticky top-0 bg-[#f7f7f4] font-bold">
+                    <th className="py-3 pr-3 bg-[#f7f7f4] font-bold">
                       Customer
                     </th>
-                    <th className="py-3 pr-3 sticky top-0 bg-[#f7f7f4] font-bold">
+                    <th className="py-3 pr-3 bg-[#f7f7f4] font-bold">
                       Amount
                     </th>
-                    <th className="py-3 pr-3 sticky top-0 bg-[#f7f7f4] font-bold">
+                    <th className="py-3 pr-3 bg-[#f7f7f4] font-bold">
                       Status
                     </th>
-                    <th className="py-3 sticky top-0 bg-[#f7f7f4] font-bold">
-                      Date
-                    </th>
+                    <th className="py-3 bg-[#f7f7f4] font-bold">Date</th>
                   </tr>
                 </thead>
                 <tbody>
