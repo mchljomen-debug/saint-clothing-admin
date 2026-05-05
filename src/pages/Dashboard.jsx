@@ -208,9 +208,8 @@ const Dashboard = () => {
 
   const shellBg = "bg-transparent text-[#111111]";
   const panelBg =
-    "bg-white/75 backdrop-blur-md border border-black/8 shadow-[0_18px_50px_rgba(0,0,0,0.06)]";
-  const softPanelBg =
-    "bg-white/60 backdrop-blur-sm border border-black/[0.06]";
+    "bg-white border border-black/10 shadow-[0_8px_24px_rgba(0,0,0,0.05)]";
+  const softPanelBg = "bg-[#FAFAF8] border border-black/10";
   const textMuted = "text-[#6b7280]";
   const textStrong = "text-[#0A0D17]";
   const tableRow = "border-[#ecece6]";
@@ -974,7 +973,7 @@ const Dashboard = () => {
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="min-w-[92px] rounded-2xl px-3 py-2.5 text-xs sm:text-sm outline-none bg-white text-gray-900 border border-black/10 shadow-sm"
+      className="min-w-[92px] rounded-[5px] px-3 py-2.5 text-xs sm:text-sm outline-none bg-white text-gray-900 border border-black/10 shadow-sm"
     >
       {RANGE_OPTIONS.map((option) => (
         <option key={option.value} value={option.value}>
@@ -985,7 +984,7 @@ const Dashboard = () => {
   );
 
   const EmptyState = ({ message = "No data for this range." }) => (
-    <div className="rounded-2xl border border-black/10 bg-white/50 p-4 text-center">
+    <div className="rounded-[5px] border border-black/10 bg-white p-4 text-center">
       <p className={`text-sm font-semibold ${textMuted}`}>{message}</p>
       <p className={`mt-1 text-xs ${textMuted}`}>
         Try switching the filter to Month or Year.
@@ -1003,7 +1002,7 @@ const Dashboard = () => {
     <div className="flex flex-col gap-2 mb-4 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0">
         <h3
-          className={`text-sm sm:text-[17px] font-black tracking-tight ${textStrong}`}
+          className={`text-sm sm:text-[17px] font-black uppercase tracking-[0.08em] ${textStrong}`}
         >
           {title}
         </h3>
@@ -1016,7 +1015,7 @@ const Dashboard = () => {
         <RangeSelect value={rangeValue} onChange={setRange} />
         <button
           onClick={onExport}
-          className="inline-flex items-center gap-2 px-3 py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition whitespace-nowrap bg-[#f3f4f6] hover:bg-[#e5e7eb] text-[#111111]"
+          className="inline-flex items-center gap-2 px-3 py-2.5 rounded-[5px] text-xs sm:text-sm font-bold transition whitespace-nowrap bg-black hover:bg-[#2a2a2a] text-white"
         >
           <FaFileExcel className="shrink-0" />
           Export
@@ -1039,7 +1038,7 @@ const Dashboard = () => {
     const safeLabels = labels.length ? labels : ["No Data"];
 
     return (
-      <div className={`${panelBg} rounded-[24px] p-4 sm:p-5`}>
+      <div className={`${panelBg} rounded-[5px] p-4 sm:p-5`}>
         {renderSectionHeader(title, subtitle, rangeValue, setRange, onExport)}
 
         <div className="grid grid-cols-1 lg:grid-cols-[170px_1fr] gap-4 items-center">
@@ -1063,7 +1062,7 @@ const Dashboard = () => {
             {safeLabels.map((label, index) => (
               <div
                 key={index}
-                className={`${softPanelBg} flex items-center justify-between rounded-2xl px-3 py-3.5`}
+                className={`${softPanelBg} flex items-center justify-between rounded-[5px] px-3 py-3.5`}
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <span
@@ -1093,13 +1092,13 @@ const Dashboard = () => {
     return (
       <div className={`min-h-screen p-3 ${shellBg}`}>
         <div className="animate-pulse space-y-3">
-          <div className="h-24 rounded-[24px] bg-white/70" />
+          <div className="h-24 rounded-[5px] bg-white/70" />
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-32 rounded-[24px] bg-white/70" />
+              <div key={i} className="h-32 rounded-[5px] bg-white/70" />
             ))}
           </div>
-          <div className="h-72 rounded-[24px] bg-white/70" />
+          <div className="h-72 rounded-[5px] bg-white/70" />
         </div>
       </div>
     );
@@ -1113,23 +1112,25 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-transparent px-2.5 sm:px-3 pt-20 sm:pt-24 pb-4">
       <div className="max-w-[1500px] mx-auto grid grid-cols-1 xl:grid-cols-[250px_1fr] gap-3">
-        <aside className={`${panelBg} rounded-[24px] p-4 h-fit`}>
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#0A0D17] via-[#1f2937] to-[#374151] flex items-center justify-center text-white shrink-0 shadow-md">
-              <FaStore />
-            </div>
-            <div className="min-w-0">
-              <h2
-                className={`font-black text-sm tracking-tight ${textStrong} truncate`}
-              >
-                Saint Clothing
-              </h2>
-              <p className={`text-[11px] ${textMuted}`}>Control Center</p>
+        <aside className={`${panelBg} rounded-[5px] p-4 h-fit`}>
+          <div className="border-b border-black/10 pb-4 mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-[5px] bg-black flex items-center justify-center text-white shrink-0 shadow-md">
+                <FaStore />
+              </div>
+              <div className="min-w-0">
+                <h2
+                  className={`font-black text-sm uppercase tracking-[0.12em] ${textStrong} truncate`}
+                >
+                  Saint Clothing
+                </h2>
+                <p className={`text-[11px] ${textMuted}`}>Control Center</p>
+              </div>
             </div>
           </div>
 
-          <div className="space-y-2.5">
-            <div className={`${softPanelBg} rounded-2xl p-3.5`}>
+          <div className="space-y-3">
+            <div className={`${softPanelBg} rounded-[5px] p-3.5`}>
               <p
                 className={`text-[10px] uppercase tracking-[0.22em] ${textMuted}`}
               >
@@ -1142,7 +1143,7 @@ const Dashboard = () => {
               </p>
             </div>
 
-            <div className={`${softPanelBg} rounded-2xl p-3.5`}>
+            <div className={`${softPanelBg} rounded-[5px] p-3.5`}>
               <div className="flex items-center gap-2 mb-2">
                 <FaFilter className={textMuted} />
                 <p className={`font-bold text-xs sm:text-sm ${textStrong}`}>
@@ -1154,7 +1155,7 @@ const Dashboard = () => {
                 <select
                   value={selectedBranch}
                   onChange={(e) => setSelectedBranch(e.target.value)}
-                  className="mt-1 w-full rounded-2xl px-3 py-2.5 text-sm outline-none bg-white text-gray-900 border border-black/10"
+                  className="mt-1 w-full rounded-[5px] px-3 py-2.5 text-sm outline-none bg-white text-gray-900 border border-black/10"
                 >
                   <option value="all">All Branches</option>
                   {availableBranches.map((b) => (
@@ -1165,21 +1166,21 @@ const Dashboard = () => {
                 </select>
               ) : (
                 <div
-                  className={`mt-1 rounded-2xl px-3 py-2.5 text-sm bg-white border border-black/10 ${textStrong}`}
+                  className={`mt-1 rounded-[5px] px-3 py-2.5 text-sm bg-white border border-black/10 ${textStrong}`}
                 >
                   {selectedBranchName}
                 </div>
               )}
             </div>
 
-            <div className={`${softPanelBg} rounded-2xl p-3.5`}>
+            <div className={`${softPanelBg} rounded-[5px] p-3.5`}>
               <p className={`font-bold mb-2 text-xs sm:text-sm ${textStrong}`}>
                 Quick Actions
               </p>
               <div className="space-y-1.5">
                 <Link
                   to="/sales-report"
-                  className="flex items-center gap-2 rounded-2xl px-3 py-2.5 text-sm hover:bg-[#efefec] text-gray-900 transition"
+                  className="flex items-center gap-2 rounded-[5px] px-3 py-2.5 text-sm hover:bg-white text-gray-900 transition"
                 >
                   <FaChartLine />
                   Sales Report
@@ -1187,7 +1188,7 @@ const Dashboard = () => {
 
                 <button
                   onClick={exportAllDashboardExcel}
-                  className="w-full flex items-center gap-2 rounded-2xl px-3 py-2.5 text-sm text-left hover:bg-[#efefec] text-gray-900 transition"
+                  className="w-full flex items-center gap-2 rounded-[5px] px-3 py-2.5 text-sm text-left hover:bg-white text-gray-900 transition"
                 >
                   <FaFileExcel />
                   Export All Dashboard
@@ -1195,7 +1196,7 @@ const Dashboard = () => {
               </div>
             </div>
 
-            <div className={`${softPanelBg} rounded-2xl p-3.5`}>
+            <div className={`${softPanelBg} rounded-[5px] p-3.5`}>
               <p className={`font-bold mb-2 text-xs sm:text-sm ${textStrong}`}>
                 Categories
               </p>
@@ -1203,7 +1204,7 @@ const Dashboard = () => {
                 {FIXED_CATEGORIES.map((cat) => (
                   <div
                     key={cat}
-                    className="flex items-center justify-between rounded-2xl px-3 py-2.5 bg-white border border-black/5"
+                    className="flex items-center justify-between rounded-[5px] px-3 py-2.5 bg-white border border-black/10"
                   >
                     <span className={`text-xs sm:text-sm ${textStrong}`}>
                       {cat}
@@ -1225,15 +1226,19 @@ const Dashboard = () => {
         </aside>
 
         <main className="min-w-0">
-          <div className="rounded-[26px] bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.10),_transparent_34%),linear-gradient(135deg,#05070A_0%,#111827_45%,#1f2937_100%)] p-5 sm:p-6 shadow-[0_25px_70px_rgba(0,0,0,0.22)] mb-4 text-white border border-white/10 overflow-hidden relative">
+          <div className="rounded-[5px] bg-black p-5 sm:p-6 shadow-[0_18px_45px_rgba(0,0,0,0.18)] mb-4 text-white border border-black overflow-hidden relative">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
               <div className="min-w-0">
-                <div className="flex items-center gap-3 mb-1.5">
-                  <div className="w-11 h-11 rounded-2xl bg-white/10 border border-white/10 flex items-center justify-center shrink-0 backdrop-blur-sm">
+                <p className="text-[10px] font-black uppercase tracking-[0.34em] text-white/50 mb-2">
+                  Store Performance
+                </p>
+
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-[5px] bg-white/10 border border-white/10 flex items-center justify-center shrink-0 backdrop-blur-sm">
                     <FaStore className="text-sm" />
                   </div>
                   <div className="min-w-0">
-                    <h1 className="text-[22px] sm:text-[28px] font-black tracking-[-0.03em] truncate">
+                    <h1 className="text-[22px] sm:text-[30px] font-black uppercase tracking-[-0.03em] truncate">
                       {role === "admin"
                         ? selectedBranch === "all"
                           ? "Saint Clothing Dashboard"
@@ -1241,7 +1246,7 @@ const Dashboard = () => {
                         : `${selectedBranchName} Dashboard`}
                     </h1>
                     <p className="text-[11px] sm:text-sm text-white/65 mt-1">
-                      Sales, inventory, user activity, and branch performance.
+                      Sales, inventory, payment activity, and branch performance.
                     </p>
                     <p className="text-[11px] sm:text-xs text-white/45 mt-1">
                       Last updated:{" "}
@@ -1255,17 +1260,15 @@ const Dashboard = () => {
                 <button
                   onClick={() => fetchDashboardData(false)}
                   disabled={refreshing}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-white/10 text-white px-4 py-2.5 text-sm font-black transition hover:bg-white/20 disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-[5px] border border-white/20 bg-white/10 text-white px-4 py-2.5 text-sm font-black transition hover:bg-white/20 disabled:opacity-50"
                 >
-                  <FaSyncAlt
-                    className={refreshing ? "animate-spin" : ""}
-                  />
+                  <FaSyncAlt className={refreshing ? "animate-spin" : ""} />
                   Refresh
                 </button>
 
                 <button
                   onClick={exportAllDashboardExcel}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-white text-[#111111] px-4 py-2.5 text-sm font-black transition hover:bg-[#ececec] shadow-sm"
+                  className="inline-flex items-center gap-2 rounded-[5px] bg-white text-[#111111] px-4 py-2.5 text-sm font-black transition hover:bg-[#ececec] shadow-sm"
                 >
                   <FaFileExcel />
                   Export All
@@ -1274,7 +1277,7 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className={`${panelBg} rounded-[24px] p-4 sm:p-5 mb-4`}>
+          <div className={`${panelBg} rounded-[5px] p-4 sm:p-5 mb-4`}>
             {renderSectionHeader(
               "Overview",
               "Store summary for the selected time period",
@@ -1285,13 +1288,13 @@ const Dashboard = () => {
 
             <div className={kpiGridClass}>
               <div
-                className={`${softPanelBg} rounded-[22px] p-4 min-w-0 overflow-hidden transition hover:shadow-md`}
+                className={`${softPanelBg} rounded-[5px] p-4 min-w-0 overflow-hidden transition hover:shadow-md`}
               >
                 <div className="flex items-center justify-between mb-2 gap-2">
                   <span className={`text-xs font-medium ${textMuted}`}>
                     Total Sales
                   </span>
-                  <div className="w-9 h-9 rounded-2xl bg-green-500/10 flex items-center justify-center text-green-600 shrink-0">
+                  <div className="w-9 h-9 rounded-[5px] bg-green-500/10 flex items-center justify-center text-green-600 shrink-0">
                     <FaMoneyBillWave />
                   </div>
                 </div>
@@ -1321,13 +1324,13 @@ const Dashboard = () => {
               </div>
 
               <div
-                className={`${softPanelBg} rounded-[22px] p-4 min-w-0 overflow-hidden transition hover:shadow-md`}
+                className={`${softPanelBg} rounded-[5px] p-4 min-w-0 overflow-hidden transition hover:shadow-md`}
               >
                 <div className="flex items-center justify-between mb-2 gap-2">
                   <span className={`text-xs font-medium ${textMuted}`}>
                     Orders
                   </span>
-                  <div className="w-9 h-9 rounded-2xl bg-[#111111]/8 flex items-center justify-center text-[#111111] shrink-0">
+                  <div className="w-9 h-9 rounded-[5px] bg-[#111111]/8 flex items-center justify-center text-[#111111] shrink-0">
                     <FaShoppingBag />
                   </div>
                 </div>
@@ -1341,13 +1344,13 @@ const Dashboard = () => {
               </div>
 
               <div
-                className={`${softPanelBg} rounded-[22px] p-4 min-w-0 overflow-hidden transition hover:shadow-md`}
+                className={`${softPanelBg} rounded-[5px] p-4 min-w-0 overflow-hidden transition hover:shadow-md`}
               >
                 <div className="flex items-center justify-between mb-2 gap-2">
                   <span className={`text-xs font-medium ${textMuted}`}>
                     Net Profit
                   </span>
-                  <div className="w-9 h-9 rounded-2xl bg-[#d4b483]/20 flex items-center justify-center text-[#8b6b3e] shrink-0">
+                  <div className="w-9 h-9 rounded-[5px] bg-[#d4b483]/20 flex items-center justify-center text-[#8b6b3e] shrink-0">
                     <FaChartLine />
                   </div>
                 </div>
@@ -1374,13 +1377,13 @@ const Dashboard = () => {
               </div>
 
               <div
-                className={`${softPanelBg} rounded-[22px] p-4 min-w-0 overflow-hidden transition hover:shadow-md`}
+                className={`${softPanelBg} rounded-[5px] p-4 min-w-0 overflow-hidden transition hover:shadow-md`}
               >
                 <div className="flex items-center justify-between mb-2 gap-2">
                   <span className={`text-xs font-medium ${textMuted}`}>
                     Inventory
                   </span>
-                  <div className="w-9 h-9 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-600 shrink-0">
+                  <div className="w-9 h-9 rounded-[5px] bg-blue-500/10 flex items-center justify-center text-blue-600 shrink-0">
                     <FaBoxes />
                   </div>
                 </div>
@@ -1397,13 +1400,13 @@ const Dashboard = () => {
 
               {role === "admin" && (
                 <div
-                  className={`${softPanelBg} rounded-[22px] p-4 min-w-0 overflow-hidden transition hover:shadow-md`}
+                  className={`${softPanelBg} rounded-[5px] p-4 min-w-0 overflow-hidden transition hover:shadow-md`}
                 >
                   <div className="flex items-center justify-between mb-2 gap-2">
                     <span className={`text-xs font-medium ${textMuted}`}>
                       Users
                     </span>
-                    <div className="w-9 h-9 rounded-2xl bg-purple-500/10 flex items-center justify-center text-purple-600 shrink-0">
+                    <div className="w-9 h-9 rounded-[5px] bg-purple-500/10 flex items-center justify-center text-purple-600 shrink-0">
                       <FaUsers />
                     </div>
                   </div>
@@ -1421,9 +1424,11 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className={`${panelBg} rounded-[24px] p-4 sm:p-5 mb-3`}>
+          <div className={`${panelBg} rounded-[5px] p-4 sm:p-5 mb-3`}>
             <div className="flex flex-col gap-1 mb-4">
-              <h3 className={`text-sm sm:text-[17px] font-black ${textStrong}`}>
+              <h3
+                className={`text-sm sm:text-[17px] font-black uppercase tracking-[0.08em] ${textStrong}`}
+              >
                 Payment Status
               </h3>
               <p className={`text-[11px] sm:text-xs ${textMuted}`}>
@@ -1441,7 +1446,7 @@ const Dashboard = () => {
               ].map((item) => (
                 <div
                   key={item.label}
-                  className={`${softPanelBg} rounded-[20px] p-4 text-center`}
+                  className={`${softPanelBg} rounded-[5px] p-4 text-center`}
                 >
                   <p className={`text-[11px] font-bold ${textMuted}`}>
                     {item.label}
@@ -1456,7 +1461,7 @@ const Dashboard = () => {
 
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 mb-3">
             <div
-              className={`${panelBg} xl:col-span-2 rounded-[24px] p-4 sm:p-5`}
+              className={`${panelBg} xl:col-span-2 rounded-[5px] p-4 sm:p-5`}
             >
               {renderSectionHeader(
                 "Sales Trend",
@@ -1486,7 +1491,7 @@ const Dashboard = () => {
               />
             </div>
 
-            <div className={`${panelBg} rounded-[24px] p-4 sm:p-5`}>
+            <div className={`${panelBg} rounded-[5px] p-4 sm:p-5`}>
               {renderSectionHeader(
                 "Top Products",
                 "Best-selling items",
@@ -1500,7 +1505,7 @@ const Dashboard = () => {
                   topProducts.map((item, index) => (
                     <div
                       key={index}
-                      className={`${softPanelBg} flex items-center justify-between p-3.5 rounded-2xl gap-3`}
+                      className={`${softPanelBg} flex items-center justify-between p-3.5 rounded-[5px] gap-3`}
                     >
                       <div className="min-w-0">
                         <p
@@ -1526,7 +1531,7 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className={`${panelBg} rounded-[24px] p-4 sm:p-5 mb-3`}>
+          <div className={`${panelBg} rounded-[5px] p-4 sm:p-5 mb-3`}>
             {renderSectionHeader(
               "Revenue and Profit",
               "Financial comparison over time",
@@ -1544,13 +1549,13 @@ const Dashboard = () => {
                     label: "Revenue",
                     data: monthlySales.revenue,
                     backgroundColor: "#111827",
-                    borderRadius: 10,
+                    borderRadius: 5,
                   },
                   {
                     label: "Profit",
                     data: monthlySales.netProfit,
                     backgroundColor: "#d4b483",
-                    borderRadius: 10,
+                    borderRadius: 5,
                   },
                 ],
               }}
@@ -1569,7 +1574,7 @@ const Dashboard = () => {
               exportCategoryExcel
             )}
 
-            <div className={`${panelBg} rounded-[24px] p-4 sm:p-5`}>
+            <div className={`${panelBg} rounded-[5px] p-4 sm:p-5`}>
               {renderSectionHeader(
                 "Low Stock Alert",
                 "Items that need restocking",
@@ -1589,7 +1594,7 @@ const Dashboard = () => {
                   lowStockProducts.map((item) => (
                     <div
                       key={item._id}
-                      className={`${softPanelBg} flex items-center justify-between rounded-2xl px-3 py-3.5 gap-3`}
+                      className={`${softPanelBg} flex items-center justify-between rounded-[5px] px-3 py-3.5 gap-3`}
                     >
                       <div className="min-w-0">
                         <p
@@ -1619,7 +1624,7 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className={`${panelBg} rounded-[24px] p-4 sm:p-5`}>
+          <div className={`${panelBg} rounded-[5px] p-4 sm:p-5`}>
             {renderSectionHeader(
               "Recent Orders",
               "Latest order activity",
@@ -1668,7 +1673,7 @@ const Dashboard = () => {
                           {formatCurrency(order.amount || 0)}
                         </td>
                         <td className="py-3 pr-3">
-                          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-[#f1f1ee] text-[#444]">
+                          <span className="px-2.5 py-1 rounded-[5px] text-xs font-bold bg-[#f1f1ee] text-[#444]">
                             {order.status || "Pending"}
                           </span>
                         </td>

@@ -45,6 +45,8 @@ const PAYMENT_STATUS_FILTERS = [
   "Collected on Delivery",
 ];
 
+const MANUAL_PAYMENT_METHODS = ["GCash", "Maya", "GoTyme"];
+
 const normalizeCategory = (value = "") => {
   const clean = String(value).trim().toLowerCase();
 
@@ -225,6 +227,7 @@ const Orders = () => {
     const normalizedFolder = folder
       ? `${folder.replace(/^\/+|\/+$/g, "")}/`
       : "";
+
     return `${backendUrl}/uploads/${normalizedFolder}${clean}`;
   };
 
@@ -266,10 +269,9 @@ const Orders = () => {
 
   const fetchOrders = async () => {
     try {
-      const res = await axios.get(
-        `${backendUrl}/api/order/list`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await axios.get(`${backendUrl}/api/order/list`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
       if (res.data.success) {
         const fetchedOrders = res.data.orders || [];
@@ -295,8 +297,9 @@ const Orders = () => {
               referenceNumber: order.referenceNumber || "",
               paymentProofImage:
                 order.paymentProofImage || order.paymentProof || "",
-              userFullName: `${order.address?.firstName || ""} ${order.address?.lastName || ""
-                }`.trim(),
+              userFullName: `${order.address?.firstName || ""} ${
+                order.address?.lastName || ""
+              }`.trim(),
               userEmail: order.address?.email || "",
               userPhone: order.address?.phone || "",
               fullAddress: formatAddress(order.address || {}),
@@ -329,8 +332,71 @@ const Orders = () => {
     if (token) fetchOrders();
   }, [token]);
 
-  const statusHandler = async (event, orderId) => {
+  const approvePayment = async (orderId) => {
+    try {
+      const res = await axios.post(
+        `${backendUrl}/api/order/approve-manual-payment`,
+        { orderId },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (res.data.success) {
+        toast.success("Payment approved");
+        fetchOrders();
+      } else {
+        toast.error(res.data.message || "Failed to approve payment");
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to approve payment");
+    }
+  };
+
+  const rejectPayment = async (orderId) => {
+    try {
+      const res = await axios.post(
+        `${backendUrl}/api/order/reject-manual-payment`,
+        { orderId },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (res.data.success) {
+        toast.success("Payment rejected");
+        fetchOrders();
+      } else {
+        toast.error(res.data.message || "Failed to reject payment");
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to reject payment");
+    }
+  };
+
+  const isManualPayment = (item) => {
+    return MANUAL_PAYMENT_METHODS.includes(normalizePaymentMethod(item.paymentMethod));
+  };
+
+  const isPaymentApproved = (item) => {
+    return item.paymentStatusLabel === "Paid" || item.payment === true;
+  };
+
+  const isPaymentVerifying = (item) => {
+    return item.paymentStatusLabel === "Payment Verifying";
+  };
+
+  const isPaymentFailed = (item) => {
+    return item.paymentStatusLabel === "Payment Failed";
+  };
+
+  const isShippingLocked = (item) => {
+    return isManualPayment(item) && !isPaymentApproved(item);
+  };
+
+  const statusHandler = async (event, orderId, item) => {
     const newStatus = event.target.value;
+
+    if (isShippingLocked(item)) {
+      toast.warning("Approve payment first before updating delivery status.");
+      return;
+    }
 
     try {
       const res = await axios.post(
@@ -342,6 +408,8 @@ const Orders = () => {
       if (res.data.success) {
         toast.success("Status updated");
         fetchOrders();
+      } else {
+        toast.error(res.data.message || "Failed to update status");
       }
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to update status");
@@ -401,6 +469,9 @@ const Orders = () => {
       paid: filteredItems.filter((item) => item.paymentStatusLabel === "Paid")
         .length,
       preorder: filteredItems.filter((item) => item.isPreorder).length,
+      pendingApproval: filteredItems.filter(
+        (item) => isManualPayment(item) && isPaymentVerifying(item)
+      ).length,
     };
   }, [filteredItems]);
 
@@ -494,6 +565,15 @@ const Orders = () => {
                 </p>
               </div>
 
+              <div className="px-4 py-3 rounded-2xl border border-violet-300/30 bg-violet-400/10 backdrop-blur">
+                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-violet-100">
+                  Pending Approval
+                </p>
+                <p className="mt-1 text-xl font-black text-violet-100">
+                  {summary.pendingApproval}
+                </p>
+              </div>
+
               <div className="px-4 py-3 rounded-2xl border border-amber-300/30 bg-amber-400/10 backdrop-blur">
                 <p className="text-[10px] font-black uppercase tracking-[0.24em] text-amber-100">
                   Pre-order
@@ -568,6 +648,9 @@ const Orders = () => {
 
             {currentItems.map((item, index) => {
               const shipDate = getPreorderShipDate(item);
+              const locked = isShippingLocked(item);
+              const verifying = isPaymentVerifying(item);
+              const failed = isPaymentFailed(item);
 
               return (
                 <div
@@ -619,6 +702,18 @@ const Orders = () => {
                           {item.isPreorder && (
                             <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 text-[10px] font-black uppercase tracking-[0.14em]">
                               Pre-order
+                            </span>
+                          )}
+
+                          {verifying && (
+                            <span className="px-2.5 py-1 rounded-full bg-violet-100 text-violet-700 text-[10px] font-black uppercase tracking-[0.14em]">
+                              Pending Approval
+                            </span>
+                          )}
+
+                          {locked && !verifying && (
+                            <span className="px-2.5 py-1 rounded-full bg-red-100 text-red-700 text-[10px] font-black uppercase tracking-[0.14em]">
+                              Shipping Locked
                             </span>
                           )}
                         </div>
@@ -731,6 +826,18 @@ const Orders = () => {
                           >
                             {item.paymentStatusLabel}
                           </span>
+
+                          {verifying && (
+                            <p className="mt-2 text-[11px] font-bold text-violet-700">
+                              Proof uploaded. Review and approve before shipping.
+                            </p>
+                          )}
+
+                          {failed && (
+                            <p className="mt-2 text-[11px] font-bold text-red-700">
+                              Payment rejected. Shipping is locked.
+                            </p>
+                          )}
                         </div>
 
                         {item.isPreorder && (
@@ -747,60 +854,60 @@ const Orders = () => {
                         {(item.paymentMethod === "GCash" ||
                           item.paymentMethod === "Maya" ||
                           item.paymentMethod === "GoTyme") && (
-                            <>
-                              <div>
-                                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45">
-                                  Reference No.
-                                </p>
-                                <p className="mt-2 break-all text-sm text-[#0A0D17]">
-                                  {item.referenceNumber || "Not Available"}
-                                </p>
-                              </div>
+                          <>
+                            <div>
+                              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45">
+                                Reference No.
+                              </p>
+                              <p className="mt-2 break-all text-sm text-[#0A0D17]">
+                                {item.referenceNumber || "Not Available"}
+                              </p>
+                            </div>
 
-                              <div>
-                                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45 mb-2">
-                                  Payment Proof
+                            <div>
+                              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45 mb-2">
+                                Payment Proof
+                              </p>
+
+                              {item.paymentProofImage ? (
+                                <div className="space-y-3">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      openProofModal(item.paymentProofImage, item.name)
+                                    }
+                                    className="block"
+                                  >
+                                    <img
+                                      src={getProofUrl(item.paymentProofImage)}
+                                      alt="Payment Proof"
+                                      className="w-24 h-24 object-cover rounded-xl border border-black/10 hover:opacity-90 transition"
+                                      loading="lazy"
+                                      onError={(e) => {
+                                        e.currentTarget.onerror = null;
+                                        e.currentTarget.src = assets.fallback_image;
+                                      }}
+                                    />
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      openProofModal(item.paymentProofImage, item.name)
+                                    }
+                                    className="rounded-full border border-black/10 bg-white px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[#0A0D17] hover:bg-[#f5f5f4]"
+                                  >
+                                    View Proof
+                                  </button>
+                                </div>
+                              ) : (
+                                <p className="text-[#0A0D17]/40">
+                                  No payment proof uploaded
                                 </p>
-
-                                {item.paymentProofImage ? (
-                                  <div className="space-y-3">
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        openProofModal(item.paymentProofImage, item.name)
-                                      }
-                                      className="block"
-                                    >
-                                      <img
-                                        src={getProofUrl(item.paymentProofImage)}
-                                        alt="Payment Proof"
-                                        className="w-24 h-24 object-cover rounded-xl border border-black/10 hover:opacity-90 transition"
-                                        loading="lazy"
-                                        onError={(e) => {
-                                          e.currentTarget.onerror = null;
-                                          e.currentTarget.src = assets.fallback_image;
-                                        }}
-                                      />
-                                    </button>
-
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        openProofModal(item.paymentProofImage, item.name)
-                                      }
-                                      className="rounded-full border border-black/10 bg-white px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[#0A0D17] hover:bg-[#f5f5f4]"
-                                    >
-                                      View Proof
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <p className="text-[#0A0D17]/40">
-                                    No payment proof uploaded
-                                  </p>
-                                )}
-                              </div>
-                            </>
-                          )}
+                              )}
+                            </div>
+                          </>
+                        )}
 
                         <div>
                           <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45">
@@ -833,16 +940,58 @@ const Orders = () => {
                         </p>
                       </div>
 
+                      {verifying && (
+                        <div className="rounded-2xl border border-violet-200 bg-violet-50 p-3">
+                          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">
+                            Pending Approval
+                          </p>
+                          <p className="mt-1 text-[11px] font-bold text-violet-700/80">
+                            Check reference number and proof image before approving.
+                          </p>
+                        </div>
+                      )}
+
+                      {verifying && (
+                        <div className="flex flex-col gap-2">
+                          <button
+                            type="button"
+                            onClick={() => approvePayment(item.orderId)}
+                            className="w-full rounded-xl bg-emerald-600 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-white hover:bg-emerald-700 transition"
+                          >
+                            Approve Payment
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => rejectPayment(item.orderId)}
+                            className="w-full rounded-xl border border-red-500 bg-white py-3 text-[10px] font-black uppercase tracking-[0.18em] text-red-600 hover:bg-red-50 transition"
+                          >
+                            Reject Payment
+                          </button>
+                        </div>
+                      )}
+
                       <div>
                         <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45 mb-2">
                           Delivery Status
                         </p>
+
                         <select
                           value={normalizeStatus(item.status)}
-                          onChange={(e) => statusHandler(e, item.orderId)}
+                          onChange={(e) => statusHandler(e, item.orderId, item)}
+                          disabled={locked}
+                          title={
+                            locked
+                              ? "Approve payment first before updating delivery status"
+                              : "Update delivery status"
+                          }
                           className={`w-full border p-3 text-xs font-black rounded-2xl outline-none ${getStatusColor(
                             item.status
-                          )}`}
+                          )} ${
+                            locked
+                              ? "cursor-not-allowed opacity-60"
+                              : "cursor-pointer"
+                          }`}
                         >
                           {ORDER_STATUSES.map((status) => (
                             <option key={status} value={status}>
@@ -850,6 +999,12 @@ const Orders = () => {
                             </option>
                           ))}
                         </select>
+
+                        {locked && (
+                          <p className="mt-2 text-[11px] font-bold text-red-600">
+                            Shipping locked until payment is approved.
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -864,10 +1019,11 @@ const Orders = () => {
                 <button
                   key={i}
                   onClick={() => setCurrentPage(i + 1)}
-                  className={`px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-[0.18em] border ${currentPage === i + 1
-                    ? "bg-[#0A0D17] text-white border-[#0A0D17]"
-                    : "bg-white text-[#0A0D17] border-black/10"
-                    }`}
+                  className={`px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-[0.18em] border ${
+                    currentPage === i + 1
+                      ? "bg-[#0A0D17] text-white border-[#0A0D17]"
+                      : "bg-white text-[#0A0D17] border-black/10"
+                  }`}
                 >
                   {i + 1}
                 </button>

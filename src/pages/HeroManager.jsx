@@ -34,13 +34,46 @@ const HeroManager = ({ token }) => {
     useState("Welcome back");
 
   const [tickerText, setTickerText] = useState(
-    "{greeting}, {name}! Ready to explore the latest from Saint Clothing?"
+    "{greeting}, {name}! Try our mobile AR fitting experience and explore the latest from Saint Clothing."
   );
 
   const [slides, setSlides] = useState([
-    { ...emptySlide },
-    { ...emptySlide },
-    { ...emptySlide },
+    {
+      ...emptySlide,
+      title: "Saint Clothing",
+      subtitle: "Modern Streetwear Essentials",
+      description:
+        "Clean silhouettes, premium everyday wear, and a monochrome identity built for a modern streetwear brand.",
+      cta: "Shop Collection",
+      action: "collection",
+    },
+    {
+      ...emptySlide,
+      title: "Virtual Try-On",
+      subtitle: "AR Fitting Experience On Mobile",
+      description:
+        "Preview selected Saint Clothing pieces through your phone using our mobile AR try-on feature.",
+      cta: "Try AR On Mobile",
+      action: "ar",
+    },
+    {
+      ...emptySlide,
+      title: "Core Uniform",
+      subtitle: "Minimal Pieces. Strong Identity.",
+      description:
+        "Everyday essentials refined for a sharper streetwear identity.",
+      cta: "View Best Sellers",
+      action: "bestseller",
+    },
+    {
+      ...emptySlide,
+      title: "New Drop",
+      subtitle: "Refined Fits For Everyday Wear",
+      description:
+        "Fresh silhouettes and elevated staples for the latest Saint release.",
+      cta: "View Latest Collection",
+      action: "latest",
+    },
   ]);
 
   const fetchHero = async () => {
@@ -57,16 +90,16 @@ const HeroManager = ({ token }) => {
         );
         setTickerText(
           data.hero.tickerText ||
-            "{greeting}, {name}! Ready to explore the latest from Saint Clothing?"
+            "{greeting}, {name}! Try our mobile AR fitting experience and explore the latest from Saint Clothing."
         );
 
         const incomingSlides = Array.isArray(data.hero.slides)
           ? data.hero.slides
           : [];
 
-        const normalizedSlides = [0, 1, 2].map((index) => ({
+        const normalizedSlides = [0, 1, 2, 3].map((index) => ({
           ...emptySlide,
-          ...(incomingSlides[index] || {}),
+          ...(incomingSlides[index] || slides[index] || {}),
           image: incomingSlides[index]?.image || "",
           previewImage: "",
           file: null,
@@ -168,7 +201,7 @@ const HeroManager = ({ token }) => {
           Hero Manager
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-gray-500">
-          Control homepage slides and user greeting ticker.
+          Control homepage slides, AR promotion, and user greeting ticker.
         </p>
       </div>
 
@@ -228,7 +261,7 @@ const HeroManager = ({ token }) => {
               value={tickerText}
               onChange={(e) => setTickerText(e.target.value)}
               rows={3}
-              placeholder="{greeting}, {name}! Ready to explore Saint Clothing?"
+              placeholder="{greeting}, {name}! Try our mobile AR fitting experience."
               className="w-full rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-black"
             />
           </div>
@@ -247,7 +280,7 @@ const HeroManager = ({ token }) => {
                   Slide {index + 1}
                 </p>
                 <h2 className="mt-1 text-xl font-black text-[#0A0D17]">
-                  Hero Content
+                  {slide.action === "ar" ? "AR Promotion" : "Hero Content"}
                 </h2>
               </div>
 
@@ -290,6 +323,7 @@ const HeroManager = ({ token }) => {
                   className="w-full rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-black"
                 >
                   <option value="collection">Collection</option>
+                  <option value="ar">AR Try-On Mobile</option>
                   <option value="bestseller">Best Seller</option>
                   <option value="latest">Latest</option>
                 </select>
