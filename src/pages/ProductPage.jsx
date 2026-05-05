@@ -3,6 +3,22 @@ import { assets } from "../assets/assets";
 import axios from "axios";
 import { backendUrl, currency } from "../App";
 import { toast } from "react-toastify";
+import {
+  FaBoxes,
+  FaPlus,
+  FaSearch,
+  FaFilter,
+  FaStore,
+  FaTrash,
+  FaEdit,
+  FaImage,
+  FaTags,
+  FaExclamationTriangle,
+  FaFire,
+  FaPalette,
+  FaCubes,
+  FaSyncAlt,
+} from "react-icons/fa";
 
 const getMediaUrl = (value, backendUrl) => {
   if (!value) return "";
@@ -27,6 +43,7 @@ const ProductPage = ({ token }) => {
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
   const [showForm, setShowForm] = useState(false);
@@ -83,6 +100,9 @@ const ProductPage = ({ token }) => {
   const [styleTagInput, setStyleTagInput] = useState("");
   const [matchWith, setMatchWith] = useState([]);
 
+  const [customCategoryInput, setCustomCategoryInput] = useState("");
+  const [categoriesData, setCategoriesData] = useState([]);
+
   const axiosConfig = {
     headers: {
       Authorization: `Bearer ${token}`,
@@ -90,8 +110,17 @@ const ProductPage = ({ token }) => {
     },
   };
 
-  const [customCategoryInput, setCustomCategoryInput] = useState("");
-  const [categoriesData, setCategoriesData] = useState([]);
+  const panelBg =
+    "bg-white border border-black/10 shadow-[0_8px_24px_rgba(0,0,0,0.05)]";
+  const softPanelBg = "bg-[#FAFAF8] border border-black/10";
+  const inputClass =
+    "w-full rounded-[5px] border border-black/10 bg-white px-3 py-2.5 text-sm text-[#0A0D17] outline-none transition focus:border-black";
+  const labelClass =
+    "text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45";
+  const buttonDark =
+    "inline-flex items-center justify-center gap-2 rounded-[5px] bg-[#0A0D17] px-4 py-2.5 text-sm font-black text-white transition hover:bg-[#1f2937] disabled:opacity-50";
+  const buttonLight =
+    "inline-flex items-center justify-center gap-2 rounded-[5px] border border-black/10 bg-white px-4 py-2.5 text-sm font-black text-[#0A0D17] transition hover:bg-[#FAFAF8]";
 
   const CATEGORY_OPTIONS = useMemo(() => {
     const fromBackend = categoriesData.map((item) => item.name).filter(Boolean);
@@ -102,72 +131,6 @@ const ProductPage = ({ token }) => {
 
     return Array.from(new Set([...fromBackend, ...fromProducts]));
   }, [categoriesData, list]);
-
-  const fetchCategories = async () => {
-    try {
-      const res = await axios.get(`${backendUrl}/api/category/list`);
-
-      if (res.data.success) {
-        setCategoriesData(res.data.categories || []);
-
-        if (!category && res.data.categories?.length > 0) {
-          setCategory(res.data.categories[0].name);
-        }
-      }
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to load categories");
-    }
-  };
-
-  const addCustomCategory = async () => {
-    const trimmed = customCategoryInput.trim();
-
-    if (!trimmed) return toast.error("Enter category name");
-
-    try {
-      const res = await axios.post(
-        `${backendUrl}/api/category/add`,
-        { name: trimmed },
-        axiosConfig
-      );
-
-      if (res.data.success) {
-        toast.success(res.data.message || "Category added");
-        setCustomCategoryInput("");
-        setCategory(trimmed);
-        await fetchCategories();
-      } else {
-        toast.error(res.data.message || "Failed to add category");
-      }
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to add category");
-    }
-  };
-
-  const removeCustomCategory = async (id, name) => {
-    if (!window.confirm(`Remove category "${name}"?`)) return;
-
-    try {
-      const res = await axios.post(
-        `${backendUrl}/api/category/delete`,
-        { id },
-        axiosConfig
-      );
-
-      if (res.data.success) {
-        toast.success(res.data.message || "Category removed");
-
-        if (category === name) setCategory("Tshirt");
-        if (categoryFilter === name) setCategoryFilter("all");
-
-        await fetchCategories();
-      } else {
-        toast.error(res.data.message || "Failed to remove category");
-      }
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to remove category");
-    }
-  };
 
   const predefinedColors = [
     { name: "Black", hex: "#000000" },
@@ -248,6 +211,72 @@ const ProductPage = ({ token }) => {
     }
   }, [role, userBranch, activeBranches, branch]);
 
+  const fetchCategories = async () => {
+    try {
+      const res = await axios.get(`${backendUrl}/api/category/list`);
+
+      if (res.data.success) {
+        setCategoriesData(res.data.categories || []);
+
+        if (!category && res.data.categories?.length > 0) {
+          setCategory(res.data.categories[0].name);
+        }
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to load categories");
+    }
+  };
+
+  const addCustomCategory = async () => {
+    const trimmed = customCategoryInput.trim();
+
+    if (!trimmed) return toast.error("Enter category name");
+
+    try {
+      const res = await axios.post(
+        `${backendUrl}/api/category/add`,
+        { name: trimmed },
+        axiosConfig
+      );
+
+      if (res.data.success) {
+        toast.success(res.data.message || "Category added");
+        setCustomCategoryInput("");
+        setCategory(trimmed);
+        await fetchCategories();
+      } else {
+        toast.error(res.data.message || "Failed to add category");
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to add category");
+    }
+  };
+
+  const removeCustomCategory = async (id, name) => {
+    if (!window.confirm(`Remove category "${name}"?`)) return;
+
+    try {
+      const res = await axios.post(
+        `${backendUrl}/api/category/delete`,
+        { id },
+        axiosConfig
+      );
+
+      if (res.data.success) {
+        toast.success(res.data.message || "Category removed");
+
+        if (category === name) setCategory("Tshirt");
+        if (categoryFilter === name) setCategoryFilter("all");
+
+        await fetchCategories();
+      } else {
+        toast.error(res.data.message || "Failed to remove category");
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to remove category");
+    }
+  };
+
   const fetchBranches = async () => {
     try {
       const res = await axios.get(`${backendUrl}/api/branch/list`, axiosConfig);
@@ -261,8 +290,10 @@ const ProductPage = ({ token }) => {
     }
   };
 
-  const fetchList = async () => {
-    setLoading(true);
+  const fetchList = async (silent = false) => {
+    if (!silent) setLoading(true);
+    setRefreshing(true);
+
     try {
       const res = await axios.get(
         `${backendUrl}/api/product/admin-list`,
@@ -285,7 +316,8 @@ const ProductPage = ({ token }) => {
       toast.error(err.response?.data?.message || err.message);
       setList([]);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -306,7 +338,7 @@ const ProductPage = ({ token }) => {
         setCategory(p.category || "Tshirt");
         setBranch(
           p.branch ||
-          (role === "admin" ? activeBranches[0]?.code || "" : userBranch)
+            (role === "admin" ? activeBranches[0]?.code || "" : userBranch)
         );
         setBestseller(!!p.bestseller);
         setNewArrival(!!p.newArrival);
@@ -373,132 +405,6 @@ const ProductPage = ({ token }) => {
     }
   };
 
-  const onSubmitHandler = async (e) => {
-    e.preventDefault();
-
-    if (!token) return toast.error("Admin not logged in!");
-    if (!name.trim()) return toast.error("Product name is required");
-    if (!sku.trim()) return toast.error("SKU is required");
-    if (!category.trim()) return toast.error("Category is required");
-
-    const numericPrice = Number(price);
-    if (!Number.isFinite(numericPrice) || numericPrice <= 0) {
-      return toast.error("Please enter a valid price");
-    }
-
-    if (onSale) {
-      const percent = Number(salePercent);
-      if (
-        !salePercent ||
-        !Number.isFinite(percent) ||
-        percent <= 0 ||
-        percent > 100
-      ) {
-        return toast.error(
-          "Please enter a valid sale percentage from 1 to 100"
-        );
-      }
-    }
-
-    const finalBranch = role === "admin" ? branch : userBranch;
-
-    if (!finalBranch) {
-      return toast.error("Please select a branch");
-    }
-
-    setSaving(true);
-
-    try {
-      const formData = new FormData();
-
-      if (sizeChartImage) {
-        formData.append("sizeChartImage", sizeChartImage);
-      }
-
-      if (outfitImage) {
-        formData.append("outfitImage", outfitImage);
-      }
-
-      formData.append("name", name.trim());
-      formData.append("description", description || "");
-      formData.append("price", numericPrice);
-      formData.append("sku", sku.trim());
-      formData.append("groupCode", groupCode.trim());
-
-      formData.append("colorHex", colorHex || "#000000");
-      formData.append("color", getColorNameFromHex(colorHex));
-
-      formData.append("category", category);
-      formData.append("branch", finalBranch);
-      formData.append("bestseller", String(bestseller));
-      formData.append("newArrival", String(newArrival));
-      formData.append("onSale", String(onSale));
-      formData.append("salePercent", onSale ? String(Number(salePercent)) : "0");
-
-      formData.append("sizes", JSON.stringify(sizes));
-      formData.append("stock", JSON.stringify(stock));
-      formData.append("colors", JSON.stringify(colors));
-
-      formData.append("fitType", fitType);
-      formData.append("styleVibe", styleVibe);
-      formData.append("recommendationSection", recommendationSection);
-      formData.append("styleTags", JSON.stringify(styleTags));
-      formData.append("matchWith", JSON.stringify(matchWith));
-
-      images.forEach((img, i) => {
-        if (img instanceof File) {
-          formData.append(`image${i + 1}`, img);
-        }
-      });
-
-      if (model3d instanceof File) {
-        formData.append("model3d", model3d);
-      }
-
-      const response = editId
-        ? await axios.put(
-          `${backendUrl}/api/product/update/${editId}`,
-          formData,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              token,
-              "Content-Type": "multipart/form-data",
-            },
-          }
-        )
-        : await axios.post(`${backendUrl}/api/product/add`, formData, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            token,
-            "Content-Type": "multipart/form-data",
-          },
-        });
-
-      if (response.data.success) {
-        toast.success(
-          response.data.message || (editId ? "Product updated" : "Product added")
-        );
-        resetForm();
-        setShowForm(false);
-        setCurrentPage(1);
-        await fetchList();
-      } else {
-        toast.error(response.data.message || "Something went wrong");
-      }
-    } catch (err) {
-      console.error("PRODUCT SUBMIT ERROR:", err);
-      console.log("PRODUCT SUBMIT RESPONSE:", err?.response?.data);
-      toast.error(
-        err?.response?.data?.message ||
-        err?.message ||
-        "Failed to save product"
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const resetForm = () => {
     setName("");
     setDescription("");
@@ -540,6 +446,123 @@ const ProductPage = ({ token }) => {
     setEditId(null);
   };
 
+  const onSubmitHandler = async (e) => {
+    e.preventDefault();
+
+    if (!token) return toast.error("Admin not logged in!");
+    if (!name.trim()) return toast.error("Product name is required");
+    if (!sku.trim()) return toast.error("SKU is required");
+    if (!category.trim()) return toast.error("Category is required");
+
+    const numericPrice = Number(price);
+    if (!Number.isFinite(numericPrice) || numericPrice <= 0) {
+      return toast.error("Please enter a valid price");
+    }
+
+    if (onSale) {
+      const percent = Number(salePercent);
+      if (
+        !salePercent ||
+        !Number.isFinite(percent) ||
+        percent <= 0 ||
+        percent > 100
+      ) {
+        return toast.error(
+          "Please enter a valid sale percentage from 1 to 100"
+        );
+      }
+    }
+
+    const finalBranch = role === "admin" ? branch : userBranch;
+
+    if (!finalBranch) {
+      return toast.error("Please select a branch");
+    }
+
+    setSaving(true);
+
+    try {
+      const formData = new FormData();
+
+      if (sizeChartImage) formData.append("sizeChartImage", sizeChartImage);
+      if (outfitImage) formData.append("outfitImage", outfitImage);
+
+      formData.append("name", name.trim());
+      formData.append("description", description || "");
+      formData.append("price", numericPrice);
+      formData.append("sku", sku.trim());
+      formData.append("groupCode", groupCode.trim());
+      formData.append("colorHex", colorHex || "#000000");
+      formData.append("color", getColorNameFromHex(colorHex));
+      formData.append("category", category);
+      formData.append("branch", finalBranch);
+      formData.append("bestseller", String(bestseller));
+      formData.append("newArrival", String(newArrival));
+      formData.append("onSale", String(onSale));
+      formData.append("salePercent", onSale ? String(Number(salePercent)) : "0");
+      formData.append("sizes", JSON.stringify(sizes));
+      formData.append("stock", JSON.stringify(stock));
+      formData.append("colors", JSON.stringify(colors));
+      formData.append("fitType", fitType);
+      formData.append("styleVibe", styleVibe);
+      formData.append("recommendationSection", recommendationSection);
+      formData.append("styleTags", JSON.stringify(styleTags));
+      formData.append("matchWith", JSON.stringify(matchWith));
+
+      images.forEach((img, i) => {
+        if (img instanceof File) {
+          formData.append(`image${i + 1}`, img);
+        }
+      });
+
+      if (model3d instanceof File) {
+        formData.append("model3d", model3d);
+      }
+
+      const response = editId
+        ? await axios.put(
+            `${backendUrl}/api/product/update/${editId}`,
+            formData,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                token,
+                "Content-Type": "multipart/form-data",
+              },
+            }
+          )
+        : await axios.post(`${backendUrl}/api/product/add`, formData, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              token,
+              "Content-Type": "multipart/form-data",
+            },
+          });
+
+      if (response.data.success) {
+        toast.success(
+          response.data.message || (editId ? "Product updated" : "Product added")
+        );
+        resetForm();
+        setShowForm(false);
+        setCurrentPage(1);
+        await fetchList(true);
+      } else {
+        toast.error(response.data.message || "Something went wrong");
+      }
+    } catch (err) {
+      console.error("PRODUCT SUBMIT ERROR:", err);
+      console.log("PRODUCT SUBMIT RESPONSE:", err?.response?.data);
+      toast.error(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Failed to save product"
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const removeProduct = async (id) => {
     if (!window.confirm("Move this item to trash?")) return;
 
@@ -551,7 +574,7 @@ const ProductPage = ({ token }) => {
       );
       if (res.data.success) {
         toast.success("Item moved to trash");
-        fetchList();
+        fetchList(true);
       } else {
         toast.error(res.data.message);
       }
@@ -591,6 +614,18 @@ const ProductPage = ({ token }) => {
     return "3D model attached";
   };
 
+  const getProductTotalStock = (product) => {
+    if (!product?.stock) return 0;
+    if (typeof product.stock === "number") return product.stock;
+    if (typeof product.stock === "object") {
+      return Object.values(product.stock).reduce(
+        (sum, qty) => sum + (Number(qty) || 0),
+        0
+      );
+    }
+    return 0;
+  };
+
   const filteredList = useMemo(() => {
     let data = [...list];
 
@@ -622,10 +657,10 @@ const ProductPage = ({ token }) => {
   ).length;
   const newArrivalCount = filteredList.filter((item) => item.newArrival).length;
   const lowStockCount = filteredList.filter((item) => {
-    const values = Object.values(item.stock || {});
-    const total = values.reduce((sum, val) => sum + (Number(val) || 0), 0);
+    const total = getProductTotalStock(item);
     return total <= 5;
   }).length;
+  const modelReadyCount = filteredList.filter((item) => item.model3d).length;
 
   const indexOfLastItem = currentPage * pageSize;
   const indexOfFirstItem = indexOfLastItem - pageSize;
@@ -642,613 +677,896 @@ const ProductPage = ({ token }) => {
 
   if (loading) {
     return (
-      <div className="w-full min-h-screen bg-[#f8f7f4] flex items-center justify-center font-['Montserrat']">
-        <div className="flex flex-col items-center gap-4">
-          <div className="h-10 w-10 rounded-full border-[3px] border-black/10 border-t-[#0A0D17] animate-spin" />
-          <p className="text-xs font-black uppercase tracking-[0.28em] text-[#0A0D17]/45">
-            Loading Products
-          </p>
+      <div className="min-h-screen bg-transparent p-3 pt-24 font-['Montserrat']">
+        <div className="animate-pulse space-y-3">
+          <div className="h-24 rounded-[5px] bg-white/70" />
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="h-28 rounded-[5px] bg-white/70" />
+            ))}
+          </div>
+          <div className="h-96 rounded-[5px] bg-white/70" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="relative min-h-screen bg-[#f8f7f4] pt-20 px-2 sm:px-3 pb-6 overflow-hidden font-['Montserrat']">
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
-        <p className="text-[170px] md:text-[260px] font-black tracking-tighter text-black opacity-[0.03]">
-          SAINT
-        </p>
-      </div>
+    <div className="min-h-screen bg-transparent px-2.5 sm:px-3 pt-20 sm:pt-24 pb-4 font-['Montserrat']">
+      <div className="max-w-[1500px] mx-auto grid grid-cols-1 xl:grid-cols-[285px_1fr] gap-3">
+        <aside className={`${panelBg} rounded-[5px] xl:sticky xl:top-24 xl:h-fit overflow-hidden`}>
+          <div className="bg-[#0A0D17] px-4 py-5 text-white">
+            <p className="text-[9px] font-black uppercase tracking-[0.34em] text-white/40">
+              Saint Clothing Admin
+            </p>
 
-      <div className="relative z-10 max-w-[1500px] mx-auto">
-        <div className="rounded-[32px] bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.10),_transparent_34%),linear-gradient(135deg,#05070A_0%,#111827_45%,#1f2937_100%)] p-5 sm:p-6 shadow-[0_25px_70px_rgba(0,0,0,0.22)] mb-4 text-white border border-white/10 overflow-hidden relative">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <div className="min-w-0">
-              <div className="flex items-center gap-3 mb-1.5">
-                <div className="w-11 h-11 rounded-2xl bg-white/10 border border-white/10 flex items-center justify-center shrink-0 backdrop-blur-sm">
-                  <img
-                    src={assets.add_icon}
-                    alt="Products"
-                    className="w-5 h-5 object-contain invert opacity-95"
-                  />
+            <div className="mt-3 flex items-center gap-3">
+              <div className="w-11 h-11 rounded-[5px] bg-white/10 border border-white/10 flex items-center justify-center text-white shrink-0">
+                <FaBoxes />
+              </div>
+
+              <div className="min-w-0">
+                <h2 className="font-black text-sm uppercase tracking-[0.14em] truncate">
+                  Product Center
+                </h2>
+                <p className="text-[11px] text-white/50">
+                  Inventory command panel
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-4 space-y-3 bg-[#f7f7f4]">
+            <div className="rounded-[5px] bg-white border border-black/10 p-4">
+              <p className={labelClass}>Snapshot</p>
+
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <div className="rounded-[5px] bg-[#0A0D17] p-3 text-white">
+                  <p className="text-[9px] font-black uppercase tracking-[0.18em] text-white/45">
+                    Products
+                  </p>
+                  <p className="mt-1 text-lg font-black">{totalProducts}</p>
                 </div>
-                <div className="min-w-0">
-                  <h1 className="text-[22px] sm:text-[28px] font-black tracking-[-0.03em] truncate">
-                    Product Inventory
-                  </h1>
-                  <p className="text-[11px] sm:text-sm text-white/65 mt-1">
-                    {role === "admin"
-                      ? "Manage products across active branches"
-                      : `You are managing ${getBranchLabel(userBranch)} only`}
+
+                <div className="rounded-[5px] bg-[#FAFAF8] border border-black/10 p-3">
+                  <p className="text-[9px] font-black uppercase tracking-[0.18em] text-[#0A0D17]/45">
+                    3D Ready
+                  </p>
+                  <p className="mt-1 text-lg font-black text-[#0A0D17]">
+                    {modelReadyCount}
                   </p>
                 </div>
               </div>
             </div>
 
-            <button
-              onClick={() => {
-                if (!showForm) resetForm();
-                setShowForm((prev) => !prev);
-              }}
-              className="inline-flex items-center justify-center rounded-2xl bg-white text-[#111111] px-5 py-2.5 text-sm font-black transition hover:bg-[#ececec] shadow-sm"
-            >
-              {showForm ? "Close Form" : "Add Product"}
-            </button>
-          </div>
-        </div>
+            <div className="rounded-[5px] bg-white border border-black/10 p-4">
+              <p className={labelClass}>Product Alerts</p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
-          <div className="rounded-[26px] border border-black/8 bg-white/75 backdrop-blur-md shadow-[0_18px_50px_rgba(0,0,0,0.06)] p-4">
-            <p className="text-xs font-medium text-[#6b7280]">Total Products</p>
-            <h2 className="mt-2 text-[28px] font-black tracking-[-0.03em] text-[#0A0D17]">
-              {totalProducts}
-            </h2>
-          </div>
+              <div className="mt-3 space-y-2">
+                <div className="flex items-center justify-between rounded-[5px] border border-red-100 bg-red-50 px-3 py-2.5">
+                  <div className="flex items-center gap-2">
+                    <FaExclamationTriangle className="text-red-500" />
+                    <span className="text-xs font-black text-red-700">
+                      Low Stock
+                    </span>
+                  </div>
+                  <span className="text-xs font-black text-red-700">
+                    {lowStockCount}
+                  </span>
+                </div>
 
-          <div className="rounded-[26px] border border-black/8 bg-white/75 backdrop-blur-md shadow-[0_18px_50px_rgba(0,0,0,0.06)] p-4">
-            <p className="text-xs font-medium text-[#6b7280]">On Sale</p>
-            <h2 className="mt-2 text-[28px] font-black tracking-[-0.03em] text-[#0A0D17]">
-              {onSaleCount}
-            </h2>
-          </div>
+                <div className="flex items-center justify-between rounded-[5px] border border-orange-100 bg-orange-50 px-3 py-2.5">
+                  <div className="flex items-center gap-2">
+                    <FaFire className="text-orange-600" />
+                    <span className="text-xs font-black text-orange-700">
+                      On Sale
+                    </span>
+                  </div>
+                  <span className="text-xs font-black text-orange-700">
+                    {onSaleCount}
+                  </span>
+                </div>
 
-          <div className="rounded-[26px] border border-black/8 bg-white/75 backdrop-blur-md shadow-[0_18px_50px_rgba(0,0,0,0.06)] p-4">
-            <p className="text-xs font-medium text-[#6b7280]">New Arrival</p>
-            <h2 className="mt-2 text-[28px] font-black tracking-[-0.03em] text-[#0A0D17]">
-              {newArrivalCount}
-            </h2>
-          </div>
+                <div className="flex items-center justify-between rounded-[5px] border border-blue-100 bg-blue-50 px-3 py-2.5">
+                  <div className="flex items-center gap-2">
+                    <FaTags className="text-blue-600" />
+                    <span className="text-xs font-black text-blue-700">
+                      New Arrival
+                    </span>
+                  </div>
+                  <span className="text-xs font-black text-blue-700">
+                    {newArrivalCount}
+                  </span>
+                </div>
+              </div>
+            </div>
 
-          <div className="rounded-[26px] border border-black/8 bg-white/75 backdrop-blur-md shadow-[0_18px_50px_rgba(0,0,0,0.06)] p-4">
-            <p className="text-xs font-medium text-[#6b7280]">Low Stock</p>
-            <h2 className="mt-2 text-[28px] font-black tracking-[-0.03em] text-red-500">
-              {lowStockCount}
-            </h2>
-          </div>
-        </div>
+            <div className="rounded-[5px] bg-white border border-black/10 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <FaFilter className="text-[#0A0D17]/45" />
+                <p className={labelClass}>Filter</p>
+              </div>
 
-        {showForm && (
-          <form
-            onSubmit={onSubmitHandler}
-            className="rounded-[30px] border border-black/8 bg-white/75 backdrop-blur-md shadow-[0_18px_50px_rgba(0,0,0,0.06)] p-5 sm:p-6 mb-5"
-          >
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6">
-              <div>
-                <h3 className="text-[22px] font-black tracking-tight text-[#0A0D17]">
-                  {editId ? "Edit Product" : "Add New Product"}
-                </h3>
-                <p className="text-sm text-[#6b7280] mt-1">
-                  Fill in product information, inventory, sale status, and style
-                  recommendation setup.
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="mt-1 w-full rounded-[5px] px-3 py-2.5 text-sm outline-none bg-[#FAFAF8] text-gray-900 border border-black/10"
+              >
+                <option value="all">All Categories</option>
+                {CATEGORY_OPTIONS.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
+
+              <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.16em] text-[#0A0D17]/40">
+                Viewing: {categoryFilter === "all" ? "All Products" : categoryFilter}
+              </p>
+            </div>
+
+            <div className="rounded-[5px] bg-white border border-black/10 p-4">
+              <p className={labelClass}>Branch</p>
+
+              <div className="mt-3 rounded-[5px] border border-black/10 bg-[#FAFAF8] p-3">
+                <div className="flex items-center gap-2">
+                  <FaStore className="text-[#0A0D17]/45" />
+                  <p className="text-sm font-black text-[#0A0D17] truncate">
+                    {role === "admin" ? "Admin Access" : getBranchLabel(userBranch)}
+                  </p>
+                </div>
+
+                <p className="mt-1 text-[11px] font-bold text-[#0A0D17]/45">
+                  {role === "admin"
+                    ? "Can manage active branches"
+                    : "Branch restricted account"}
                 </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              <div className="flex flex-col gap-4">
-                <div className="rounded-[24px] border border-black/[0.06] bg-white/60 p-4">
-                  <p className="text-sm font-black text-[#6b7280] uppercase tracking-[0.18em] mb-3">
-                    Upload Product Images
-                  </p>
+            <div className="rounded-[5px] bg-white border border-black/10 p-4">
+              <p className={labelClass}>Quick Actions</p>
 
-                  <div className="flex gap-3 flex-wrap">
-                    {images.map((img, i) => {
-                      const hasImage = img || oldImages[i];
+              <div className="mt-3 grid grid-cols-1 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetForm();
+                    setShowForm(true);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                  className="flex items-center gap-2 rounded-[5px] px-3 py-2.5 text-sm font-bold hover:bg-[#FAFAF8] text-gray-900 transition"
+                >
+                  <FaPlus />
+                  Add Product
+                </button>
 
-                      return (
-                        <label key={i} className="cursor-pointer">
-                          <img
-                            className={`w-24 h-28 border border-black/10 rounded-2xl bg-white ${hasImage
-                                ? "object-cover"
-                                : "object-contain p-2 opacity-50"
-                              }`}
-                            src={
-                              img
-                                ? URL.createObjectURL(img)
-                                : oldImages[i]
-                                  ? getMediaUrl(oldImages[i], backendUrl)
-                                  : assets.upload_area
-                            }
-                            alt=""
-                          />
-                          <input
-                            type="file"
-                            accept="image/*"
-                            hidden
-                            onChange={(e) => {
-                              const file = e.target.files?.[0] || null;
-                              setImages((prev) => {
-                                const copy = [...prev];
-                                copy[i] = file;
-                                return copy;
-                              });
-                            }}
-                          />
-                        </label>
-                      );
-                    })}
+                <button
+                  type="button"
+                  onClick={() => fetchList(false)}
+                  className="flex items-center gap-2 rounded-[5px] px-3 py-2.5 text-sm font-bold hover:bg-[#FAFAF8] text-gray-900 transition"
+                >
+                  <FaSyncAlt className={refreshing ? "animate-spin" : ""} />
+                  Refresh Products
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-black/10 bg-white px-4 py-4">
+            <div className="rounded-[5px] border border-black/10 bg-[#FAFAF8] p-3">
+              <p className="text-[9px] font-black uppercase tracking-[0.22em] text-gray-400">
+                Upload Reminder
+              </p>
+
+              <div className="mt-3 space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs font-bold text-gray-500">
+                    Images
+                  </span>
+                  <span className="text-xs font-black text-[#0A0D17]">
+                    PNG/JPG
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs font-bold text-gray-500">
+                    3D Model
+                  </span>
+                  <span className="text-xs font-black text-[#0A0D17]">
+                    GLB
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs font-bold text-gray-500">
+                    Suggested
+                  </span>
+                  <span className="text-xs font-black text-[#0A0D17]">
+                    Below 20MB
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <p className="mt-3 text-center text-[9px] font-black uppercase tracking-[0.24em] text-gray-300">
+              Saint Clothing Admin
+            </p>
+          </div>
+        </aside>
+
+        <main className="min-w-0">
+          <div className="rounded-[5px] bg-[#0A0D17] p-5 sm:p-6 shadow-[0_18px_60px_rgba(0,0,0,0.08)] mb-4 text-white border border-black/10 overflow-hidden relative">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-[0.34em] text-white/50 mb-2">
+                  Inventory Management
+                </p>
+
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-[5px] bg-white/10 border border-white/10 flex items-center justify-center shrink-0 backdrop-blur-sm">
+                    <FaCubes className="text-sm" />
                   </div>
-                </div>
 
-                <div className="rounded-[24px] border border-black/[0.06] bg-white/60 p-4">
-                  <p className="text-sm font-black text-[#6b7280] uppercase tracking-[0.18em] mb-3">
-                    Outfit Builder Image
-                  </p>
-
-                  <label className="cursor-pointer inline-block">
-                    <img
-                      className={`w-40 h-40 border border-black/10 rounded-2xl bg-white ${outfitImage || oldOutfitImage
-                          ? "object-contain"
-                          : "object-contain p-3 opacity-50"
-                        }`}
-                      src={
-                        outfitImage
-                          ? URL.createObjectURL(outfitImage)
-                          : oldOutfitImage
-                            ? getMediaUrl(oldOutfitImage, backendUrl)
-                            : assets.upload_area
-                      }
-                      alt="Outfit builder"
-                    />
-                    <input
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp"
-                      hidden
-                      onChange={(e) =>
-                        setOutfitImage(e.target.files?.[0] || null)
-                      }
-                    />
-                  </label>
-
-                  <p className="text-xs text-[#6b7280] mt-2">
-                    This image is used only in the 2D outfit builder. Best:
-                    transparent PNG.
-                  </p>
-                </div>
-
-                <div className="rounded-[24px] border border-black/[0.06] bg-white/60 p-4">
-                  <p className="text-sm font-black text-[#6b7280] uppercase tracking-[0.18em] mb-3">
-                    Upload Size Chart Image
-                  </p>
-
-                  <label className="cursor-pointer inline-block">
-                    <img
-                      className={`w-40 h-40 border border-black/10 rounded-2xl bg-white ${sizeChartImage || oldSizeChartImage
-                          ? "object-cover"
-                          : "object-contain p-3 opacity-50"
-                        }`}
-                      src={
-                        sizeChartImage
-                          ? URL.createObjectURL(sizeChartImage)
-                          : oldSizeChartImage
-                            ? getMediaUrl(oldSizeChartImage, backendUrl)
-                            : assets.upload_area
-                      }
-                      alt="Size chart"
-                    />
-                    <input
-                      type="file"
-                      accept="image/*"
-                      hidden
-                      onChange={(e) =>
-                        setSizeChartImage(e.target.files?.[0] || null)
-                      }
-                    />
-                  </label>
-
-                  <p className="text-xs text-[#6b7280] mt-2">
-                    Upload your standard size guide image for this product.
-                  </p>
-                </div>
-
-                <div className="rounded-[24px] border border-black/[0.06] bg-white/60 p-4">
-                  <p className="text-sm font-black text-[#6b7280] mb-2 uppercase tracking-[0.18em]">
-                    Upload 3D Model / Video Preview
-                  </p>
-                  <input
-                    type="file"
-                    accept=".glb,.gltf,.usdz,.mp4,.webm,.ogg"
-                    onChange={(e) => setModel3d(e.target.files?.[0] || null)}
-                    className="w-full border border-black/10 rounded-2xl px-3 py-2.5 bg-white"
-                  />
-                  <p className="text-xs text-[#6b7280] mt-2">
-                    Supported: GLB, GLTF, USDZ, MP4, WEBM, OGG
-                  </p>
-                  {oldModel3d && !model3d && (
-                    <p className="text-xs text-green-600 mt-2">
-                      Current file: {oldModel3d}
+                  <div className="min-w-0">
+                    <h1 className="text-[22px] sm:text-[30px] font-black uppercase tracking-[-0.03em] truncate">
+                      Product Inventory
+                    </h1>
+                    <p className="text-[11px] sm:text-sm text-white/65 mt-1">
+                      Manage products, stocks, categories, branches, media, and 3D previews.
                     </p>
-                  )}
-                  {model3d && (
-                    <p className="text-xs text-blue-600 mt-2">
-                      New file selected: {model3d.name}
-                    </p>
-                  )}
-                </div>
-
-                <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Product Name"
-                  className="px-4 py-3 border border-black/10 rounded-2xl bg-white"
-                  required
-                />
-
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Description"
-                  className="px-4 py-3 border border-black/10 rounded-2xl h-24 bg-white"
-                />
-
-                <input
-                  value={sku}
-                  onChange={(e) => setSku(e.target.value)}
-                  placeholder="SKU Code (e.g. SKU-001)"
-                  className="px-4 py-3 border border-black/10 rounded-2xl bg-white"
-                  required
-                />
-
-                <input
-                  value={groupCode}
-                  onChange={(e) => setGroupCode(e.target.value)}
-                  placeholder="Group Code (example: SHIRT-001)"
-                  className="px-4 py-3 border border-black/10 rounded-2xl bg-white"
-                />
-
-                <div className="rounded-[24px] border border-black/[0.06] bg-white/60 p-4">
-                  <p className="text-sm font-black text-[#6b7280] mb-2 uppercase tracking-[0.18em]">
-                    Pick Color Hex
-                  </p>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="color"
-                      value={colorHex}
-                      onChange={(e) => setColorHex(e.target.value)}
-                      className="w-14 h-10 border border-black/10 rounded-xl cursor-pointer bg-white"
-                    />
-                    <input
-                      value={colorHex}
-                      readOnly
-                      className="px-4 py-2 border border-black/10 rounded-xl flex-1 bg-white"
-                    />
                   </div>
-                  <p className="text-xs text-[#6b7280] mt-2">
-                    Auto color name:{" "}
-                    <span className="font-black">{autoColorName}</span>
-                  </p>
                 </div>
               </div>
 
-              <div className="flex flex-col gap-4">
-                <div className="bg-white/60 border border-black/[0.06] rounded-[24px] p-4">
-                  <p className="text-sm font-black text-[#6b7280] mb-3 uppercase tracking-[0.18em]">
-                    Category Manager
-                  </p>
-
-                  <div className="flex gap-2">
-                    <input
-                      value={customCategoryInput}
-                      onChange={(e) => setCustomCategoryInput(e.target.value)}
-                      placeholder="Add new category"
-                      className="border border-black/10 p-2.5 rounded-xl w-full bg-white"
-                    />
-
-                    <button
-                      type="button"
-                      onClick={addCustomCategory}
-                      className="bg-black text-white px-4 rounded-xl font-bold"
-                    >
-                      Add
-                    </button>
-                  </div>
-
-                  <div className="flex gap-2 mt-3 flex-wrap">
-                    {categoriesData.map((cat) => (
-                      <div
-                        key={cat._id}
-                        className="flex items-center gap-1 bg-[#f2f2ef] px-2 py-1 rounded-lg text-xs"
-                      >
-                        <span>{cat.name}</span>
-
-                        <button
-                          type="button"
-                          onClick={() => removeCustomCategory(cat._id, cat.name)}
-                          className="text-red-600 font-bold hover:text-red-800"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="p-3 border border-black/10 rounded-2xl bg-white"
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => fetchList(false)}
+                  disabled={refreshing}
+                  className="inline-flex items-center gap-2 rounded-[5px] border border-white/20 bg-white/10 text-white px-4 py-2.5 text-sm font-black transition hover:bg-white/20 disabled:opacity-50"
                 >
-                  {CATEGORY_OPTIONS.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
+                  <FaSyncAlt className={refreshing ? "animate-spin" : ""} />
+                  Refresh
+                </button>
 
-                {role === "admin" ? (
-                  <select
-                    value={branch}
-                    onChange={(e) => setBranch(e.target.value)}
-                    className="p-3 border border-black/10 rounded-2xl bg-white"
-                    required
-                  >
-                    <option value="">Select Branch</option>
-                    <option value="all">All Branches</option>
-                    {activeBranches.length > 0 ? (
-                      activeBranches.map((b) => (
-                        <option key={b._id || b.code} value={b.code}>
-                          {b.name}
-                        </option>
-                      ))
-                    ) : (
-                      <option value="">No active branches found</option>
-                    )}
-                  </select>
-                ) : (
-                  <input
-                    type="text"
-                    value={getBranchLabel(userBranch)}
-                    disabled
-                    className="p-3 border border-black/10 rounded-2xl bg-gray-100 text-gray-500"
-                  />
-                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!showForm) resetForm();
+                    setShowForm((prev) => !prev);
+                  }}
+                  className="inline-flex items-center gap-2 rounded-[5px] bg-white text-[#111111] px-4 py-2.5 text-sm font-black transition hover:bg-[#ececec] shadow-sm"
+                >
+                  <FaPlus />
+                  {showForm ? "Close Form" : "Add Product"}
+                </button>
+              </div>
+            </div>
+          </div>
 
-                <input
-                  type="number"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  placeholder="Price"
-                  className="px-4 py-3 border border-black/10 rounded-2xl w-full bg-white"
-                  required
-                />
+          <div className={`${panelBg} rounded-[5px] p-4 sm:p-5 mb-4`}>
+            <div className="flex flex-col gap-2 mb-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h3 className="text-sm sm:text-[17px] font-black uppercase tracking-[0.08em] text-[#0A0D17]">
+                  Overview
+                </h3>
+                <p className="text-[11px] sm:text-xs text-[#6b7280] mt-0.5">
+                  Product summary for selected category and branch access.
+                </p>
+              </div>
+            </div>
 
-                <div className="border border-black/[0.06] rounded-[24px] p-4 bg-white/60 backdrop-blur-sm">
-                  <label className="flex items-center gap-2 mb-3 font-semibold text-[#0A0D17]">
-                    <input
-                      type="checkbox"
-                      checked={onSale}
-                      onChange={() => {
-                        setOnSale((prev) => !prev);
-                        if (onSale) setSalePercent("");
-                      }}
-                    />
-                    Put this product on sale
-                  </label>
-
-                  {onSale && (
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        min="1"
-                        max="100"
-                        value={salePercent}
-                        onChange={(e) => setSalePercent(e.target.value)}
-                        placeholder="Discount %"
-                        className="px-4 py-2.5 border border-black/10 rounded-xl w-36 bg-white"
-                      />
-                      <span className="font-black text-[#6b7280]">%</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="bg-white/60 border border-black/[0.06] rounded-[24px] p-4">
-                  <p className="text-sm font-black text-[#6b7280] mb-3 uppercase tracking-[0.18em]">
-                    Sizes
-                  </p>
-                  <div className="flex gap-2 flex-wrap">
-                    {SIZE_OPTIONS.map((size) => (
-                      <span
-                        key={size}
-                        onClick={() =>
-                          setSizes((prev) =>
-                            prev.includes(size)
-                              ? prev.filter((s) => s !== size)
-                              : [...prev, size]
-                          )
-                        }
-                        className={`px-3 py-2 border rounded-xl cursor-pointer text-sm font-semibold ${sizes.includes(size)
-                            ? "bg-black text-white border-black"
-                            : "bg-white border-black/10"
-                          }`}
-                      >
-                        {size}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="bg-white/60 border border-black/[0.06] rounded-[24px] p-4">
-                  <p className="text-sm font-black text-[#6b7280] mb-3 uppercase tracking-[0.18em]">
-                    Stock Per Size
-                  </p>
-                  <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-                    {SIZE_OPTIONS.map((size) => (
-                      <div key={size} className="flex flex-col">
-                        <span className="text-[10px] font-black text-[#6b7280] mb-1">
-                          {size}
-                        </span>
-                        <input
-                          type="number"
-                          min="0"
-                          value={stock[size] === 0 ? "" : stock[size]}
-                          onChange={(e) =>
-                            setStock((prev) => ({
-                              ...prev,
-                              [size]:
-                                e.target.value === ""
-                                  ? 0
-                                  : Math.max(0, Number(e.target.value)),
-                            }))
-                          }
-                          className="w-full text-center border border-black/10 rounded-xl outline-none bg-white py-2.5"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="bg-white/60 border border-black/[0.06] rounded-[24px] p-4">
-                  <p className="text-sm font-black mb-2 text-[#0A0D17]">
-                    Other Available Colors
-                  </p>
-
-                  <div className="flex gap-2">
-                    <input
-                      value={colorInput}
-                      onChange={(e) => setColorInput(e.target.value)}
-                      className="border border-black/10 p-2.5 rounded-xl w-full bg-white"
-                      placeholder="Enter color"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const trimmed = colorInput.trim();
-                        if (!trimmed) return;
-
-                        const exists = colors.some(
-                          (c) => c.toLowerCase() === trimmed.toLowerCase()
-                        );
-                        if (exists) {
-                          toast.error("Color already added");
-                          return;
-                        }
-
-                        setColors((prev) => [...prev, trimmed]);
-                        setColorInput("");
-                      }}
-                      className="bg-black text-white px-4 rounded-xl font-bold"
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
+              {[
+                {
+                  label: "Total Products",
+                  value: totalProducts,
+                  icon: <FaBoxes />,
+                  note: "Filtered inventory",
+                },
+                {
+                  label: "On Sale",
+                  value: onSaleCount,
+                  icon: <FaFire />,
+                  note: "Active discount items",
+                },
+                {
+                  label: "New Arrival",
+                  value: newArrivalCount,
+                  icon: <FaTags />,
+                  note: "Fresh collection",
+                },
+                {
+                  label: "Low Stock",
+                  value: lowStockCount,
+                  icon: <FaExclamationTriangle />,
+                  note: "Needs restock",
+                  danger: true,
+                },
+                {
+                  label: "3D Ready",
+                  value: modelReadyCount,
+                  icon: <FaCubes />,
+                  note: "Model/video attached",
+                },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  className={`${softPanelBg} rounded-[5px] p-4 min-w-0 overflow-hidden transition hover:shadow-md`}
+                >
+                  <div className="flex items-center justify-between mb-2 gap-2">
+                    <span className="text-xs font-medium text-[#6b7280]">
+                      {item.label}
+                    </span>
+                    <div
+                      className={`w-9 h-9 rounded-[5px] flex items-center justify-center shrink-0 ${
+                        item.danger
+                          ? "bg-red-500/10 text-red-600"
+                          : "bg-[#111111]/8 text-[#111111]"
+                      }`}
                     >
-                      Add
-                    </button>
+                      {item.icon}
+                    </div>
                   </div>
+                  <h2
+                    className={`text-[26px] sm:text-[30px] font-black leading-none tracking-[-0.03em] ${
+                      item.danger ? "text-red-500" : "text-[#0A0D17]"
+                    }`}
+                  >
+                    {item.value}
+                  </h2>
+                  <p className="text-[10px] text-gray-400 mt-1">
+                    {item.note}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
 
-                  <div className="flex gap-2 mt-3 flex-wrap">
-                    {colors.map((c, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center gap-1 bg-[#f2f2ef] px-2 py-1 rounded-lg text-xs"
-                      >
-                        <span>{c}</span>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setColors((prev) => prev.filter((_, x) => x !== i))
-                          }
-                          className="text-red-600 font-bold hover:text-red-800"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+          {showForm && (
+            <form
+              onSubmit={onSubmitHandler}
+              className={`${panelBg} rounded-[5px] p-4 sm:p-5 mb-4`}
+            >
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
+                <div>
+                  <p className={labelClass}>Product Form</p>
+                  <h3 className="mt-1 text-xl font-black uppercase tracking-tight text-[#0A0D17]">
+                    {editId ? "Edit Product" : "Add New Product"}
+                  </h3>
+                  <p className="text-sm text-[#6b7280] mt-1">
+                    Fill product information, stock, sale status, style setup, and media uploads.
+                  </p>
                 </div>
 
-                <div className="border border-black/[0.06] rounded-[24px] p-4 bg-white/60 backdrop-blur-sm">
-                  <p className="text-sm font-black mb-3 text-[#0A0D17]">
-                    Style Recommendation Setup
-                  </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetForm();
+                    setShowForm(false);
+                  }}
+                  className={buttonLight}
+                >
+                  Cancel
+                </button>
+              </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-                    <div>
-                      <p className="text-xs font-black text-[#6b7280] mb-1">
-                        Fit Type
-                      </p>
-                      <select
-                        value={fitType}
-                        onChange={(e) => setFitType(e.target.value)}
-                        className="w-full p-2.5 border border-black/10 rounded-xl bg-white"
-                      >
-                        <option value="Regular">Regular</option>
-                        <option value="Oversized">Oversized</option>
-                        <option value="Boxy">Boxy</option>
-                        <option value="Slim">Slim</option>
-                      </select>
+              <div className="grid grid-cols-1 xl:grid-cols-[360px_1fr] gap-3">
+                <div className="space-y-3">
+                  <div className={`${softPanelBg} rounded-[5px] p-4`}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <FaImage className="text-[#0A0D17]/45" />
+                      <p className={labelClass}>Product Images</p>
                     </div>
 
-                    <div>
-                      <p className="text-xs font-black text-[#6b7280] mb-1">
-                        Style Vibe
-                      </p>
-                      <select
-                        value={styleVibe}
-                        onChange={(e) => setStyleVibe(e.target.value)}
-                        className="w-full p-2.5 border border-black/10 rounded-xl bg-white"
-                      >
-                        <option value="Streetwear">Streetwear</option>
-                        <option value="Minimal">Minimal</option>
-                        <option value="Sporty">Sporty</option>
-                        <option value="Clean">Clean</option>
-                        <option value="Graphic">Graphic</option>
-                      </select>
+                    <div className="grid grid-cols-4 gap-2">
+                      {images.map((img, i) => {
+                        const hasImage = img || oldImages[i];
+
+                        return (
+                          <label key={i} className="cursor-pointer block">
+                            <img
+                              className={`w-full aspect-[3/4] border border-black/10 rounded-[5px] bg-white ${
+                                hasImage
+                                  ? "object-cover"
+                                  : "object-contain p-2 opacity-50"
+                              }`}
+                              src={
+                                img
+                                  ? URL.createObjectURL(img)
+                                  : oldImages[i]
+                                    ? getMediaUrl(oldImages[i], backendUrl)
+                                    : assets.upload_area
+                              }
+                              alt=""
+                            />
+                            <input
+                              type="file"
+                              accept="image/*"
+                              hidden
+                              onChange={(e) => {
+                                const file = e.target.files?.[0] || null;
+                                setImages((prev) => {
+                                  const copy = [...prev];
+                                  copy[i] = file;
+                                  return copy;
+                                });
+                              }}
+                            />
+                          </label>
+                        );
+                      })}
                     </div>
                   </div>
 
-                  <div className="mb-4">
-                    <p className="text-xs font-black text-[#6b7280] mb-2">
-                      Recommendation Position
+                  <div className={`${softPanelBg} rounded-[5px] p-4`}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <FaImage className="text-[#0A0D17]/45" />
+                      <p className={labelClass}>Outfit Builder Image</p>
+                    </div>
+
+                    <label className="cursor-pointer block">
+                      <img
+                        className={`w-full h-44 border border-black/10 rounded-[5px] bg-white ${
+                          outfitImage || oldOutfitImage
+                            ? "object-contain"
+                            : "object-contain p-3 opacity-50"
+                        }`}
+                        src={
+                          outfitImage
+                            ? URL.createObjectURL(outfitImage)
+                            : oldOutfitImage
+                              ? getMediaUrl(oldOutfitImage, backendUrl)
+                              : assets.upload_area
+                        }
+                        alt="Outfit builder"
+                      />
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        hidden
+                        onChange={(e) =>
+                          setOutfitImage(e.target.files?.[0] || null)
+                        }
+                      />
+                    </label>
+
+                    <p className="text-xs text-[#6b7280] mt-2">
+                      Best for 2D outfit builder: transparent PNG.
+                    </p>
+                  </div>
+
+                  <div className={`${softPanelBg} rounded-[5px] p-4`}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <FaImage className="text-[#0A0D17]/45" />
+                      <p className={labelClass}>Size Chart</p>
+                    </div>
+
+                    <label className="cursor-pointer block">
+                      <img
+                        className={`w-full h-44 border border-black/10 rounded-[5px] bg-white ${
+                          sizeChartImage || oldSizeChartImage
+                            ? "object-cover"
+                            : "object-contain p-3 opacity-50"
+                        }`}
+                        src={
+                          sizeChartImage
+                            ? URL.createObjectURL(sizeChartImage)
+                            : oldSizeChartImage
+                              ? getMediaUrl(oldSizeChartImage, backendUrl)
+                              : assets.upload_area
+                        }
+                        alt="Size chart"
+                      />
+                      <input
+                        type="file"
+                        accept="image/*"
+                        hidden
+                        onChange={(e) =>
+                          setSizeChartImage(e.target.files?.[0] || null)
+                        }
+                      />
+                    </label>
+                  </div>
+
+                  <div className={`${softPanelBg} rounded-[5px] p-4`}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <FaCubes className="text-[#0A0D17]/45" />
+                      <p className={labelClass}>3D Model / Preview</p>
+                    </div>
+
+                    <input
+                      type="file"
+                      accept=".glb,.gltf,.usdz,.mp4,.webm,.ogg"
+                      onChange={(e) => setModel3d(e.target.files?.[0] || null)}
+                      className={inputClass}
+                    />
+
+                    <p className="text-xs text-[#6b7280] mt-2">
+                      Supported: GLB, GLTF, USDZ, MP4, WEBM, OGG.
                     </p>
 
-                    <div className="flex gap-2 flex-wrap">
-                      {["top", "bottom", "both", "none"].map((pos) => (
-                        <span
-                          key={pos}
-                          onClick={() => setRecommendationSection(pos)}
-                          className={`px-3 py-1.5 border rounded-xl cursor-pointer text-xs font-semibold ${recommendationSection === pos
-                              ? "bg-black text-white border-black"
-                              : "bg-white border-black/10"
-                            }`}
+                    {oldModel3d && !model3d && (
+                      <p className="text-xs text-green-600 mt-2 font-bold break-all">
+                        Current file: {oldModel3d}
+                      </p>
+                    )}
+
+                    {model3d && (
+                      <p className="text-xs text-blue-600 mt-2 font-bold break-all">
+                        New file selected: {model3d.name}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className={`${softPanelBg} rounded-[5px] p-4`}>
+                    <p className={labelClass}>Basic Information</p>
+
+                    <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <input
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="Product Name"
+                        className={inputClass}
+                        required
+                      />
+
+                      <input
+                        type="number"
+                        value={price}
+                        onChange={(e) => setPrice(e.target.value)}
+                        placeholder="Price"
+                        className={inputClass}
+                        required
+                      />
+
+                      <input
+                        value={sku}
+                        onChange={(e) => setSku(e.target.value)}
+                        placeholder="SKU Code (e.g. SKU-001)"
+                        className={inputClass}
+                        required
+                      />
+
+                      <input
+                        value={groupCode}
+                        onChange={(e) => setGroupCode(e.target.value)}
+                        placeholder="Group Code (example: SHIRT-001)"
+                        className={inputClass}
+                      />
+
+                      <select
+                        value={category}
+                        onChange={(e) => setCategory(e.target.value)}
+                        className={inputClass}
+                      >
+                        {CATEGORY_OPTIONS.map((cat) => (
+                          <option key={cat} value={cat}>
+                            {cat}
+                          </option>
+                        ))}
+                      </select>
+
+                      {role === "admin" ? (
+                        <select
+                          value={branch}
+                          onChange={(e) => setBranch(e.target.value)}
+                          className={inputClass}
+                          required
                         >
-                          {pos.toUpperCase()}
+                          <option value="">Select Branch</option>
+                          <option value="all">All Branches</option>
+                          {activeBranches.length > 0 ? (
+                            activeBranches.map((b) => (
+                              <option key={b._id || b.code} value={b.code}>
+                                {b.name}
+                              </option>
+                            ))
+                          ) : (
+                            <option value="">No active branches found</option>
+                          )}
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          value={getBranchLabel(userBranch)}
+                          disabled
+                          className={`${inputClass} bg-gray-100 text-gray-500`}
+                        />
+                      )}
+                    </div>
+
+                    <textarea
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="Description"
+                      className={`${inputClass} mt-3 h-24 resize-none`}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                    <div className={`${softPanelBg} rounded-[5px] p-4`}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <FaPalette className="text-[#0A0D17]/45" />
+                        <p className={labelClass}>Color Setup</p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={colorHex}
+                          onChange={(e) => setColorHex(e.target.value)}
+                          className="w-12 h-10 border border-black/10 rounded-[5px] cursor-pointer bg-white"
+                        />
+
+                        <input value={colorHex} readOnly className={inputClass} />
+                      </div>
+
+                      <p className="text-xs text-[#6b7280] mt-2">
+                        Auto color name:{" "}
+                        <span className="font-black text-[#0A0D17]">
+                          {autoColorName}
+                        </span>
+                      </p>
+
+                      <div className="mt-3 flex gap-2">
+                        <input
+                          value={colorInput}
+                          onChange={(e) => setColorInput(e.target.value)}
+                          className={inputClass}
+                          placeholder="Other color"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const trimmed = colorInput.trim();
+                            if (!trimmed) return;
+
+                            const exists = colors.some(
+                              (c) => c.toLowerCase() === trimmed.toLowerCase()
+                            );
+                            if (exists) {
+                              toast.error("Color already added");
+                              return;
+                            }
+
+                            setColors((prev) => [...prev, trimmed]);
+                            setColorInput("");
+                          }}
+                          className={buttonDark}
+                        >
+                          Add
+                        </button>
+                      </div>
+
+                      <div className="flex gap-2 mt-3 flex-wrap">
+                        {colors.map((c, i) => (
+                          <div
+                            key={i}
+                            className="flex items-center gap-1 bg-white border border-black/10 px-2 py-1 rounded-[5px] text-xs"
+                          >
+                            <span>{c}</span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setColors((prev) =>
+                                  prev.filter((_, x) => x !== i)
+                                )
+                              }
+                              className="text-red-600 font-bold hover:text-red-800"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className={`${softPanelBg} rounded-[5px] p-4`}>
+                      <p className={labelClass}>Category Manager</p>
+
+                      <div className="mt-3 flex gap-2">
+                        <input
+                          value={customCategoryInput}
+                          onChange={(e) =>
+                            setCustomCategoryInput(e.target.value)
+                          }
+                          placeholder="Add new category"
+                          className={inputClass}
+                        />
+
+                        <button
+                          type="button"
+                          onClick={addCustomCategory}
+                          className={buttonDark}
+                        >
+                          Add
+                        </button>
+                      </div>
+
+                      <div className="flex gap-2 mt-3 flex-wrap">
+                        {categoriesData.map((cat) => (
+                          <div
+                            key={cat._id}
+                            className="flex items-center gap-1 bg-white border border-black/10 px-2 py-1 rounded-[5px] text-xs"
+                          >
+                            <span>{cat.name}</span>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                removeCustomCategory(cat._id, cat.name)
+                              }
+                              className="text-red-600 font-bold hover:text-red-800"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className={`${softPanelBg} rounded-[5px] p-4`}>
+                    <p className={labelClass}>Sizes and Stock</p>
+
+                    <div className="mt-3 flex gap-2 flex-wrap">
+                      {SIZE_OPTIONS.map((size) => (
+                        <span
+                          key={size}
+                          onClick={() =>
+                            setSizes((prev) =>
+                              prev.includes(size)
+                                ? prev.filter((s) => s !== size)
+                                : [...prev, size]
+                            )
+                          }
+                          className={`px-3 py-2 border rounded-[5px] cursor-pointer text-sm font-black transition ${
+                            sizes.includes(size)
+                              ? "bg-[#0A0D17] text-white border-[#0A0D17]"
+                              : "bg-white border-black/10 text-[#0A0D17]"
+                          }`}
+                        >
+                          {size}
                         </span>
                       ))}
                     </div>
 
-                    <p className="text-[10px] text-[#6b7280] mt-2 leading-5">
-                      TOP = upper wear. BOTTOM = lower wear. BOTH = can appear
-                      in both recommendation areas.
-                    </p>
+                    <div className="mt-4 grid grid-cols-3 md:grid-cols-6 gap-2">
+                      {SIZE_OPTIONS.map((size) => (
+                        <div key={size} className="flex flex-col">
+                          <span className="text-[10px] font-black text-[#6b7280] mb-1">
+                            {size}
+                          </span>
+                          <input
+                            type="number"
+                            min="0"
+                            value={stock[size] === 0 ? "" : stock[size]}
+                            onChange={(e) =>
+                              setStock((prev) => ({
+                                ...prev,
+                                [size]:
+                                  e.target.value === ""
+                                    ? 0
+                                    : Math.max(0, Number(e.target.value)),
+                              }))
+                            }
+                            className="w-full text-center border border-black/10 rounded-[5px] outline-none bg-white py-2.5"
+                          />
+                        </div>
+                      ))}
+                    </div>
                   </div>
 
-                  <div className="mb-4">
-                    <p className="text-xs font-black text-[#6b7280] mb-2">
-                      Style Tags
-                    </p>
-                    <div className="flex gap-2">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                    <div className={`${softPanelBg} rounded-[5px] p-4`}>
+                      <p className={labelClass}>Sale Status</p>
+
+                      <label className="mt-3 flex items-center gap-2 font-semibold text-[#0A0D17]">
+                        <input
+                          type="checkbox"
+                          checked={onSale}
+                          onChange={() => {
+                            setOnSale((prev) => !prev);
+                            if (onSale) setSalePercent("");
+                          }}
+                        />
+                        Put this product on sale
+                      </label>
+
+                      {onSale && (
+                        <div className="mt-3 flex items-center gap-2">
+                          <input
+                            type="number"
+                            min="1"
+                            max="100"
+                            value={salePercent}
+                            onChange={(e) => setSalePercent(e.target.value)}
+                            placeholder="Discount %"
+                            className={inputClass}
+                          />
+                          <span className="font-black text-[#6b7280]">%</span>
+                        </div>
+                      )}
+
+                      <div className="mt-4 space-y-2">
+                        <label className="flex items-center gap-2 font-semibold text-[#0A0D17]">
+                          <input
+                            type="checkbox"
+                            checked={bestseller}
+                            onChange={() => setBestseller(!bestseller)}
+                          />
+                          Bestseller
+                        </label>
+
+                        <label className="flex items-center gap-2 font-semibold text-[#0A0D17]">
+                          <input
+                            type="checkbox"
+                            checked={newArrival}
+                            onChange={() => setNewArrival(!newArrival)}
+                          />
+                          New Arrival
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className={`${softPanelBg} rounded-[5px] p-4`}>
+                      <p className={labelClass}>Style Setup</p>
+
+                      <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <select
+                          value={fitType}
+                          onChange={(e) => setFitType(e.target.value)}
+                          className={inputClass}
+                        >
+                          <option value="Regular">Regular</option>
+                          <option value="Oversized">Oversized</option>
+                          <option value="Boxy">Boxy</option>
+                          <option value="Slim">Slim</option>
+                        </select>
+
+                        <select
+                          value={styleVibe}
+                          onChange={(e) => setStyleVibe(e.target.value)}
+                          className={inputClass}
+                        >
+                          <option value="Streetwear">Streetwear</option>
+                          <option value="Minimal">Minimal</option>
+                          <option value="Sporty">Sporty</option>
+                          <option value="Clean">Clean</option>
+                          <option value="Graphic">Graphic</option>
+                        </select>
+                      </div>
+
+                      <div className="mt-4 flex gap-2 flex-wrap">
+                        {["top", "bottom", "both", "none"].map((pos) => (
+                          <span
+                            key={pos}
+                            onClick={() => setRecommendationSection(pos)}
+                            className={`px-3 py-1.5 border rounded-[5px] cursor-pointer text-xs font-black ${
+                              recommendationSection === pos
+                                ? "bg-[#0A0D17] text-white border-[#0A0D17]"
+                                : "bg-white border-black/10 text-[#0A0D17]"
+                            }`}
+                          >
+                            {pos.toUpperCase()}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className={`${softPanelBg} rounded-[5px] p-4`}>
+                    <p className={labelClass}>Recommendation Tags</p>
+
+                    <div className="mt-3 flex gap-2">
                       <input
                         value={styleTagInput}
                         onChange={(e) => setStyleTagInput(e.target.value)}
-                        className="border border-black/10 p-2.5 rounded-xl w-full bg-white"
+                        className={inputClass}
                         placeholder="Add tag (example: minimal)"
                       />
                       <button
@@ -1268,17 +1586,17 @@ const ProductPage = ({ token }) => {
                           setStyleTags((prev) => [...prev, trimmed]);
                           setStyleTagInput("");
                         }}
-                        className="bg-black text-white px-4 rounded-xl font-bold"
+                        className={buttonDark}
                       >
                         Add
                       </button>
                     </div>
 
-                    <div className="flex gap-2 mt-2 flex-wrap">
+                    <div className="flex gap-2 mt-3 flex-wrap">
                       {styleTags.map((tag, i) => (
                         <div
                           key={i}
-                          className="flex items-center gap-1 bg-[#f2f2ef] px-2 py-1 rounded-lg text-xs"
+                          className="flex items-center gap-1 bg-white border border-black/10 px-2 py-1 rounded-[5px] text-xs"
                         >
                           <span>{tag}</span>
                           <button
@@ -1295,13 +1613,12 @@ const ProductPage = ({ token }) => {
                         </div>
                       ))}
                     </div>
-                  </div>
 
-                  <div>
-                    <p className="text-xs font-black text-[#6b7280] mb-2">
+                    <p className="mt-4 text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45">
                       Match With
                     </p>
-                    <div className="flex gap-2 flex-wrap">
+
+                    <div className="mt-2 flex gap-2 flex-wrap">
                       {CATEGORY_OPTIONS.map((item) => (
                         <span
                           key={item}
@@ -1312,257 +1629,246 @@ const ProductPage = ({ token }) => {
                                 : [...prev, item]
                             )
                           }
-                          className={`px-3 py-1.5 border rounded-xl cursor-pointer text-xs font-semibold ${matchWith.includes(item)
-                              ? "bg-black text-white border-black"
-                              : "bg-white border-black/10"
-                            }`}
+                          className={`px-3 py-1.5 border rounded-[5px] cursor-pointer text-xs font-black ${
+                            matchWith.includes(item)
+                              ? "bg-[#0A0D17] text-white border-[#0A0D17]"
+                              : "bg-white border-black/10 text-[#0A0D17]"
+                          }`}
                         >
                           {item}
                         </span>
                       ))}
                     </div>
                   </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <button disabled={saving} className={buttonDark}>
+                      {saving
+                        ? editId
+                          ? "Updating..."
+                          : "Adding..."
+                        : editId
+                          ? "Update Product"
+                          : "Add Product"}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={resetForm}
+                      className={buttonLight}
+                    >
+                      Reset
+                    </button>
+                  </div>
                 </div>
-
-                <label className="flex items-center gap-2 font-semibold text-[#0A0D17]">
-                  <input
-                    type="checkbox"
-                    checked={bestseller}
-                    onChange={() => setBestseller(!bestseller)}
-                  />
-                  Bestseller
-                </label>
-
-                <label className="flex items-center gap-2 font-semibold text-[#0A0D17]">
-                  <input
-                    type="checkbox"
-                    checked={newArrival}
-                    onChange={() => setNewArrival(!newArrival)}
-                  />
-                  New Arrival
-                </label>
               </div>
-            </div>
+            </form>
+          )}
 
-            <button
-              disabled={saving}
-              className={`mt-6 px-6 py-3 text-white font-black rounded-2xl transition ${saving
-                  ? "bg-gray-500 cursor-not-allowed"
-                  : "bg-black hover:bg-gray-800"
-                }`}
-            >
-              {saving
-                ? editId
-                  ? "Updating..."
-                  : "Adding..."
-                : editId
-                  ? "Update Product"
-                  : "Add Product"}
-            </button>
-          </form>
-        )}
-
-        <div className="rounded-[30px] border border-black/8 bg-white/75 backdrop-blur-md shadow-[0_18px_50px_rgba(0,0,0,0.06)] overflow-hidden">
-          <div className="px-5 py-5 border-b border-black/8">
-            <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-3">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.32em] text-[#6b7280]">
-                  Inventory Table
-                </p>
-                <h3 className="mt-2 text-xl font-black tracking-tight text-[#0A0D17]">
-                  Product List
-                </h3>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-2">
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search name, SKU, group code, category"
-                  className="px-4 py-3 rounded-2xl border border-black/10 bg-white text-sm min-w-[260px]"
-                />
-
-                <select
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="px-4 py-3 rounded-2xl border border-black/10 bg-white text-sm"
-                >
-                  <option value="all">All Categories</option>
-                  {CATEGORY_OPTIONS.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <div className="hidden md:grid grid-cols-[0.75fr_2.3fr_1fr_1fr_1fr_1fr] bg-[#0A0D17] text-white px-5 py-4 font-black text-[11px] uppercase tracking-[0.18em]">
-            <span>Image</span>
-            <span>Product</span>
-            <span>Category</span>
-            <span>Branch</span>
-            <span>Price</span>
-            <span>Actions</span>
-          </div>
-
-          {currentItems.length > 0 ? (
-            currentItems.map((item, index) => (
-              <div
-                key={item._id}
-                className={`grid grid-cols-1 md:grid-cols-[0.75fr_2.3fr_1fr_1fr_1fr_1fr] items-center border-b border-[#ecece6] px-5 py-4 gap-3 ${index % 2 === 0 ? "bg-white" : "bg-[#fcfcfb]"
-                  }`}
-              >
-                <img
-                  src={
-                    item.images?.[0]
-                      ? getMediaUrl(item.images[0], backendUrl)
-                      : assets.upload_area
-                  }
-                  className="w-16 h-20 object-cover rounded-2xl bg-white border border-black/10"
-                  alt={item.name}
-                />
-
-                <div className="min-w-0">
-                  <p className="font-black text-[#0A0D17] truncate">
-                    {item.name}
-                  </p>
-
-                  {item.groupCode && (
-                    <p className="text-[10px] text-[#6b7280] uppercase mt-1 font-semibold">
-                      Group: {item.groupCode}
-                    </p>
-                  )}
-
-                  {item.sku && (
-                    <p className="text-[10px] text-[#6b7280] uppercase mt-1 font-semibold">
-                      SKU: {item.sku}
-                    </p>
-                  )}
-
-                  {(item.color || item.colorHex) && (
-                    <div className="flex items-center gap-2 mt-1">
-                      {item.colorHex && (
-                        <span
-                          className="w-4 h-4 rounded-full border border-gray-300"
-                          style={{ backgroundColor: item.colorHex }}
-                        ></span>
-                      )}
-                      <p className="text-[10px] text-[#6b7280] uppercase font-semibold">
-                        {item.color || getColorNameFromHex(item.colorHex)}{" "}
-                        {item.colorHex ? `(${item.colorHex})` : ""}
-                      </p>
-                    </div>
-                  )}
-
-                  {item.outfitImage && (
-                    <p className="text-[10px] text-green-600 uppercase mt-1 font-black">
-                      Outfit image ready
-                    </p>
-                  )}
-
-                  {item.fitType && (
-                    <p className="text-[10px] text-[#6b7280] uppercase mt-1 font-semibold">
-                      Fit: {item.fitType}
-                    </p>
-                  )}
-
-                  {item.styleVibe && (
-                    <p className="text-[10px] text-[#6b7280] uppercase font-semibold">
-                      Vibe: {item.styleVibe}
-                    </p>
-                  )}
-
-                  {item.recommendationSection &&
-                    item.recommendationSection !== "none" && (
-                      <p className="text-[10px] text-[#6b7280] uppercase font-semibold">
-                        Position: {item.recommendationSection}
-                      </p>
-                    )}
-
-                  {Array.isArray(item.styleTags) &&
-                    item.styleTags.length > 0 && (
-                      <p className="text-[10px] text-[#6b7280] uppercase font-semibold">
-                        Tags: {item.styleTags.join(", ")}
-                      </p>
-                    )}
-
-                  {item.onSale && Number(item.salePercent) > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-2 items-center">
-                      <span className="inline-flex rounded-full border border-red-200 bg-red-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-red-600">
-                        {item.salePercent}% OFF
-                      </span>
-                    </div>
-                  )}
-
-                  {item.model3d && (
-                    <p className="text-xs text-blue-600 mt-2 font-semibold">
-                      {getPreviewLabel(item.model3d)}
-                    </p>
-                  )}
-                </div>
-
-                <p className="text-[11px] uppercase text-[#6b7280] font-black">
-                  {item.category}
-                </p>
-
-                <p className="text-[11px] uppercase font-black text-blue-600">
-                  {getBranchLabel(item.branch)}
-                </p>
-
+          <div className={`${panelBg} rounded-[5px] overflow-hidden`}>
+            <div className="px-4 sm:px-5 py-5 border-b border-black/10">
+              <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-3">
                 <div>
-                  <p className="font-black text-[#0A0D17]">
-                    {currency}
-                    {Number(item.price).toFixed(2)}
-                  </p>
-                  {item.onSale && Number(item.salePercent) > 0 && (
-                    <p className="text-xs text-red-500 font-bold mt-1">
-                      {currency}
-                      {getDiscountedPrice(item.price, item.salePercent)}
-                    </p>
-                  )}
+                  <p className={labelClass}>Inventory Table</p>
+                  <h3 className="mt-2 text-xl font-black uppercase tracking-tight text-[#0A0D17]">
+                    Product List
+                  </h3>
                 </div>
 
-                <div className="flex gap-2 justify-center md:justify-start flex-wrap">
-                  <button
-                    onClick={() => fetchProduct(item._id)}
-                    className="px-4 py-2 bg-[#0A0D17] text-white rounded-2xl text-sm font-black hover:bg-[#1d2433] transition"
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="relative">
+                    <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-[#0A0D17]/35 text-sm" />
+                    <input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Search name, SKU, group code, category"
+                      className="w-full sm:min-w-[300px] rounded-[5px] border border-black/10 bg-white py-2.5 pl-9 pr-3 text-sm outline-none focus:border-black"
+                    />
+                  </div>
+
+                  <select
+                    value={categoryFilter}
+                    onChange={(e) => setCategoryFilter(e.target.value)}
+                    className="rounded-[5px] border border-black/10 bg-white px-3 py-2.5 text-sm outline-none focus:border-black"
                   >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => removeProduct(item._id)}
-                    className="px-4 py-2 border border-red-200 bg-red-50 text-red-600 rounded-2xl text-sm font-black hover:bg-red-500 hover:text-white transition"
-                  >
-                    Trash
-                  </button>
+                    <option value="all">All Categories</option>
+                    {CATEGORY_OPTIONS.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
-            ))
-          ) : (
-            <div className="p-10 text-center text-[#6b7280] font-semibold">
-              No products found
+            </div>
+
+            <div className="overflow-auto">
+              <div className="min-w-[980px]">
+                <div className="grid grid-cols-[90px_2.1fr_1fr_1fr_1fr_150px] bg-[#0A0D17] text-white px-5 py-4 font-black text-[11px] uppercase tracking-[0.18em]">
+                  <span>Image</span>
+                  <span>Product</span>
+                  <span>Category</span>
+                  <span>Branch</span>
+                  <span>Price</span>
+                  <span>Actions</span>
+                </div>
+
+                {currentItems.length > 0 ? (
+                  currentItems.map((item, index) => (
+                    <div
+                      key={item._id}
+                      className={`grid grid-cols-[90px_2.1fr_1fr_1fr_1fr_150px] items-center border-b border-[#ecece6] px-5 py-4 gap-3 ${
+                        index % 2 === 0 ? "bg-white" : "bg-[#fcfcfb]"
+                      }`}
+                    >
+                      <img
+                        src={
+                          item.images?.[0]
+                            ? getMediaUrl(item.images[0], backendUrl)
+                            : assets.upload_area
+                        }
+                        className="w-16 h-20 object-cover rounded-[5px] bg-white border border-black/10"
+                        alt={item.name}
+                      />
+
+                      <div className="min-w-0">
+                        <p className="font-black text-[#0A0D17] truncate">
+                          {item.name}
+                        </p>
+
+                        <div className="mt-1 flex flex-wrap gap-1.5">
+                          {item.sku && (
+                            <span className="rounded-[5px] bg-[#FAFAF8] border border-black/10 px-2 py-1 text-[10px] font-black uppercase text-[#6b7280]">
+                              SKU: {item.sku}
+                            </span>
+                          )}
+
+                          {item.groupCode && (
+                            <span className="rounded-[5px] bg-[#FAFAF8] border border-black/10 px-2 py-1 text-[10px] font-black uppercase text-[#6b7280]">
+                              Group: {item.groupCode}
+                            </span>
+                          )}
+
+                          {item.outfitImage && (
+                            <span className="rounded-[5px] bg-green-50 border border-green-100 px-2 py-1 text-[10px] font-black uppercase text-green-700">
+                              Outfit Ready
+                            </span>
+                          )}
+
+                          {item.model3d && (
+                            <span className="rounded-[5px] bg-blue-50 border border-blue-100 px-2 py-1 text-[10px] font-black uppercase text-blue-700">
+                              {getPreviewLabel(item.model3d)}
+                            </span>
+                          )}
+
+                          {item.onSale && Number(item.salePercent) > 0 && (
+                            <span className="rounded-[5px] bg-red-50 border border-red-100 px-2 py-1 text-[10px] font-black uppercase text-red-600">
+                              {item.salePercent}% OFF
+                            </span>
+                          )}
+                        </div>
+
+                        {(item.color || item.colorHex) && (
+                          <div className="flex items-center gap-2 mt-2">
+                            {item.colorHex && (
+                              <span
+                                className="w-4 h-4 rounded-full border border-gray-300 shrink-0"
+                                style={{ backgroundColor: item.colorHex }}
+                              />
+                            )}
+                            <p className="text-[10px] text-[#6b7280] uppercase font-semibold truncate">
+                              {item.color || getColorNameFromHex(item.colorHex)}{" "}
+                              {item.colorHex ? `(${item.colorHex})` : ""}
+                            </p>
+                          </div>
+                        )}
+
+                        {(item.fitType || item.styleVibe) && (
+                          <p className="text-[10px] text-[#6b7280] uppercase mt-1 font-semibold truncate">
+                            {item.fitType ? `Fit: ${item.fitType}` : ""}{" "}
+                            {item.styleVibe ? `• Vibe: ${item.styleVibe}` : ""}
+                          </p>
+                        )}
+                      </div>
+
+                      <p className="text-[11px] uppercase text-[#6b7280] font-black">
+                        {item.category}
+                      </p>
+
+                      <p className="text-[11px] uppercase font-black text-blue-600">
+                        {getBranchLabel(item.branch)}
+                      </p>
+
+                      <div>
+                        <p className="font-black text-[#0A0D17]">
+                          {currency}
+                          {Number(item.price).toFixed(2)}
+                        </p>
+
+                        {item.onSale && Number(item.salePercent) > 0 && (
+                          <p className="text-xs text-red-500 font-bold mt-1">
+                            {currency}
+                            {getDiscountedPrice(item.price, item.salePercent)}
+                          </p>
+                        )}
+
+                        <p
+                          className={`mt-1 text-[10px] font-black uppercase ${
+                            getProductTotalStock(item) <= 5
+                              ? "text-red-500"
+                              : "text-[#6b7280]"
+                          }`}
+                        >
+                          Stock: {getProductTotalStock(item)}
+                        </p>
+                      </div>
+
+                      <div className="flex gap-2 flex-wrap">
+                        <button
+                          onClick={() => fetchProduct(item._id)}
+                          className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#0A0D17] text-white rounded-[5px] text-xs font-black hover:bg-[#1d2433] transition"
+                        >
+                          <FaEdit />
+                          Edit
+                        </button>
+
+                        <button
+                          onClick={() => removeProduct(item._id)}
+                          className="inline-flex items-center gap-1.5 px-3 py-2 border border-red-200 bg-red-50 text-red-600 rounded-[5px] text-xs font-black hover:bg-red-500 hover:text-white transition"
+                        >
+                          <FaTrash />
+                          Trash
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-10 text-center text-[#6b7280] font-semibold bg-white">
+                    No products found
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex justify-center mt-4 gap-2 flex-wrap">
+              {[...Array(totalPages)].map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setCurrentPage(i + 1)}
+                  className={`px-3.5 py-1.5 border rounded-[5px] font-black ${
+                    currentPage === i + 1
+                      ? "bg-[#0A0D17] text-white border-[#0A0D17]"
+                      : "bg-white text-gray-900 border-[#d7d7d2]"
+                  }`}
+                >
+                  {i + 1}
+                </button>
+              ))}
             </div>
           )}
-        </div>
-
-        {totalPages > 1 && (
-          <div className="flex justify-center mt-6 gap-2 flex-wrap">
-            {[...Array(totalPages)].map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setCurrentPage(i + 1)}
-                className={`px-3.5 py-1.5 border rounded-xl font-black ${currentPage === i + 1
-                    ? "bg-black text-white border-black"
-                    : "bg-white/70 text-gray-900 border-[#d7d7d2]"
-                  }`}
-              >
-                {i + 1}
-              </button>
-            ))}
-          </div>
-        )}
+        </main>
       </div>
     </div>
   );

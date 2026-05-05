@@ -120,6 +120,10 @@ const Dashboard = () => {
   const [lowStockRange, setLowStockRange] = useState("month");
   const [recentOrdersRange, setRecentOrdersRange] = useState("month");
 
+  const todayDateValue = new Date().toISOString().slice(0, 10);
+  const [salesTrendDate, setSalesTrendDate] = useState(todayDateValue);
+  const [revenueProfitDate, setRevenueProfitDate] = useState(todayDateValue);
+
   const [rawProducts, setRawProducts] = useState([]);
   const [rawOrders, setRawOrders] = useState([]);
   const [rawUsers, setRawUsers] = useState([]);
@@ -185,6 +189,8 @@ const Dashboard = () => {
     topProductsRange,
     lowStockRange,
     recentOrdersRange,
+    salesTrendDate,
+    revenueProfitDate,
     role,
   ]);
 
@@ -339,44 +345,58 @@ const Dashboard = () => {
     }
   };
 
-  const getStartDateForRange = (range) => {
-    const now = new Date();
+  const parseDateValue = (value) => {
+    const parsed = value ? new Date(`${value}T12:00:00`) : new Date();
+    return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+  };
+
+  const formatDateInputValue = (date) => {
+    const safeDate = date instanceof Date && !Number.isNaN(date.getTime()) ? date : new Date();
+    return safeDate.toISOString().slice(0, 10);
+  };
+
+  const getDateWindowForRange = (range, baseDate = new Date()) => {
+    const anchor = baseDate instanceof Date ? new Date(baseDate) : new Date();
+    anchor.setHours(0, 0, 0, 0);
 
     if (range === "today") {
-      return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const start = new Date(anchor);
+      const end = new Date(anchor);
+      end.setDate(end.getDate() + 1);
+      return { start, end };
     }
 
     if (range === "week") {
-      const d = new Date();
-      d.setDate(now.getDate() - 6);
-      d.setHours(0, 0, 0, 0);
-      return d;
+      const start = new Date(anchor);
+      start.setDate(anchor.getDate() - 6);
+      const end = new Date(anchor);
+      end.setDate(end.getDate() + 1);
+      return { start, end };
     }
 
     if (range === "month") {
-      const d = new Date();
-      d.setDate(now.getDate() - 29);
-      d.setHours(0, 0, 0, 0);
-      return d;
+      const start = new Date(anchor);
+      start.setDate(anchor.getDate() - 29);
+      const end = new Date(anchor);
+      end.setDate(end.getDate() + 1);
+      return { start, end };
     }
 
     if (range === "year") {
-      const d = new Date();
-      d.setMonth(now.getMonth() - 11);
-      d.setDate(1);
-      d.setHours(0, 0, 0, 0);
-      return d;
+      const start = new Date(anchor.getFullYear(), anchor.getMonth() - 11, 1);
+      const end = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 1);
+      return { start, end };
     }
 
-    return new Date(0);
+    return { start: new Date(0), end: new Date(8640000000000000) };
   };
 
-  const filterOrdersByRange = (orders, range) => {
-    const startDate = getStartDateForRange(range);
+  const filterOrdersByRange = (orders, range, baseDate = new Date()) => {
+    const { start, end } = getDateWindowForRange(range, baseDate);
 
     return orders.filter((order) => {
       const orderDate = new Date(order.date || order.createdAt);
-      return orderDate >= startDate;
+      return orderDate >= start && orderDate < end;
     });
   };
 
@@ -464,13 +484,16 @@ const Dashboard = () => {
   };
 
   const buildWeeklySales = (orders) => {
-    const paidOrders = filterOrdersByRange(orders, weeklyChartRange).filter(
-      isPaidOrder
-    );
+    const chartBaseDate = parseDateValue(salesTrendDate);
+    const paidOrders = filterOrdersByRange(
+      orders,
+      weeklyChartRange,
+      chartBaseDate
+    ).filter(isPaidOrder);
 
     const labels = [];
     const data = [];
-    const now = new Date();
+    const now = chartBaseDate;
 
     if (weeklyChartRange === "today") {
       for (let i = 0; i < 24; i++) {
@@ -551,14 +574,17 @@ const Dashboard = () => {
   };
 
   const buildMonthlySales = (orders) => {
-    const paidOrders = filterOrdersByRange(orders, monthlyChartRange).filter(
-      isPaidOrder
-    );
+    const chartBaseDate = parseDateValue(revenueProfitDate);
+    const paidOrders = filterOrdersByRange(
+      orders,
+      monthlyChartRange,
+      chartBaseDate
+    ).filter(isPaidOrder);
 
     const labels = [];
     const revenue = [];
     const netProfit = [];
-    const now = new Date();
+    const now = chartBaseDate;
 
     if (monthlyChartRange === "today") {
       for (let i = 0; i < 24; i++) {
@@ -1051,7 +1077,9 @@ const Dashboard = () => {
     subtitle,
     rangeValue,
     setRange,
-    onExport
+    onExport,
+    dateValue = "",
+    setDateValue = null
   ) => (
     <div className="flex flex-col gap-2 mb-4 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0">
@@ -1066,6 +1094,41 @@ const Dashboard = () => {
       </div>
 
       <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+        {setDateValue && (
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => {
+                const d = parseDateValue(dateValue);
+                d.setDate(d.getDate() - 1);
+                setDateValue(formatDateInputValue(d));
+              }}
+              className="rounded-[5px] border border-black/10 bg-white px-2.5 py-2.5 text-xs font-black text-[#0A0D17] hover:bg-[#FAFAF8]"
+            >
+              ◀
+            </button>
+
+            <input
+              type="date"
+              value={dateValue}
+              onChange={(e) => setDateValue(e.target.value)}
+              className="rounded-[5px] border border-black/10 bg-white px-3 py-2.5 text-xs sm:text-sm font-bold text-[#0A0D17] outline-none"
+            />
+
+            <button
+              type="button"
+              onClick={() => {
+                const d = parseDateValue(dateValue);
+                d.setDate(d.getDate() + 1);
+                setDateValue(formatDateInputValue(d));
+              }}
+              className="rounded-[5px] border border-black/10 bg-white px-2.5 py-2.5 text-xs font-black text-[#0A0D17] hover:bg-[#FAFAF8]"
+            >
+              ▶
+            </button>
+          </div>
+        )}
+
         <RangeSelect value={rangeValue} onChange={setRange} />
         <button
           onClick={onExport}
@@ -1712,7 +1775,9 @@ const Dashboard = () => {
                 "Sales movement over time",
                 weeklyChartRange,
                 setWeeklyChartRange,
-                exportWeeklySalesExcel
+                exportWeeklySalesExcel,
+                salesTrendDate,
+                setSalesTrendDate
               )}
 
               <Line
@@ -1781,7 +1846,9 @@ const Dashboard = () => {
               "Financial comparison over time",
               monthlyChartRange,
               setMonthlyChartRange,
-              exportMonthlySalesExcel
+              exportMonthlySalesExcel,
+              revenueProfitDate,
+              setRevenueProfitDate
             )}
 
             <Bar
@@ -1877,7 +1944,7 @@ const Dashboard = () => {
               exportOrdersExcel
             )}
 
-            <div className="max-h-[430px] overflow-auto pr-1">
+            <div className="h-[430px] overflow-y-scroll overflow-x-auto pr-2 [scrollbar-width:thin] [scrollbar-color:#0A0D17_#f1f1ee] [&::-webkit-scrollbar]:block [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-[#f1f1ee] [&::-webkit-scrollbar-thumb]:bg-[#0A0D17] [&::-webkit-scrollbar-thumb]:rounded-[5px]">
               <table className="w-full min-w-[720px] text-sm">
                 <thead className="sticky top-0 z-10 bg-[#f7f7f4]">
                   <tr className={`text-left ${textMuted} border-b ${tableRow}`}>
