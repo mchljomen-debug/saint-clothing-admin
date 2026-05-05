@@ -2,6 +2,18 @@ import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { backendUrl } from "../App";
 import { toast } from "react-toastify";
+import {
+  FaBoxes,
+  FaSearch,
+  FaSyncAlt,
+  FaEdit,
+  FaHistory,
+  FaTrash,
+  FaStore,
+  FaExclamationTriangle,
+  FaClipboardList,
+  FaCalendarAlt,
+} from "react-icons/fa";
 
 const sizesList = ["S", "M", "L", "XL", "2XL", "3XL"];
 const ITEMS_PER_PAGE = 20;
@@ -92,6 +104,7 @@ const SKU = ({ token }) => {
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const [stockUpdates, setStockUpdates] = useState({});
   const [preorderUpdates, setPreorderUpdates] = useState({});
@@ -115,6 +128,18 @@ const SKU = ({ token }) => {
       Authorization: `Bearer ${token}`,
     },
   };
+
+  const panelBg =
+    "bg-white border border-black/10 shadow-[0_8px_24px_rgba(0,0,0,0.05)]";
+  const softPanelBg = "bg-[#FAFAF8] border border-black/10";
+  const inputClass =
+    "w-full rounded-[5px] border border-black/10 bg-white px-3 py-2.5 text-sm text-[#0A0D17] outline-none transition focus:border-black";
+  const labelClass =
+    "text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45";
+  const buttonDark =
+    "inline-flex items-center justify-center gap-2 rounded-[5px] bg-[#0A0D17] px-4 py-2.5 text-sm font-black text-white transition hover:bg-[#1f2937] disabled:opacity-50";
+  const buttonLight =
+    "inline-flex items-center justify-center gap-2 rounded-[5px] border border-black/10 bg-white px-4 py-2.5 text-sm font-black text-[#0A0D17] transition hover:bg-[#FAFAF8] disabled:opacity-50";
 
   const getCardImage = (product) => {
     const img = extractImage(product?.images);
@@ -153,13 +178,13 @@ const SKU = ({ token }) => {
   };
 
   const getInventoryStatusClass = (status) => {
-    if (status === "Out") return "bg-red-100 text-red-700 border-red-200";
+    if (status === "Out") return "bg-red-50 text-red-700 border-red-200";
     if (status === "Pre-order")
-      return "bg-orange-100 text-orange-700 border-orange-200";
+      return "bg-orange-50 text-orange-700 border-orange-200";
     if (status === "Critical")
-      return "bg-orange-100 text-orange-700 border-orange-200";
-    if (status === "Low") return "bg-amber-100 text-amber-700 border-amber-200";
-    return "bg-emerald-100 text-emerald-700 border-emerald-200";
+      return "bg-orange-50 text-orange-700 border-orange-200";
+    if (status === "Low") return "bg-amber-50 text-amber-700 border-amber-200";
+    return "bg-emerald-50 text-emerald-700 border-emerald-200";
   };
 
   const getStockBoxClass = (qty) => {
@@ -191,6 +216,7 @@ const SKU = ({ token }) => {
 
   const fetchProducts = async () => {
     setLoading(true);
+    setRefreshing(true);
 
     try {
       const res = await axios.get(`${backendUrl}/api/product/list`, axiosConfig);
@@ -224,6 +250,7 @@ const SKU = ({ token }) => {
       toast.error(err.response?.data?.message || err.message);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -540,166 +567,190 @@ const SKU = ({ token }) => {
 
   if (loading) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 mx-auto rounded-full border-2 border-black/20 border-t-black animate-spin" />
-          <p className="mt-4 text-xs font-black uppercase tracking-[0.28em] text-[#0A0D17]">
-            Loading Inventory Management
-          </p>
+      <div className="min-h-screen bg-transparent p-3 pt-24 font-['Montserrat']">
+        <div className="animate-pulse space-y-3">
+          <div className="h-24 rounded-[5px] bg-white/70" />
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="h-28 rounded-[5px] bg-white/70" />
+            ))}
+          </div>
+          <div className="h-96 rounded-[5px] bg-white/70" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="w-full font-['Montserrat'] pt-[60px]">
-      <div className="rounded-[22px] border border-black/10 bg-[#f7f7f4] shadow-[0_18px_60px_rgba(0,0,0,0.08)] overflow-hidden">
-        <div className="px-5 md:px-7 py-6 bg-[#0A0D17]">
-          <p className="text-white/45 text-[10px] font-black uppercase tracking-[0.34em]">
-            Saint Clothing Admin
-          </p>
-
-          <div className="mt-2 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5">
-            <div>
-              <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-white">
-                Inventory Management
-              </h2>
-
-              <p className="mt-2 text-sm text-white/60 max-w-2xl">
-                Manage actual stock, pre-order allocation, auto-generate
-                pre-order slots, threshold, and expected restock date.
+    <div className="min-h-screen bg-transparent px-2.5 sm:px-3 pt-20 sm:pt-24 pb-4 font-['Montserrat']">
+      <div className="max-w-[1500px] mx-auto">
+        <div className="rounded-[5px] bg-[#0A0D17] p-5 sm:p-6 shadow-[0_18px_60px_rgba(0,0,0,0.08)] mb-4 text-white border border-black/10 overflow-hidden relative">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.34em] text-white/50 mb-2">
+                Saint Clothing Admin
               </p>
+
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-[5px] bg-white/10 border border-white/10 flex items-center justify-center shrink-0 backdrop-blur-sm">
+                  <FaBoxes className="text-sm" />
+                </div>
+
+                <div className="min-w-0">
+                  <h1 className="text-[22px] sm:text-[30px] font-black uppercase tracking-[-0.03em] truncate">
+                    Inventory Management
+                  </h1>
+                  <p className="text-[11px] sm:text-sm text-white/65 mt-1">
+                    Manage actual stock, pre-order allocation, auto slots,
+                    thresholds, and restock dates.
+                  </p>
+                </div>
+              </div>
             </div>
 
             <button
               type="button"
               onClick={fetchProducts}
-              className="w-fit px-5 py-3 rounded-full bg-white text-[#0A0D17] text-[10px] font-black uppercase tracking-[0.2em]"
+              disabled={refreshing}
+              className="inline-flex items-center gap-2 rounded-[5px] bg-white text-[#111111] px-4 py-2.5 text-sm font-black transition hover:bg-[#ececec] shadow-sm disabled:opacity-50"
             >
+              <FaSyncAlt className={refreshing ? "animate-spin" : ""} />
               Refresh Stock
             </button>
           </div>
         </div>
 
-        <div className="p-4 md:p-6">
-          <div className="grid grid-cols-2 xl:grid-cols-6 gap-3">
-            <div className="rounded-[16px] bg-white border border-black/10 p-4">
-              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#0A0D17]/45">
-                Products
-              </p>
-              <p className="mt-2 text-2xl font-black text-[#0A0D17]">
-                {inventoryStats.products}
-              </p>
-            </div>
-
-            <div className="rounded-[16px] bg-white border border-black/10 p-4">
-              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#0A0D17]/45">
-                Actual Units
-              </p>
-              <p className="mt-2 text-2xl font-black text-[#0A0D17]">
-                {inventoryStats.totalStock}
-              </p>
-            </div>
-
-            <div className="rounded-[16px] bg-white border border-orange-200 p-4">
-              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-orange-700">
-                Pre-order Units
-              </p>
-              <p className="mt-2 text-2xl font-black text-orange-700">
-                {inventoryStats.totalPreorder}
-              </p>
-            </div>
-
-            <div className="rounded-[16px] bg-white border border-emerald-200 p-4">
-              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-700">
-                Healthy
-              </p>
-              <p className="mt-2 text-2xl font-black text-emerald-700">
-                {inventoryStats.healthyStock}
-              </p>
-            </div>
-
-            <div className="rounded-[16px] bg-white border border-orange-200 p-4">
-              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-orange-700">
-                Pre-order
-              </p>
-              <p className="mt-2 text-2xl font-black text-orange-700">
-                {inventoryStats.preorderStock}
-              </p>
-            </div>
-
-            <div className="rounded-[16px] bg-white border border-red-200 p-4">
-              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-red-600">
-                Out
-              </p>
-              <p className="mt-2 text-2xl font-black text-red-600">
-                {inventoryStats.outStock}
+        <div className={`${panelBg} rounded-[5px] p-4 sm:p-5 mb-4`}>
+          <div className="flex flex-col gap-2 mb-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h3 className="text-sm sm:text-[17px] font-black uppercase tracking-[0.08em] text-[#0A0D17]">
+                Stock Overview
+              </h3>
+              <p className="text-[11px] sm:text-xs text-[#6b7280] mt-0.5">
+                Live inventory summary from product stock and pre-order stock.
               </p>
             </div>
           </div>
 
-          <div className="mt-4 rounded-[16px] bg-white border border-black/10 p-4">
-            <div className="grid grid-cols-1 xl:grid-cols-[1fr_170px_190px] gap-3 items-end">
-              <div>
-                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#0A0D17]/45">
-                  Search Inventory
-                </p>
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+            {[
+              {
+                label: "Products",
+                value: inventoryStats.products,
+                icon: <FaStore />,
+                className: "text-[#0A0D17]",
+              },
+              {
+                label: "Actual Units",
+                value: inventoryStats.totalStock,
+                icon: <FaBoxes />,
+                className: "text-[#0A0D17]",
+              },
+              {
+                label: "Pre-order Units",
+                value: inventoryStats.totalPreorder,
+                icon: <FaClipboardList />,
+                className: "text-orange-700",
+              },
+              {
+                label: "Healthy",
+                value: inventoryStats.healthyStock,
+                icon: <FaBoxes />,
+                className: "text-emerald-700",
+              },
+              {
+                label: "Pre-order",
+                value: inventoryStats.preorderStock,
+                icon: <FaCalendarAlt />,
+                className: "text-orange-700",
+              },
+              {
+                label: "Out",
+                value: inventoryStats.outStock,
+                icon: <FaExclamationTriangle />,
+                className: "text-red-600",
+              },
+            ].map((item) => (
+              <div
+                key={item.label}
+                className={`${softPanelBg} rounded-[5px] p-4 min-w-0 overflow-hidden transition hover:shadow-md`}
+              >
+                <div className="flex items-center justify-between mb-2 gap-2">
+                  <span className="text-xs font-medium text-[#6b7280]">
+                    {item.label}
+                  </span>
+                  <div className="w-9 h-9 rounded-[5px] bg-[#111111]/8 flex items-center justify-center text-[#111111] shrink-0">
+                    {item.icon}
+                  </div>
+                </div>
 
+                <h2
+                  className={`text-[24px] sm:text-[28px] font-black leading-none tracking-[-0.03em] ${item.className}`}
+                >
+                  {item.value}
+                </h2>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className={`${panelBg} rounded-[5px] p-4 sm:p-5 mb-4`}>
+          <div className="grid grid-cols-1 xl:grid-cols-[1fr_180px_210px] gap-3 items-end">
+            <div>
+              <p className={labelClass}>Search Inventory</p>
+
+              <div className="relative mt-2">
+                <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-[#0A0D17]/35 text-sm" />
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search product name or SKU..."
-                  className="mt-2 w-full rounded-xl border border-black/10 px-4 py-2.5 text-xs font-bold outline-none focus:border-[#0A0D17]"
+                  className="w-full rounded-[5px] border border-black/10 bg-white py-2.5 pl-9 pr-3 text-sm outline-none focus:border-black"
                 />
               </div>
+            </div>
 
-              <div>
-                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#0A0D17]/45">
-                  Category
-                </p>
+            <div>
+              <p className={labelClass}>Category</p>
 
-                <select
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="mt-2 w-full rounded-xl border border-black/10 px-3 py-2.5 text-xs font-bold outline-none focus:border-[#0A0D17]"
-                >
-                  {FIXED_CATEGORIES.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className={`${inputClass} mt-2`}
+              >
+                {FIXED_CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-              <div>
-                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#0A0D17]/45">
-                  Stock Status
-                </p>
+            <div>
+              <p className={labelClass}>Stock Status</p>
 
-                <select
-                  value={stockFilter}
-                  onChange={(e) => setStockFilter(e.target.value)}
-                  className="mt-2 w-full rounded-xl border border-black/10 px-3 py-2.5 text-xs font-bold outline-none focus:border-[#0A0D17]"
-                >
-                  <option value="All">All</option>
-                  <option value="Healthy">Healthy</option>
-                  <option value="Low">Low Stock</option>
-                  <option value="Critical">Critical</option>
-                  <option value="Pre-order">Pre-order</option>
-                  <option value="Out">Out of Stock</option>
-                </select>
-              </div>
+              <select
+                value={stockFilter}
+                onChange={(e) => setStockFilter(e.target.value)}
+                className={`${inputClass} mt-2`}
+              >
+                <option value="All">All</option>
+                <option value="Healthy">Healthy</option>
+                <option value="Low">Low Stock</option>
+                <option value="Critical">Critical</option>
+                <option value="Pre-order">Pre-order</option>
+                <option value="Out">Out of Stock</option>
+              </select>
             </div>
           </div>
+        </div>
 
-          <div className="mt-4 rounded-[16px] bg-white border border-black/10 overflow-hidden">
-            <div className="px-4 py-3 border-b border-black/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div className={`${panelBg} rounded-[5px] overflow-hidden mb-4`}>
+          <div className="px-4 sm:px-5 py-5 border-b border-black/10">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div>
-                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#0A0D17]/45">
-                  Stock Inventory
-                </p>
-
-                <h3 className="text-base font-black uppercase text-[#0A0D17]">
+                <p className={labelClass}>Stock Inventory</p>
+                <h3 className="mt-2 text-xl font-black uppercase tracking-tight text-[#0A0D17]">
                   Product Stock Table
                 </h3>
               </div>
@@ -708,270 +759,242 @@ const SKU = ({ token }) => {
                 {filteredProducts.length} items
               </p>
             </div>
+          </div>
 
-            <div className="w-full overflow-hidden">
-              <table className="w-full table-fixed border-collapse text-[10px]">
-                <thead>
-                  <tr className="bg-[#0A0D17] text-white">
-                    <th className="w-[25%] px-2 py-3 text-left font-black uppercase tracking-[0.1em]">
-                      Product
-                    </th>
-                    <th className="w-[9%] px-1 py-3 text-center font-black uppercase tracking-[0.08em]">
-                      SKU
-                    </th>
-                    <th className="w-[9%] px-1 py-3 text-center font-black uppercase tracking-[0.08em]">
-                      Cat.
-                    </th>
+          <div className="overflow-auto">
+            <div className="min-w-[1150px]">
+              <div className="grid grid-cols-[2.2fr_1fr_1fr_repeat(6,70px)_90px_90px_120px_100px] bg-[#0A0D17] text-white px-5 py-4 font-black text-[11px] uppercase tracking-[0.12em]">
+                <span>Product</span>
+                <span className="text-center">SKU</span>
+                <span className="text-center">Category</span>
 
-                    {sizesList.map((size) => (
-                      <th
-                        key={size}
-                        className="w-[5%] px-1 py-3 text-center font-black uppercase tracking-[0.06em]"
-                      >
-                        {size}
-                      </th>
-                    ))}
+                {sizesList.map((size) => (
+                  <span key={size} className="text-center">
+                    {size}
+                  </span>
+                ))}
 
-                    <th className="w-[6%] px-1 py-3 text-center font-black uppercase tracking-[0.06em]">
-                      Actual
-                    </th>
+                <span className="text-center">Actual</span>
+                <span className="text-center">Pre</span>
+                <span className="text-center">Status</span>
+                <span className="text-center">Action</span>
+              </div>
 
-                    <th className="w-[6%] px-1 py-3 text-center font-black uppercase tracking-[0.06em]">
-                      Pre
-                    </th>
+              {paginatedProducts.length > 0 ? (
+                paginatedProducts.map((product, index) => {
+                  const totalStock = getTotalStock(product.stock);
+                  const totalPreorder = getTotalStock(product.preorderStock);
+                  const status = getProductStatus(product);
 
-                    <th className="w-[10%] px-1 py-3 text-center font-black uppercase tracking-[0.06em]">
-                      Status
-                    </th>
-                    <th className="w-[7%] px-1 py-3 text-center font-black uppercase tracking-[0.06em]">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {paginatedProducts.map((product) => {
-                    const totalStock = getTotalStock(product.stock);
-                    const totalPreorder = getTotalStock(product.preorderStock);
-                    const status = getProductStatus(product);
-
-                    return (
-                      <tr
-                        key={product._id}
-                        className="border-b border-black/5 hover:bg-[#fafaf8]"
-                      >
-                        <td className="px-2 py-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <div className="w-9 h-9 rounded-lg bg-[#f0f0ed] overflow-hidden border border-black/10 shrink-0">
-                              {getCardImage(product) ? (
-                                <img
-                                  src={getCardImage(product)}
-                                  alt={product.name}
-                                  className="w-full h-full object-cover"
-                                  onError={(e) => {
-                                    e.currentTarget.style.display = "none";
-                                  }}
-                                />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center text-[8px] font-black text-black/30">
-                                  IMG
-                                </div>
-                              )}
+                  return (
+                    <div
+                      key={product._id}
+                      className={`grid grid-cols-[2.2fr_1fr_1fr_repeat(6,70px)_90px_90px_120px_100px] items-center border-b border-[#ecece6] px-5 py-4 gap-2 ${
+                        index % 2 === 0 ? "bg-white" : "bg-[#fcfcfb]"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-12 h-14 rounded-[5px] bg-[#f0f0ed] overflow-hidden border border-black/10 shrink-0">
+                          {getCardImage(product) ? (
+                            <img
+                              src={getCardImage(product)}
+                              alt={product.name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.style.display = "none";
+                              }}
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-[8px] font-black text-black/30">
+                              IMG
                             </div>
+                          )}
+                        </div>
 
-                            <div className="min-w-0">
-                              <p className="text-[10px] font-black uppercase text-[#0A0D17] truncate">
-                                {product.name}
-                              </p>
-                              <p className="mt-0.5 text-[9px] font-bold text-[#0A0D17]/40 truncate">
-                                ₱{Number(product.price || 0).toLocaleString()}
-                              </p>
-                            </div>
-                          </div>
-                        </td>
-
-                        <td className="px-1 py-2 text-center">
-                          <p className="text-[9px] font-black text-[#0A0D17]/65 truncate">
-                            {product.sku || "N/A"}
+                        <div className="min-w-0">
+                          <p className="text-sm font-black uppercase text-[#0A0D17] truncate">
+                            {product.name}
                           </p>
-                        </td>
+                          <p className="mt-0.5 text-[10px] font-bold text-[#0A0D17]/40 truncate">
+                            ₱{Number(product.price || 0).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
 
-                        <td className="px-1 py-2 text-center">
-                          <span className="inline-flex max-w-full rounded-full bg-[#f3f3f1] border border-black/10 px-2 py-1 text-[8px] font-black uppercase text-[#0A0D17]/60 truncate">
-                            {normalizeCategory(product.category) || "None"}
-                          </span>
-                        </td>
+                      <p className="text-center text-[11px] font-black text-[#0A0D17]/65 truncate">
+                        {product.sku || "N/A"}
+                      </p>
 
-                        {sizesList.map((size) => {
-                          const qty = getStock(product.stock, size);
+                      <div className="text-center">
+                        <span className="inline-flex max-w-full rounded-[5px] bg-[#f3f3f1] border border-black/10 px-2 py-1 text-[9px] font-black uppercase text-[#0A0D17]/60 truncate">
+                          {normalizeCategory(product.category) || "None"}
+                        </span>
+                      </div>
 
-                          return (
-                            <td key={size} className="px-1 py-2 text-center">
-                              <span
-                                className={`inline-flex min-w-[26px] justify-center rounded-md border px-1 py-1 text-[9px] font-black ${getStockBoxClass(
-                                  qty
-                                )}`}
-                              >
-                                {qty}
-                              </span>
-                            </td>
-                          );
-                        })}
+                      {sizesList.map((size) => {
+                        const qty = getStock(product.stock, size);
 
-                        <td className="px-1 py-2 text-center text-[10px] font-black text-[#0A0D17]">
-                          {totalStock}
-                        </td>
+                        return (
+                          <div key={size} className="text-center">
+                            <span
+                              className={`inline-flex min-w-[34px] justify-center rounded-[5px] border px-2 py-1.5 text-[10px] font-black ${getStockBoxClass(
+                                qty
+                              )}`}
+                            >
+                              {qty}
+                            </span>
+                          </div>
+                        );
+                      })}
 
-                        <td className="px-1 py-2 text-center text-[10px] font-black text-orange-700">
-                          {totalPreorder}
-                        </td>
+                      <p className="text-center text-sm font-black text-[#0A0D17]">
+                        {totalStock}
+                      </p>
 
-                        <td className="px-1 py-2 text-center">
-                          <span
-                            className={`inline-flex rounded-full border px-2 py-1 text-[8px] font-black uppercase tracking-[0.06em] ${getInventoryStatusClass(
-                              status
-                            )}`}
-                          >
-                            {status}
-                          </span>
-                        </td>
+                      <p className="text-center text-sm font-black text-orange-700">
+                        {totalPreorder}
+                      </p>
 
-                        <td className="px-1 py-2 text-center">
-                          <button
-                            type="button"
-                            onClick={() => openInventoryModal(product)}
-                            className="px-2.5 py-1.5 rounded-full bg-[#0A0D17] text-white text-[8px] font-black uppercase tracking-[0.1em]"
-                          >
-                            Edit
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                      <div className="text-center">
+                        <span
+                          className={`inline-flex rounded-[5px] border px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.06em] ${getInventoryStatusClass(
+                            status
+                          )}`}
+                        >
+                          {status}
+                        </span>
+                      </div>
 
-              {paginatedProducts.length === 0 && (
-                <div className="py-16 text-center">
-                  <p className="text-sm font-black uppercase tracking-[0.2em] text-[#0A0D17]/35">
-                    No inventory found
-                  </p>
+                      <div className="text-center">
+                        <button
+                          type="button"
+                          onClick={() => openInventoryModal(product)}
+                          className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-[#0A0D17] text-white rounded-[5px] text-xs font-black hover:bg-[#1d2433] transition"
+                        >
+                          <FaEdit />
+                          Edit
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="p-12 text-center text-[#6b7280] font-semibold bg-white">
+                  No inventory found
                 </div>
               )}
             </div>
           </div>
+        </div>
 
-          {totalPages > 1 && (
-            <div className="mt-5 flex justify-center items-center gap-3">
-              <button
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage((prev) => prev - 1)}
-                className="px-5 py-3 rounded-full bg-[#0A0D17] text-white disabled:opacity-30 text-[10px] font-black uppercase tracking-[0.2em]"
-              >
-                Prev
-              </button>
+        {totalPages > 1 && (
+          <div className="mb-4 flex justify-center items-center gap-2 flex-wrap">
+            <button
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage((prev) => prev - 1)}
+              className={buttonDark}
+            >
+              Prev
+            </button>
 
-              <div className="px-4 py-3 rounded-full bg-white border border-black/10 text-[10px] font-black uppercase tracking-[0.2em]">
-                {currentPage} / {totalPages || 1}
-              </div>
-
-              <button
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage((prev) => prev + 1)}
-                className="px-5 py-3 rounded-full bg-[#0A0D17] text-white disabled:opacity-30 text-[10px] font-black uppercase tracking-[0.2em]"
-              >
-                Next
-              </button>
+            <div className="px-4 py-2.5 rounded-[5px] bg-white border border-black/10 text-xs font-black uppercase tracking-[0.16em]">
+              {currentPage} / {totalPages || 1}
             </div>
-          )}
 
-          <div className="mt-5 rounded-[16px] bg-white border border-black/10 overflow-hidden">
-            <div className="px-4 py-3 border-b border-black/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div>
-                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#0A0D17]/45">
-                  Inventory History
-                </p>
+            <button
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage((prev) => prev + 1)}
+              className={buttonDark}
+            >
+              Next
+            </button>
+          </div>
+        )}
 
-                <h3 className="text-base font-black uppercase text-[#0A0D17]">
-                  Recent Inventory Updates
-                </h3>
+        <div className={`${panelBg} rounded-[5px] overflow-hidden`}>
+          <div className="px-4 sm:px-5 py-5 border-b border-black/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <p className={labelClass}>Inventory History</p>
+              <h3 className="mt-2 text-xl font-black uppercase tracking-tight text-[#0A0D17]">
+                Recent Inventory Updates
+              </h3>
+            </div>
+
+            {inventoryLogs.length > 0 && (
+              <button
+                type="button"
+                onClick={clearInventoryLogs}
+                className={buttonLight}
+              >
+                <FaTrash />
+                Clear Logs
+              </button>
+            )}
+          </div>
+
+          <div className="divide-y divide-black/10">
+            {inventoryLogs.length === 0 ? (
+              <div className="px-4 py-10 text-center text-xs font-black uppercase tracking-[0.2em] text-[#0A0D17]/35">
+                No inventory update logs yet
               </div>
-
-              {inventoryLogs.length > 0 && (
-                <button
-                  type="button"
-                  onClick={clearInventoryLogs}
-                  className="px-4 py-2 rounded-full border border-black/10 text-[10px] font-black uppercase tracking-[0.16em]"
+            ) : (
+              inventoryLogs.slice(0, 10).map((log) => (
+                <div
+                  key={log.id}
+                  className="p-4 grid grid-cols-1 lg:grid-cols-[1fr_auto_auto_auto] gap-3 lg:items-center"
                 >
-                  Clear Logs
-                </button>
-              )}
-            </div>
-
-            <div className="divide-y divide-black/10">
-              {inventoryLogs.length === 0 ? (
-                <div className="px-4 py-10 text-center text-xs font-black uppercase tracking-[0.2em] text-[#0A0D17]/35">
-                  No inventory update logs yet
-                </div>
-              ) : (
-                inventoryLogs.slice(0, 10).map((log) => (
-                  <div
-                    key={log.id}
-                    className="p-4 grid grid-cols-1 lg:grid-cols-[1fr_auto_auto_auto] gap-3 lg:items-center"
-                  >
-                    <div>
-                      <p className="text-xs font-black uppercase text-[#0A0D17]">
-                        {log.productName}
-                      </p>
-
-                      <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[#0A0D17]/45">
-                        SKU: {log.sku} • {log.stockType || "Actual"} • Size{" "}
-                        {log.size}
-                      </p>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <span className="rounded-full bg-[#f3f3f1] px-3 py-1 text-[10px] font-black text-[#0A0D17]/60">
-                        Old: {log.oldQty}
-                      </span>
-
-                      <span className="rounded-full bg-[#f3f3f1] px-3 py-1 text-[10px] font-black text-[#0A0D17]/60">
-                        New: {log.newQty}
-                      </span>
-
-                      <span
-                        className={`rounded-full px-3 py-1 text-[10px] font-black ${
-                          log.difference > 0
-                            ? "bg-emerald-50 text-emerald-700"
-                            : log.difference < 0
-                            ? "bg-red-50 text-red-600"
-                            : "bg-orange-50 text-orange-700"
-                        }`}
-                      >
-                        {log.difference > 0
-                          ? `+${log.difference}`
-                          : log.difference}
-                      </span>
-                    </div>
-
-                    <p className="text-[10px] font-bold text-[#0A0D17]/45">
-                      Updated by {log.updatedBy}
+                  <div>
+                    <p className="text-sm font-black uppercase text-[#0A0D17]">
+                      {log.productName}
                     </p>
 
-                    <p className="text-[10px] font-bold text-[#0A0D17]/35">
-                      {new Date(log.updatedAt).toLocaleString()}
+                    <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[#0A0D17]/45">
+                      SKU: {log.sku} • {log.stockType || "Actual"} • Size{" "}
+                      {log.size}
                     </p>
                   </div>
-                ))
-              )}
-            </div>
+
+                  <div className="flex gap-2 flex-wrap">
+                    <span className="rounded-[5px] bg-[#f3f3f1] px-3 py-1 text-[10px] font-black text-[#0A0D17]/60">
+                      Old: {log.oldQty}
+                    </span>
+
+                    <span className="rounded-[5px] bg-[#f3f3f1] px-3 py-1 text-[10px] font-black text-[#0A0D17]/60">
+                      New: {log.newQty}
+                    </span>
+
+                    <span
+                      className={`rounded-[5px] px-3 py-1 text-[10px] font-black ${
+                        log.difference > 0
+                          ? "bg-emerald-50 text-emerald-700"
+                          : log.difference < 0
+                            ? "bg-red-50 text-red-600"
+                            : "bg-orange-50 text-orange-700"
+                      }`}
+                    >
+                      {log.difference > 0
+                        ? `+${log.difference}`
+                        : log.difference}
+                    </span>
+                  </div>
+
+                  <p className="text-[10px] font-bold text-[#0A0D17]/45">
+                    Updated by {log.updatedBy}
+                  </p>
+
+                  <p className="text-[10px] font-bold text-[#0A0D17]/35">
+                    {new Date(log.updatedAt).toLocaleString()}
+                  </p>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>
 
       {selectedProduct && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm p-4 flex items-start justify-center pt-14 md:pt-20 overflow-y-auto">
-          <div className="w-full max-w-5xl rounded-[22px] overflow-hidden bg-white shadow-[0_28px_100px_rgba(0,0,0,0.35)]">
+          <div className="w-full max-w-5xl rounded-[5px] overflow-hidden bg-white shadow-[0_28px_100px_rgba(0,0,0,0.35)]">
             <div className="px-6 py-5 bg-[#0A0D17] flex justify-between gap-4">
               <div>
                 <p className="text-white/45 text-[10px] font-black uppercase tracking-[0.28em]">
@@ -990,15 +1013,15 @@ const SKU = ({ token }) => {
               <button
                 type="button"
                 onClick={() => setSelectedProduct(null)}
-                className="w-10 h-10 rounded-full bg-white/10 text-white text-xl"
+                className="w-10 h-10 rounded-[5px] bg-white/10 text-white text-xl"
               >
                 ×
               </button>
             </div>
 
-            <div className="p-6 bg-[#f7f7f4]">
-              <div className="grid lg:grid-cols-[240px_1fr] gap-5">
-                <div className="rounded-[18px] bg-white border border-black/10 overflow-hidden h-fit">
+            <div className="p-4 sm:p-6 bg-[#f7f7f4]">
+              <div className="grid lg:grid-cols-[240px_1fr] gap-4">
+                <div className={`${panelBg} rounded-[5px] overflow-hidden h-fit`}>
                   <div className="h-[240px] bg-[#eeeeeb]">
                     {getCardImage(selectedProduct) ? (
                       <img
@@ -1014,9 +1037,7 @@ const SKU = ({ token }) => {
                   </div>
 
                   <div className="p-4">
-                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45">
-                      Actual Stock
-                    </p>
+                    <p className={labelClass}>Actual Stock</p>
 
                     <p className="mt-1 text-3xl font-black text-[#0A0D17]">
                       {getTotalStock(selectedProduct.stock)}
@@ -1031,7 +1052,7 @@ const SKU = ({ token }) => {
                     </p>
 
                     <span
-                      className={`mt-3 inline-flex rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] ${getInventoryStatusClass(
+                      className={`mt-3 inline-flex rounded-[5px] border px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] ${getInventoryStatusClass(
                         getProductStatus(selectedProduct)
                       )}`}
                     >
@@ -1040,13 +1061,11 @@ const SKU = ({ token }) => {
                   </div>
                 </div>
 
-                <div className="space-y-5">
-                  <div className="rounded-[18px] bg-white border border-black/10 p-5">
-                    <p className="text-[10px] font-black uppercase tracking-[0.28em] text-[#0A0D17]/45">
-                      Actual Stock Per Size
-                    </p>
+                <div className="space-y-4">
+                  <div className={`${panelBg} rounded-[5px] p-4 sm:p-5`}>
+                    <p className={labelClass}>Actual Stock Per Size</p>
 
-                    <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
                       {sizesList.map((size) => {
                         const qty = Number(
                           stockUpdates[selectedProduct._id]?.[size] ?? 0
@@ -1055,7 +1074,7 @@ const SKU = ({ token }) => {
                         return (
                           <div
                             key={size}
-                            className={`rounded-2xl border p-4 ${getStockBoxClass(
+                            className={`rounded-[5px] border p-4 ${getStockBoxClass(
                               qty
                             )}`}
                           >
@@ -1074,7 +1093,7 @@ const SKU = ({ token }) => {
                                   e.target.value
                                 )
                               }
-                              className="mt-3 w-full rounded-xl border border-black/10 bg-white px-3 py-3 text-center text-base font-black text-[#0A0D17] outline-none focus:border-[#0A0D17]"
+                              className="mt-3 w-full rounded-[5px] border border-black/10 bg-white px-3 py-3 text-center text-base font-black text-[#0A0D17] outline-none focus:border-[#0A0D17]"
                             />
                           </div>
                         );
@@ -1082,7 +1101,7 @@ const SKU = ({ token }) => {
                     </div>
                   </div>
 
-                  <div className="rounded-[18px] bg-white border border-orange-200 p-5">
+                  <div className="rounded-[5px] bg-white border border-orange-200 p-4 sm:p-5">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                       <div>
                         <p className="text-[10px] font-black uppercase tracking-[0.28em] text-orange-700">
@@ -1119,7 +1138,7 @@ const SKU = ({ token }) => {
                       </div>
                     </div>
 
-                    <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
                       {sizesList.map((size) => {
                         const qty = Number(
                           preorderUpdates[selectedProduct._id]?.[size] ?? 0
@@ -1128,7 +1147,7 @@ const SKU = ({ token }) => {
                         return (
                           <div
                             key={size}
-                            className={`rounded-2xl border p-4 ${getPreorderBoxClass(
+                            className={`rounded-[5px] border p-4 ${getPreorderBoxClass(
                               qty
                             )}`}
                           >
@@ -1147,18 +1166,16 @@ const SKU = ({ token }) => {
                                   e.target.value
                                 )
                               }
-                              className="mt-3 w-full rounded-xl border border-black/10 bg-white px-3 py-3 text-center text-base font-black text-[#0A0D17] outline-none focus:border-orange-500"
+                              className="mt-3 w-full rounded-[5px] border border-black/10 bg-white px-3 py-3 text-center text-base font-black text-[#0A0D17] outline-none focus:border-orange-500"
                             />
                           </div>
                         );
                       })}
                     </div>
 
-                    <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#0A0D17]/45">
-                          Auto Pre-order Threshold
-                        </p>
+                        <p className={labelClass}>Auto Pre-order Threshold</p>
 
                         <input
                           type="number"
@@ -1167,14 +1184,12 @@ const SKU = ({ token }) => {
                           onChange={(e) =>
                             setPreorderThreshold(Number(e.target.value) || 5)
                           }
-                          className="mt-2 w-full rounded-xl border border-black/10 px-3 py-3 text-sm font-black outline-none focus:border-orange-500"
+                          className={`${inputClass} mt-2`}
                         />
                       </div>
 
                       <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#0A0D17]/45">
-                          Auto Generate Slots
-                        </p>
+                        <p className={labelClass}>Auto Generate Slots</p>
 
                         <input
                           type="number"
@@ -1183,14 +1198,12 @@ const SKU = ({ token }) => {
                           onChange={(e) =>
                             setPreorderAutoStock(Number(e.target.value) || 20)
                           }
-                          className="mt-2 w-full rounded-xl border border-black/10 px-3 py-3 text-sm font-black outline-none focus:border-orange-500"
+                          className={`${inputClass} mt-2`}
                         />
                       </div>
 
                       <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#0A0D17]/45">
-                          Expected Restock Date
-                        </p>
+                        <p className={labelClass}>Expected Restock Date</p>
 
                         <input
                           type="date"
@@ -1198,25 +1211,23 @@ const SKU = ({ token }) => {
                           onChange={(e) =>
                             setPreorderRestockDate(e.target.value)
                           }
-                          className="mt-2 w-full rounded-xl border border-black/10 px-3 py-3 text-sm font-black outline-none focus:border-orange-500"
+                          className={`${inputClass} mt-2`}
                         />
                       </div>
                     </div>
 
                     <div className="mt-4">
-                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#0A0D17]/45">
-                        Pre-order Note
-                      </p>
+                      <p className={labelClass}>Pre-order Note</p>
 
                       <textarea
                         value={preorderNote}
                         onChange={(e) => setPreorderNote(e.target.value)}
                         placeholder="Example: Ships once restocked."
-                        className="mt-2 w-full min-h-[90px] rounded-xl border border-black/10 px-3 py-3 text-sm font-bold outline-none focus:border-orange-500"
+                        className="mt-2 w-full min-h-[90px] rounded-[5px] border border-black/10 px-3 py-3 text-sm font-bold outline-none focus:border-orange-500"
                       />
                     </div>
 
-                    <div className="mt-5 rounded-2xl border border-orange-200 bg-orange-50 p-4">
+                    <div className="mt-4 rounded-[5px] border border-orange-200 bg-orange-50 p-4">
                       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-700">
                         Auto Pre-order Rule
                       </p>
@@ -1230,11 +1241,11 @@ const SKU = ({ token }) => {
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap gap-3">
+                  <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
                       onClick={() => updateStock(selectedProduct._id)}
-                      className="px-6 py-3 rounded-full bg-[#0A0D17] text-white text-[11px] font-black uppercase tracking-[0.2em]"
+                      className={buttonDark}
                     >
                       Save Inventory
                     </button>
@@ -1242,7 +1253,7 @@ const SKU = ({ token }) => {
                     <button
                       type="button"
                       onClick={() => setSelectedProduct(null)}
-                      className="px-6 py-3 rounded-full bg-white border border-black/10 text-[#0A0D17] text-[11px] font-black uppercase tracking-[0.2em]"
+                      className={buttonLight}
                     >
                       Cancel
                     </button>
@@ -1250,10 +1261,11 @@ const SKU = ({ token }) => {
                 </div>
               </div>
 
-              <div className="mt-5 rounded-[18px] bg-white border border-black/10 p-5">
-                <p className="text-[10px] font-black uppercase tracking-[0.28em] text-[#0A0D17]/45">
-                  Product Inventory History
-                </p>
+              <div className={`${panelBg} mt-4 rounded-[5px] p-4 sm:p-5`}>
+                <div className="flex items-center gap-2">
+                  <FaHistory className="text-[#0A0D17]/45" />
+                  <p className={labelClass}>Product Inventory History</p>
+                </div>
 
                 <div className="mt-4 space-y-2 max-h-[240px] overflow-y-auto">
                   {inventoryLogs.filter(
@@ -1268,7 +1280,7 @@ const SKU = ({ token }) => {
                       .map((log) => (
                         <div
                           key={log.id}
-                          className="rounded-xl border border-black/10 bg-[#fafaf8] p-3"
+                          className="rounded-[5px] border border-black/10 bg-[#fafaf8] p-3"
                         >
                           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                             <p className="text-[11px] font-black uppercase text-[#0A0D17]">
@@ -1277,12 +1289,12 @@ const SKU = ({ token }) => {
                             </p>
 
                             <span
-                              className={`w-fit rounded-full px-3 py-1 text-[10px] font-black ${
+                              className={`w-fit rounded-[5px] px-3 py-1 text-[10px] font-black ${
                                 log.difference > 0
                                   ? "bg-emerald-50 text-emerald-700"
                                   : log.difference < 0
-                                  ? "bg-red-50 text-red-600"
-                                  : "bg-orange-50 text-orange-700"
+                                    ? "bg-red-50 text-red-600"
+                                    : "bg-orange-50 text-orange-700"
                               }`}
                             >
                               {log.difference > 0

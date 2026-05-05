@@ -7,8 +7,6 @@ import {
   FaBoxes,
   FaPlus,
   FaSearch,
-  FaFilter,
-  FaStore,
   FaTrash,
   FaEdit,
   FaImage,
@@ -693,208 +691,7 @@ const ProductPage = ({ token }) => {
 
   return (
     <div className="min-h-screen bg-transparent px-2.5 sm:px-3 pt-20 sm:pt-24 pb-4 font-['Montserrat']">
-      <div className="max-w-[1500px] mx-auto grid grid-cols-1 xl:grid-cols-[285px_1fr] gap-3">
-        <aside className={`${panelBg} rounded-[5px] xl:sticky xl:top-24 xl:h-fit overflow-hidden`}>
-          <div className="bg-[#0A0D17] px-4 py-5 text-white">
-            <p className="text-[9px] font-black uppercase tracking-[0.34em] text-white/40">
-              Saint Clothing Admin
-            </p>
-
-            <div className="mt-3 flex items-center gap-3">
-              <div className="w-11 h-11 rounded-[5px] bg-white/10 border border-white/10 flex items-center justify-center text-white shrink-0">
-                <FaBoxes />
-              </div>
-
-              <div className="min-w-0">
-                <h2 className="font-black text-sm uppercase tracking-[0.14em] truncate">
-                  Product Center
-                </h2>
-                <p className="text-[11px] text-white/50">
-                  Inventory command panel
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-4 space-y-3 bg-[#f7f7f4]">
-            <div className="rounded-[5px] bg-white border border-black/10 p-4">
-              <p className={labelClass}>Snapshot</p>
-
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <div className="rounded-[5px] bg-[#0A0D17] p-3 text-white">
-                  <p className="text-[9px] font-black uppercase tracking-[0.18em] text-white/45">
-                    Products
-                  </p>
-                  <p className="mt-1 text-lg font-black">{totalProducts}</p>
-                </div>
-
-                <div className="rounded-[5px] bg-[#FAFAF8] border border-black/10 p-3">
-                  <p className="text-[9px] font-black uppercase tracking-[0.18em] text-[#0A0D17]/45">
-                    3D Ready
-                  </p>
-                  <p className="mt-1 text-lg font-black text-[#0A0D17]">
-                    {modelReadyCount}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-[5px] bg-white border border-black/10 p-4">
-              <p className={labelClass}>Product Alerts</p>
-
-              <div className="mt-3 space-y-2">
-                <div className="flex items-center justify-between rounded-[5px] border border-red-100 bg-red-50 px-3 py-2.5">
-                  <div className="flex items-center gap-2">
-                    <FaExclamationTriangle className="text-red-500" />
-                    <span className="text-xs font-black text-red-700">
-                      Low Stock
-                    </span>
-                  </div>
-                  <span className="text-xs font-black text-red-700">
-                    {lowStockCount}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between rounded-[5px] border border-orange-100 bg-orange-50 px-3 py-2.5">
-                  <div className="flex items-center gap-2">
-                    <FaFire className="text-orange-600" />
-                    <span className="text-xs font-black text-orange-700">
-                      On Sale
-                    </span>
-                  </div>
-                  <span className="text-xs font-black text-orange-700">
-                    {onSaleCount}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between rounded-[5px] border border-blue-100 bg-blue-50 px-3 py-2.5">
-                  <div className="flex items-center gap-2">
-                    <FaTags className="text-blue-600" />
-                    <span className="text-xs font-black text-blue-700">
-                      New Arrival
-                    </span>
-                  </div>
-                  <span className="text-xs font-black text-blue-700">
-                    {newArrivalCount}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-[5px] bg-white border border-black/10 p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <FaFilter className="text-[#0A0D17]/45" />
-                <p className={labelClass}>Filter</p>
-              </div>
-
-              <select
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-                className="mt-1 w-full rounded-[5px] px-3 py-2.5 text-sm outline-none bg-[#FAFAF8] text-gray-900 border border-black/10"
-              >
-                <option value="all">All Categories</option>
-                {CATEGORY_OPTIONS.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
-              </select>
-
-              <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.16em] text-[#0A0D17]/40">
-                Viewing: {categoryFilter === "all" ? "All Products" : categoryFilter}
-              </p>
-            </div>
-
-            <div className="rounded-[5px] bg-white border border-black/10 p-4">
-              <p className={labelClass}>Branch</p>
-
-              <div className="mt-3 rounded-[5px] border border-black/10 bg-[#FAFAF8] p-3">
-                <div className="flex items-center gap-2">
-                  <FaStore className="text-[#0A0D17]/45" />
-                  <p className="text-sm font-black text-[#0A0D17] truncate">
-                    {role === "admin" ? "Admin Access" : getBranchLabel(userBranch)}
-                  </p>
-                </div>
-
-                <p className="mt-1 text-[11px] font-bold text-[#0A0D17]/45">
-                  {role === "admin"
-                    ? "Can manage active branches"
-                    : "Branch restricted account"}
-                </p>
-              </div>
-            </div>
-
-            <div className="rounded-[5px] bg-white border border-black/10 p-4">
-              <p className={labelClass}>Quick Actions</p>
-
-              <div className="mt-3 grid grid-cols-1 gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    resetForm();
-                    setShowForm(true);
-                    window.scrollTo({ top: 0, behavior: "smooth" });
-                  }}
-                  className="flex items-center gap-2 rounded-[5px] px-3 py-2.5 text-sm font-bold hover:bg-[#FAFAF8] text-gray-900 transition"
-                >
-                  <FaPlus />
-                  Add Product
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => fetchList(false)}
-                  className="flex items-center gap-2 rounded-[5px] px-3 py-2.5 text-sm font-bold hover:bg-[#FAFAF8] text-gray-900 transition"
-                >
-                  <FaSyncAlt className={refreshing ? "animate-spin" : ""} />
-                  Refresh Products
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="border-t border-black/10 bg-white px-4 py-4">
-            <div className="rounded-[5px] border border-black/10 bg-[#FAFAF8] p-3">
-              <p className="text-[9px] font-black uppercase tracking-[0.22em] text-gray-400">
-                Upload Reminder
-              </p>
-
-              <div className="mt-3 space-y-2">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs font-bold text-gray-500">
-                    Images
-                  </span>
-                  <span className="text-xs font-black text-[#0A0D17]">
-                    PNG/JPG
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs font-bold text-gray-500">
-                    3D Model
-                  </span>
-                  <span className="text-xs font-black text-[#0A0D17]">
-                    GLB
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs font-bold text-gray-500">
-                    Suggested
-                  </span>
-                  <span className="text-xs font-black text-[#0A0D17]">
-                    Below 20MB
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <p className="mt-3 text-center text-[9px] font-black uppercase tracking-[0.24em] text-gray-300">
-              Saint Clothing Admin
-            </p>
-          </div>
-        </aside>
-
+      <div className="max-w-[1500px] mx-auto">
         <main className="min-w-0">
           <div className="rounded-[5px] bg-[#0A0D17] p-5 sm:p-6 shadow-[0_18px_60px_rgba(0,0,0,0.08)] mb-4 text-white border border-black/10 overflow-hidden relative">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
@@ -913,7 +710,8 @@ const ProductPage = ({ token }) => {
                       Product Inventory
                     </h1>
                     <p className="text-[11px] sm:text-sm text-white/65 mt-1">
-                      Manage products, stocks, categories, branches, media, and 3D previews.
+                      Manage products, stocks, categories, branches, media, and
+                      3D previews.
                     </p>
                   </div>
                 </div>
@@ -1036,7 +834,8 @@ const ProductPage = ({ token }) => {
                     {editId ? "Edit Product" : "Add New Product"}
                   </h3>
                   <p className="text-sm text-[#6b7280] mt-1">
-                    Fill product information, stock, sale status, style setup, and media uploads.
+                    Fill product information, stock, sale status, style setup,
+                    and media uploads.
                   </p>
                 </div>
 
