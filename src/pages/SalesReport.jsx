@@ -3,7 +3,18 @@ import axios from "axios";
 import { Line, Bar, Doughnut } from "react-chartjs-2";
 import { useNavigate } from "react-router-dom";
 import { backendUrl, currency } from "../App";
-import { FaArrowUp, FaArrowDown, FaPrint } from "react-icons/fa";
+import {
+  FaArrowUp,
+  FaArrowDown,
+  FaPrint,
+  FaSyncAlt,
+  FaChartLine,
+  FaShoppingCart,
+  FaBoxOpen,
+  FaUsers,
+  FaMoneyBillWave,
+  FaExclamationTriangle,
+} from "react-icons/fa";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -85,27 +96,25 @@ const SalesReport = () => {
   });
 
   const [displayStats, setDisplayStats] = useState(stats);
-
-  const [weeklySales, setWeeklySales] = useState({
-    labels: [],
-    data: [],
-  });
-
+  const [weeklySales, setWeeklySales] = useState({ labels: [], data: [] });
   const [monthlySales, setMonthlySales] = useState({
     labels: [],
     revenue: [],
     netProfit: [],
   });
-
-  const [categorySales, setCategorySales] = useState({
-    labels: [],
-    data: [],
-  });
-
+  const [categorySales, setCategorySales] = useState({ labels: [], data: [] });
   const [topProducts, setTopProducts] = useState([]);
   const [lowStockProducts, setLowStockProducts] = useState([]);
   const [recentOrders, setRecentOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const panelBg =
+    "bg-white border border-black/10 shadow-[0_8px_24px_rgba(0,0,0,0.05)]";
+  const softPanelBg = "bg-[#FAFAF8] border border-black/10";
+  const labelClass =
+    "text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45";
+  const buttonDark =
+    "inline-flex items-center justify-center gap-2 rounded-[5px] bg-[#0A0D17] px-4 py-2.5 text-sm font-black text-white transition hover:bg-[#1f2937] disabled:opacity-50";
 
   useEffect(() => {
     fetchData();
@@ -244,7 +253,9 @@ const SalesReport = () => {
       ]);
 
       const orders = ordersRes?.data?.success ? ordersRes.data.orders || [] : [];
-      const products = productRes?.data?.success ? productRes.data.products || [] : [];
+      const products = productRes?.data?.success
+        ? productRes.data.products || []
+        : [];
       const users = usersRes?.data?.users || [];
 
       setRawOrders(orders);
@@ -309,7 +320,9 @@ const SalesReport = () => {
       for (let i = 0; i < 24; i++) {
         const label = `${i}:00`;
         const total = paidOrders
-          .filter((order) => new Date(order.date || order.createdAt).getHours() === i)
+          .filter(
+            (order) => new Date(order.date || order.createdAt).getHours() === i
+          )
           .reduce((sum, order) => sum + (Number(order.amount) || 0), 0);
 
         labels.push(label);
@@ -398,7 +411,9 @@ const SalesReport = () => {
       for (let i = 0; i < 24; i++) {
         const label = `${i}:00`;
         const amount = paidOrders
-          .filter((order) => new Date(order.date || order.createdAt).getHours() === i)
+          .filter(
+            (order) => new Date(order.date || order.createdAt).getHours() === i
+          )
           .reduce((sum, order) => sum + (Number(order.amount) || 0), 0);
 
         labels.push(label);
@@ -486,7 +501,10 @@ const SalesReport = () => {
         );
         const qty = Number(item.quantity) || 0;
 
-        if (soldCategoryMap[category] === undefined) soldCategoryMap[category] = 0;
+        if (soldCategoryMap[category] === undefined) {
+          soldCategoryMap[category] = 0;
+        }
+
         soldCategoryMap[category] += qty;
       });
     });
@@ -593,9 +611,17 @@ const SalesReport = () => {
   const formatCompactCurrency = (value) => {
     const numValue = Number(value || 0);
 
-    if (numValue >= 1000000000) return `${currency}${Math.round(numValue / 1000000000)}b`;
-    if (numValue >= 1000000) return `${currency}${Math.round(numValue / 1000000)}m`;
-    if (numValue >= 1000) return `${currency}${Math.round(numValue / 1000)}k`;
+    if (numValue >= 1000000000) {
+      return `${currency}${Math.round(numValue / 1000000000)}b`;
+    }
+
+    if (numValue >= 1000000) {
+      return `${currency}${Math.round(numValue / 1000000)}m`;
+    }
+
+    if (numValue >= 1000) {
+      return `${currency}${Math.round(numValue / 1000)}k`;
+    }
 
     return `${currency}${numValue.toLocaleString()}`;
   };
@@ -615,9 +641,7 @@ const SalesReport = () => {
     () => ({
       cutout: "72%",
       responsive: true,
-      plugins: {
-        legend: { display: false },
-      },
+      plugins: { legend: { display: false } },
     }),
     []
   );
@@ -675,7 +699,7 @@ const SalesReport = () => {
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="min-w-[96px] rounded-xl border border-black/10 bg-white px-3 py-2 text-sm font-bold text-[#0A0D17] outline-none"
+      className="min-w-[110px] rounded-[5px] border border-black/10 bg-white px-3 py-2.5 text-sm font-black text-[#0A0D17] outline-none transition focus:border-black"
     >
       {RANGE_OPTIONS.map((option) => (
         <option key={option.value} value={option.value}>
@@ -694,11 +718,13 @@ const SalesReport = () => {
   ) => (
     <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
       <div>
-        <h2 className="text-xl font-black uppercase tracking-tight text-[#0A0D17]">
+        <p className={labelClass}>Report Section</p>
+        <h2 className="mt-2 text-xl font-black uppercase tracking-tight text-[#0A0D17]">
           {title}
         </h2>
-        <p className="text-sm text-gray-500">{subtitle}</p>
+        <p className="mt-1 text-xs text-[#6b7280]">{subtitle}</p>
       </div>
+
       {showFilter && (
         <div className="print:hidden">
           <RangeSelect value={range} onChange={setRange} />
@@ -746,10 +772,12 @@ const SalesReport = () => {
           {safeLabels.map((label, index) => (
             <div
               key={label}
-              className="flex items-center justify-between rounded-xl border border-black/10 bg-[#faf8f3] px-4 py-3 print:rounded-none print:border print:bg-white print:px-3 print:py-2"
+              className="flex items-center justify-between rounded-[5px] border border-black/10 bg-[#FAFAF8] px-4 py-3 print:rounded-none print:border print:bg-white print:px-3 print:py-2"
             >
               <span className="font-semibold text-gray-800">{label}</span>
-              <span className="font-bold text-gray-900">{data[index] || 0}</span>
+              <span className="font-black text-gray-900">
+                {data[index] || 0}
+              </span>
             </div>
           ))}
         </div>
@@ -759,50 +787,71 @@ const SalesReport = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#f8f7f4] p-4 sm:p-6">
-        <div className="mx-auto max-w-[1400px] animate-pulse space-y-4">
-          <div className="h-16 rounded-2xl bg-white" />
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
+      <div className="min-h-screen bg-transparent p-3 pt-24 font-['Montserrat']">
+        <div className="animate-pulse space-y-3">
+          <div className="h-24 rounded-[5px] bg-white/70" />
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
             {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-28 rounded-2xl bg-white" />
+              <div key={i} className="h-28 rounded-[5px] bg-white/70" />
             ))}
           </div>
-          <div className="h-80 rounded-2xl bg-white" />
-          <div className="h-80 rounded-2xl bg-white" />
+          <div className="h-80 rounded-[5px] bg-white/70" />
+          <div className="h-80 rounded-[5px] bg-white/70" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="w-full font-['Montserrat'] pt-[40px] bg-[#f8f7f4] min-h-screen print:bg-white print:p-0">
-      <div className="mx-auto max-w-[1400px] space-y-5 px-4 sm:px-6 print:max-w-none print:space-y-3 print:px-0">
-        <div className="flex justify-end print:hidden">
-          <button
-            onClick={handlePrint}
-            className="inline-flex items-center gap-2 rounded-2xl bg-[#0A0D17] px-5 py-3 text-sm font-black uppercase tracking-[0.16em] text-white shadow-[0_12px_24px_rgba(10,13,23,0.18)]"
-          >
-            <FaPrint />
-            Print Sales Report
-          </button>
-        </div>
+    <div className="min-h-screen bg-transparent px-2.5 sm:px-3 pt-20 sm:pt-24 pb-4 font-['Montserrat'] print:bg-white print:p-0">
+      <div className="max-w-[1500px] mx-auto space-y-4 print:max-w-none print:space-y-3 print:px-0">
+        <div className="rounded-[5px] bg-[#0A0D17] p-5 sm:p-6 shadow-[0_18px_60px_rgba(0,0,0,0.08)] text-white border border-black/10 overflow-hidden relative print:bg-white print:text-black print:shadow-none print:rounded-none">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.34em] text-white/50 mb-2 print:text-gray-500">
+                Saint Clothing Admin
+              </p>
 
-        <div className="relative overflow-hidden rounded-[28px] border border-black/10 bg-gradient-to-r from-[#0A0D17] via-[#111827] to-[#1f2937] px-6 py-7 text-white shadow-[0_18px_60px_rgba(0,0,0,0.08)] print:rounded-none print:border print:bg-white print:px-0 print:py-2 print:text-black print:shadow-none">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.18),transparent_30%)] pointer-events-none print:hidden" />
-          <div className="relative text-center">
-            <h1 className="text-3xl font-black uppercase tracking-[0.2em] sm:text-4xl print:text-2xl print:tracking-[0.12em]">
-              Saint Clothing
-            </h1>
-            <p className="mt-2 text-sm text-white/80 sm:text-base print:mt-1 print:text-sm print:text-gray-700">
-              Sales Report
-            </p>
-            <p className="mt-1 text-xs text-white/65 sm:text-sm print:text-xs print:text-gray-500">
-              Generated: {new Date().toLocaleString()}
-            </p>
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-[5px] bg-white/10 border border-white/10 flex items-center justify-center shrink-0 backdrop-blur-sm print:bg-white print:border-black/10">
+                  <FaChartLine className="text-sm" />
+                </div>
+
+                <div className="min-w-0">
+                  <h1 className="text-[22px] sm:text-[30px] font-black uppercase tracking-[-0.03em] truncate">
+                    Sales Report
+                  </h1>
+
+                  <p className="text-[11px] sm:text-sm text-white/65 mt-1 print:text-gray-500">
+                    Generated: {new Date().toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2 print:hidden">
+              <button
+                type="button"
+                onClick={fetchData}
+                className="inline-flex items-center gap-2 rounded-[5px] bg-white/10 border border-white/10 px-4 py-2.5 text-sm font-black text-white transition hover:bg-white/20"
+              >
+                <FaSyncAlt />
+                Refresh
+              </button>
+
+              <button
+                type="button"
+                onClick={handlePrint}
+                className="inline-flex items-center gap-2 rounded-[5px] bg-white text-[#111111] px-4 py-2.5 text-sm font-black transition hover:bg-[#ececec] shadow-sm"
+              >
+                <FaPrint />
+                Print Report
+              </button>
+            </div>
           </div>
         </div>
 
-        <div className="rounded-[28px] border border-black/10 bg-white p-5 shadow-[0_12px_34px_rgba(0,0,0,0.06)] print:rounded-none print:border print:p-3 print:shadow-none">
+        <div className={`${panelBg} rounded-[5px] p-4 sm:p-5 print:rounded-none print:shadow-none`}>
           {renderSectionHeader(
             "Overview",
             "Summary cards for the selected time period",
@@ -810,91 +859,102 @@ const SalesReport = () => {
             setOverviewRange
           )}
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-5 print:grid-cols-5 print:gap-2">
-            <div className="rounded-[24px] bg-gradient-to-br from-[#0A0D17] via-[#111827] to-[#374151] p-5 text-white shadow-lg print:rounded-none print:border print:bg-white print:p-3 print:text-black print:shadow-none">
-              <p className="text-xs uppercase tracking-wide opacity-70 print:opacity-100 print:text-gray-600">
-                Total Sales
-              </p>
-              <div className="mt-2 break-words text-2xl font-black print:text-lg">
-                <ValueDisplay
-                  compact={formatCompactCurrency(displayStats.totalRevenue)}
-                  full={formatMoney(stats.totalRevenue)}
-                />
-              </div>
-              <div className="mt-2 flex items-center text-sm font-semibold print:text-xs">
-                {dailyTrend.isUp ? (
-                  <FaArrowUp className="mr-1 text-green-400 print:text-green-700" />
-                ) : (
-                  <FaArrowDown className="mr-1 text-red-400 print:text-red-700" />
-                )}
-                <span>{dailyTrend.percent}% vs previous period</span>
-              </div>
-            </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-5 print:grid-cols-5 print:gap-2">
+            {[
+              {
+                title: "Total Sales",
+                value: (
+                  <ValueDisplay
+                    compact={formatCompactCurrency(displayStats.totalRevenue)}
+                    full={formatMoney(stats.totalRevenue)}
+                  />
+                ),
+                subtitle: `${dailyTrend.percent}% vs previous period`,
+                icon: <FaMoneyBillWave />,
+                trend: dailyTrend,
+              },
+              {
+                title: "Orders",
+                value: (
+                  <ValueDisplay
+                    compact={formatCompactNumber(displayStats.totalOrders)}
+                    full={stats.totalOrders.toLocaleString()}
+                  />
+                ),
+                subtitle: "Total orders",
+                icon: <FaShoppingCart />,
+              },
+              {
+                title: "Net Profit",
+                value: (
+                  <ValueDisplay
+                    compact={formatCompactCurrency(displayStats.netProfit)}
+                    full={formatMoney(stats.netProfit)}
+                  />
+                ),
+                subtitle: `Margin: ${displayStats.netProfitMargin}%`,
+                icon: <FaChartLine />,
+                trend: profitTrend,
+              },
+              {
+                title: "Inventory",
+                value: (
+                  <ValueDisplay
+                    compact={formatCompactNumber(displayStats.totalProducts)}
+                    full={stats.totalProducts.toLocaleString()}
+                  />
+                ),
+                subtitle: `${displayStats.lowStockCount} low stock`,
+                icon: <FaBoxOpen />,
+              },
+              {
+                title: "Users",
+                value: (
+                  <ValueDisplay
+                    compact={formatCompactNumber(displayStats.totalUsers)}
+                    full={stats.totalUsers.toLocaleString()}
+                  />
+                ),
+                subtitle: `${revenueTrend.percent}% revenue trend`,
+                icon: <FaUsers />,
+              },
+            ].map((item) => (
+              <div
+                key={item.title}
+                className={`${softPanelBg} rounded-[5px] p-4 min-w-0 overflow-hidden transition hover:shadow-md print:rounded-none print:shadow-none`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#0A0D17]/45">
+                      {item.title}
+                    </p>
 
-            <div className="rounded-[24px] bg-gradient-to-br from-[#f97316] to-[#fb923c] p-5 text-white shadow-lg print:rounded-none print:border print:bg-white print:p-3 print:text-black print:shadow-none">
-              <p className="text-xs uppercase tracking-wide opacity-80 print:opacity-100 print:text-gray-600">
-                Orders
-              </p>
-              <div className="mt-2 text-2xl font-black print:text-lg break-words">
-                <ValueDisplay
-                  compact={formatCompactNumber(displayStats.totalOrders)}
-                  full={stats.totalOrders.toLocaleString()}
-                />
-              </div>
-            </div>
+                    <div className="mt-2 text-[23px] font-black leading-none tracking-[-0.04em] text-[#0A0D17] break-words">
+                      {item.value}
+                    </div>
+                  </div>
 
-            <div className="rounded-[24px] bg-gradient-to-br from-[#10b981] to-[#34d399] p-5 text-white shadow-lg print:rounded-none print:border print:bg-white print:p-3 print:text-black print:shadow-none">
-              <p className="text-xs uppercase tracking-wide opacity-80 print:opacity-100 print:text-gray-600">
-                Net Profit
-              </p>
-              <div className="mt-2 break-words text-2xl font-black print:text-lg">
-                <ValueDisplay
-                  compact={formatCompactCurrency(displayStats.netProfit)}
-                  full={formatMoney(stats.netProfit)}
-                />
-              </div>
-              <p className="mt-1 text-sm print:text-xs">
-                {profitTrend.percent}% vs last period
-              </p>
-              <p className="text-sm print:text-xs">
-                Margin: {displayStats.netProfitMargin}%
-              </p>
-            </div>
+                  <div className="w-9 h-9 rounded-[5px] bg-[#111111]/8 flex items-center justify-center text-[#111111] shrink-0">
+                    {item.icon}
+                  </div>
+                </div>
 
-            <div className="rounded-[24px] bg-gradient-to-br from-gray-700 to-gray-900 p-5 text-white shadow-lg print:rounded-none print:border print:bg-white print:p-3 print:text-black print:shadow-none">
-              <p className="text-xs uppercase tracking-wide opacity-80 print:opacity-100 print:text-gray-600">
-                Inventory
-              </p>
-              <div className="mt-2 text-2xl font-black print:text-lg break-words">
-                <ValueDisplay
-                  compact={formatCompactNumber(displayStats.totalProducts)}
-                  full={stats.totalProducts.toLocaleString()}
-                />
+                <div className="mt-3 flex items-center gap-1 text-xs font-bold text-[#6b7280]">
+                  {item.trend &&
+                    (item.trend.isUp ? (
+                      <FaArrowUp className="text-emerald-600" />
+                    ) : (
+                      <FaArrowDown className="text-red-600" />
+                    ))}
+                  <span>{item.subtitle}</span>
+                </div>
               </div>
-              <p className="mt-1 text-sm print:text-xs">
-                {displayStats.lowStockCount} low stock
-              </p>
-            </div>
-
-            <div className="rounded-[24px] bg-gradient-to-br from-[#4b5563] to-[#1f2937] p-5 text-white shadow-lg print:rounded-none print:border print:bg-white print:p-3 print:text-black print:shadow-none">
-              <p className="text-xs uppercase tracking-wide opacity-80 print:opacity-100 print:text-gray-600">
-                Users
-              </p>
-              <div className="mt-2 text-2xl font-black print:text-lg break-words">
-                <ValueDisplay
-                  compact={formatCompactNumber(displayStats.totalUsers)}
-                  full={stats.totalUsers.toLocaleString()}
-                />
-              </div>
-              <p className="mt-1 text-sm print:text-xs">
-                {revenueTrend.percent}% revenue trend
-              </p>
-            </div>
+            ))}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-5 xl:grid-cols-3 print:grid-cols-1 print:gap-3">
-          <div className="rounded-[28px] border border-black/10 bg-white p-5 shadow-[0_12px_34px_rgba(0,0,0,0.06)] xl:col-span-2 print:rounded-none print:p-3 print:shadow-none">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-3 print:grid-cols-1 print:gap-3">
+          <div className={`${panelBg} rounded-[5px] p-4 sm:p-5 xl:col-span-2 print:rounded-none print:shadow-none`}>
             {renderSectionHeader(
               "Sales Trend",
               "Sales performance over the selected period",
@@ -927,7 +987,7 @@ const SalesReport = () => {
             </div>
           </div>
 
-          <div className="rounded-[28px] border border-black/10 bg-white p-5 shadow-[0_12px_34px_rgba(0,0,0,0.06)] print:rounded-none print:p-3 print:shadow-none">
+          <div className={`${panelBg} rounded-[5px] p-4 sm:p-5 print:rounded-none print:shadow-none`}>
             {renderSectionHeader(
               "Top Products",
               "Best-performing items from selected orders",
@@ -936,7 +996,7 @@ const SalesReport = () => {
             )}
 
             <div
-              className={`space-y-3 ${
+              className={`space-y-2 ${
                 topProducts.length > 5 ? "max-h-[360px] overflow-y-auto pr-1" : ""
               } print-no-scroll`}
             >
@@ -944,25 +1004,25 @@ const SalesReport = () => {
                 topProducts.map((item, index) => (
                   <div
                     key={`${item.name}-${index}`}
-                    className="rounded-2xl border border-black/10 bg-[#faf8f3] p-4 print:rounded-none print:bg-white print:p-3"
+                    className="rounded-[5px] border border-black/10 bg-[#FAFAF8] p-4 print:rounded-none print:bg-white print:p-3"
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate font-bold text-gray-900 print:whitespace-normal">
+                        <p className="truncate font-black text-[#0A0D17] print:whitespace-normal">
                           {item.name}
                         </p>
-                        <p className="text-sm text-gray-500 print:text-xs">
+                        <p className="text-xs text-[#6b7280] print:text-xs">
                           {item.sold} units sold
                         </p>
                       </div>
-                      <p className="shrink-0 font-bold text-gray-900">
+                      <p className="shrink-0 font-black text-[#0A0D17]">
                         {formatMoney(item.revenue)}
                       </p>
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="rounded-2xl border border-black/10 bg-[#faf8f3] p-4 text-sm text-gray-500 print:rounded-none print:bg-white print:p-3">
+                <div className="rounded-[5px] border border-black/10 bg-[#FAFAF8] p-4 text-sm text-gray-500 print:rounded-none print:bg-white print:p-3">
                   No top product data available.
                 </div>
               )}
@@ -970,7 +1030,7 @@ const SalesReport = () => {
           </div>
         </div>
 
-        <div className="rounded-[28px] border border-black/10 bg-white p-5 shadow-[0_12px_34px_rgba(0,0,0,0.06)] print:rounded-none print:p-3 print:shadow-none">
+        <div className={`${panelBg} rounded-[5px] p-4 sm:p-5 print:rounded-none print:shadow-none`}>
           {renderSectionHeader(
             "Revenue & Profit",
             "Financial comparison for the selected period",
@@ -988,13 +1048,13 @@ const SalesReport = () => {
                     label: "Revenue",
                     data: monthlySales.revenue,
                     backgroundColor: "#0A0D17",
-                    borderRadius: 8,
+                    borderRadius: 5,
                   },
                   {
                     label: "Profit",
                     data: monthlySales.netProfit,
                     backgroundColor: "#b89a6b",
-                    borderRadius: 8,
+                    borderRadius: 5,
                   },
                 ],
               }}
@@ -1002,8 +1062,8 @@ const SalesReport = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-5 xl:grid-cols-2 print:grid-cols-1 print:gap-3">
-          <div className="rounded-[28px] border border-black/10 bg-white p-5 shadow-[0_12px_34px_rgba(0,0,0,0.06)] print:rounded-none print:p-3 print:shadow-none">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 print:grid-cols-1 print:gap-3">
+          <div className={`${panelBg} rounded-[5px] p-4 sm:p-5 print:rounded-none print:shadow-none`}>
             {renderSectionHeader(
               "Category Overview",
               "Sold quantity by category",
@@ -1013,7 +1073,7 @@ const SalesReport = () => {
             {renderCategoryChart(categorySales.labels, categorySales.data)}
           </div>
 
-          <div className="rounded-[28px] border border-black/10 bg-white p-5 shadow-[0_12px_34px_rgba(0,0,0,0.06)] print:rounded-none print:p-3 print:shadow-none">
+          <div className={`${panelBg} rounded-[5px] p-4 sm:p-5 print:rounded-none print:shadow-none`}>
             {renderSectionHeader(
               "Low Stock Alert",
               "Products that need restocking soon",
@@ -1023,7 +1083,7 @@ const SalesReport = () => {
             )}
 
             <div
-              className={`space-y-3 ${
+              className={`space-y-2 ${
                 lowStockProducts.length > 5
                   ? "max-h-[360px] overflow-y-auto pr-1"
                   : ""
@@ -1033,20 +1093,22 @@ const SalesReport = () => {
                 lowStockProducts.map((item) => (
                   <div
                     key={item._id}
-                    className="rounded-2xl border border-black/10 bg-[#faf8f3] p-4 print:rounded-none print:bg-white print:p-3"
+                    className="rounded-[5px] border border-black/10 bg-[#FAFAF8] p-4 print:rounded-none print:bg-white print:p-3"
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate font-bold text-gray-900 print:whitespace-normal">
+                        <p className="truncate font-black text-[#0A0D17] print:whitespace-normal">
                           {item.name}
                         </p>
-                        <p className="text-sm text-gray-500 print:text-xs">
+                        <p className="text-xs text-[#6b7280] print:text-xs">
                           {item.category} • {item.branch}
                         </p>
                       </div>
                       <div className="shrink-0 text-right">
-                        <p className="font-bold text-red-500">{item.stock} left</p>
-                        <p className="text-sm text-gray-500 print:text-xs">
+                        <p className="font-black text-red-600">
+                          {item.stock} left
+                        </p>
+                        <p className="text-xs text-[#6b7280] print:text-xs">
                           {formatMoney(item.price)}
                         </p>
                       </div>
@@ -1054,7 +1116,7 @@ const SalesReport = () => {
                   </div>
                 ))
               ) : (
-                <div className="rounded-2xl border border-black/10 bg-[#faf8f3] p-4 text-sm text-gray-500 print:rounded-none print:bg-white print:p-3">
+                <div className="rounded-[5px] border border-black/10 bg-[#FAFAF8] p-4 text-sm text-gray-500 print:rounded-none print:bg-white print:p-3">
                   No low stock products right now.
                 </div>
               )}
@@ -1062,56 +1124,61 @@ const SalesReport = () => {
           </div>
         </div>
 
-        <div className="rounded-[28px] border border-black/10 bg-white p-5 shadow-[0_12px_34px_rgba(0,0,0,0.06)] print:rounded-none print:p-3 print:shadow-none">
-          {renderSectionHeader(
-            "Recent Orders",
-            "Latest transaction activity for the selected period",
-            recentOrdersRange,
-            setRecentOrdersRange
-          )}
+        <div className={`${panelBg} rounded-[5px] overflow-hidden print:rounded-none print:shadow-none`}>
+          <div className="px-4 sm:px-5 py-5 border-b border-black/10">
+            {renderSectionHeader(
+              "Recent Orders",
+              "Latest transaction activity for the selected period",
+              recentOrdersRange,
+              setRecentOrdersRange
+            )}
+          </div>
 
           <div
             className={`overflow-x-auto ${
               recentOrders.length > 10 ? "max-h-[460px] overflow-y-auto pr-1" : ""
             } print-no-scroll print-full-width`}
           >
-            <table className="w-full min-w-[760px] border-separate border-spacing-0 text-left print:min-w-0">
+            <table className="w-full min-w-[760px] table-fixed border-collapse text-left print:min-w-0">
               <thead>
-                <tr className="bg-[#faf8f3] text-gray-600 print:bg-white">
-                  <th className="sticky top-0 border-b border-black/10 bg-[#faf8f3] px-4 py-3 font-semibold print:static print:bg-white print:px-3 print:py-2">
+                <tr className="bg-[#0A0D17] text-white">
+                  <th className="w-[20%] px-5 py-4 text-left text-[10px] font-black uppercase tracking-[0.12em]">
                     Order ID
                   </th>
-                  <th className="sticky top-0 border-b border-black/10 bg-[#faf8f3] px-4 py-3 font-semibold print:static print:bg-white print:px-3 print:py-2">
+                  <th className="w-[35%] px-5 py-4 text-left text-[10px] font-black uppercase tracking-[0.12em]">
                     Customer
                   </th>
-                  <th className="sticky top-0 border-b border-black/10 bg-[#faf8f3] px-4 py-3 font-semibold print:static print:bg-white print:px-3 print:py-2">
+                  <th className="w-[20%] px-5 py-4 text-left text-[10px] font-black uppercase tracking-[0.12em]">
                     Amount
                   </th>
-                  <th className="sticky top-0 border-b border-black/10 bg-[#faf8f3] px-4 py-3 font-semibold print:static print:bg-white print:px-3 print:py-2">
+                  <th className="w-[25%] px-5 py-4 text-left text-[10px] font-black uppercase tracking-[0.12em]">
                     Status
                   </th>
                 </tr>
               </thead>
+
               <tbody>
                 {recentOrders.length ? (
                   recentOrders.map((order, i) => (
                     <tr
                       key={order._id}
-                      className={i % 2 === 0 ? "bg-white" : "bg-[#fcfbf8] print:bg-white"}
+                      className={`border-b border-[#ecece6] ${
+                        i % 2 === 0 ? "bg-white" : "bg-[#fcfcfb]"
+                      } print:bg-white`}
                     >
-                      <td className="border-b border-black/10 px-4 py-3 font-medium text-gray-800 print:px-3 print:py-2">
+                      <td className="px-5 py-4 align-middle text-xs font-black text-[#0A0D17]">
                         #{order._id?.slice(-6)?.toUpperCase()}
                       </td>
-                      <td className="border-b border-black/10 px-4 py-3 text-gray-700 print:px-3 print:py-2">
+                      <td className="px-5 py-4 align-middle text-xs font-semibold text-[#0A0D17]/70 truncate">
                         {`${order.address?.firstName || ""} ${
                           order.address?.lastName || ""
                         }`.trim() || "Guest"}
                       </td>
-                      <td className="border-b border-black/10 px-4 py-3 font-semibold text-gray-900 print:px-3 print:py-2">
+                      <td className="px-5 py-4 align-middle text-xs font-black text-[#0A0D17]">
                         {formatMoney(order.amount)}
                       </td>
-                      <td className="border-b border-black/10 px-4 py-3 print:px-3 print:py-2">
-                        <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-700 print:rounded-none print:bg-white print:px-0">
+                      <td className="px-5 py-4 align-middle">
+                        <span className="inline-flex rounded-[5px] border border-black/10 bg-[#FAFAF8] px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.1em] text-[#0A0D17]/70">
                           {order.status || "Pending"}
                         </span>
                       </td>
@@ -1131,6 +1198,20 @@ const SalesReport = () => {
             </table>
           </div>
         </div>
+
+        <style>
+          {`
+            @media print {
+              .print-no-scroll {
+                max-height: none !important;
+                overflow: visible !important;
+              }
+              .print-full-width {
+                overflow: visible !important;
+              }
+            }
+          `}
+        </style>
       </div>
     </div>
   );
