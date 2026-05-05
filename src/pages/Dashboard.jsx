@@ -140,11 +140,14 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchDashboardData();
-    const interval = setInterval(fetchDashboardData, 15000);
+    fetchDashboardData(false); // first load with loader
+
+    const interval = setInterval(() => {
+      fetchDashboardData(true); // silent refresh
+    }, 600000); // 🔥 10 minutes
+
     return () => clearInterval(interval);
   }, []);
-
   useEffect(() => {
     buildDashboardSections();
   }, [
@@ -248,15 +251,17 @@ const Dashboard = () => {
     };
   };
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
 
       const [productRes, ordersRes, usersRes, branchRes] = await Promise.all([
         axios.get(`${backendUrl}/api/product/list`),
+
         axios.get(`${backendUrl}/api/order/list`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
+
         role === "admin"
           ? axios
             .get(`${backendUrl}/api/admin/users`, {
@@ -264,6 +269,7 @@ const Dashboard = () => {
             })
             .catch(() => ({ data: { users: [] } }))
           : Promise.resolve({ data: { users: [] } }),
+
         axios
           .get(`${backendUrl}/api/branch/list`, {
             headers: { Authorization: `Bearer ${token}` },
@@ -274,10 +280,13 @@ const Dashboard = () => {
       const products = productRes?.data?.success
         ? productRes.data.products || []
         : [];
+
       const orders = ordersRes?.data?.success
         ? ordersRes.data.orders || []
         : [];
+
       const users = usersRes?.data?.users || [];
+
       const branches = branchRes?.data?.success
         ? branchRes.data.branches || []
         : branchRes?.data?.branches || [];
@@ -289,7 +298,7 @@ const Dashboard = () => {
     } catch (error) {
       console.error("Dashboard fetch error:", error);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
