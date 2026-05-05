@@ -2,6 +2,14 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { backendUrl } from "../App";
+import {
+  FaImage,
+  FaSave,
+  FaSyncAlt,
+  FaBullhorn,
+  FaMobileAlt,
+  FaLayerGroup,
+} from "react-icons/fa";
 
 const emptySlide = {
   title: "",
@@ -75,6 +83,19 @@ const HeroManager = ({ token }) => {
       action: "latest",
     },
   ]);
+
+  const panelBg =
+    "bg-white border border-black/10 shadow-[0_8px_24px_rgba(0,0,0,0.05)]";
+  const softPanelBg = "bg-[#FAFAF8] border border-black/10";
+
+  const inputClass =
+    "w-full rounded-[5px] border border-black/10 bg-white px-3 py-2.5 text-sm text-[#0A0D17] outline-none transition focus:border-black";
+
+  const labelClass =
+    "text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45";
+
+  const buttonDark =
+    "inline-flex items-center justify-center gap-2 rounded-[5px] bg-[#0A0D17] px-4 py-2.5 text-sm font-black text-white transition hover:bg-[#1f2937] disabled:opacity-50";
 
   const fetchHero = async () => {
     try {
@@ -172,7 +193,10 @@ const HeroManager = ({ token }) => {
       });
 
       const { data } = await axios.put(`${backendUrl}/api/hero`, formData, {
-        headers: { token },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          token,
+        },
       });
 
       if (data.success) {
@@ -192,190 +216,255 @@ const HeroManager = ({ token }) => {
   };
 
   return (
-    <div className="w-full">
-      <div className="mb-8 pt-[90px]">
-        <p className="text-[11px] font-black uppercase tracking-[0.28em] text-gray-400">
-          Homepage Control
-        </p>
-        <h1 className="mt-2 text-3xl font-black text-[#0A0D17]">
-          Hero Manager
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm text-gray-500">
-          Control homepage slides, AR promotion, and user greeting ticker.
-        </p>
-      </div>
-
-      <form onSubmit={handleSave} className="space-y-6">
-        <div className="rounded-[28px] border border-black/10 bg-white p-6 shadow-[0_15px_40px_rgba(0,0,0,0.05)]">
-          <div className="flex flex-col gap-5">
-            <div className="flex items-center justify-between gap-4 flex-wrap">
-              <div>
-                <p className="text-sm font-black text-[#0A0D17]">
-                  Welcome Ticker
+    <div className="min-h-screen bg-transparent px-2.5 sm:px-3 pt-20 sm:pt-24 pb-4 font-['Montserrat']">
+      <div className="max-w-[1500px] mx-auto">
+        <form onSubmit={handleSave}>
+          <div className="rounded-[5px] bg-[#0A0D17] p-5 sm:p-6 shadow-[0_18px_60px_rgba(0,0,0,0.08)] mb-4 text-white border border-black/10 overflow-hidden relative">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-[0.34em] text-white/50 mb-2">
+                  Homepage Control
                 </p>
-                <p className="text-xs text-gray-500">
-                  Use <b>{"{greeting}"}</b> and <b>{"{name}"}</b>.
+
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-[5px] bg-white/10 border border-white/10 flex items-center justify-center shrink-0 backdrop-blur-sm">
+                    <FaLayerGroup className="text-sm" />
+                  </div>
+
+                  <div className="min-w-0">
+                    <h1 className="text-[22px] sm:text-[30px] font-black uppercase tracking-[-0.03em] truncate">
+                      Hero Manager
+                    </h1>
+                    <p className="text-[11px] sm:text-sm text-white/65 mt-1">
+                      Manage homepage slides, AR promotion, welcome ticker, and
+                      call-to-action sections.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={fetchHero}
+                  disabled={loading}
+                  className="inline-flex items-center gap-2 rounded-[5px] border border-white/20 bg-white/10 text-white px-4 py-2.5 text-sm font-black transition hover:bg-white/20 disabled:opacity-50"
+                >
+                  <FaSyncAlt className={loading ? "animate-spin" : ""} />
+                  Refresh
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="inline-flex items-center gap-2 rounded-[5px] bg-white text-[#111111] px-4 py-2.5 text-sm font-black transition hover:bg-[#ececec] shadow-sm disabled:opacity-50"
+                >
+                  <FaSave />
+                  {loading ? "Saving..." : "Save Hero"}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className={`${panelBg} rounded-[5px] p-4 sm:p-5 mb-4`}>
+            <div className="flex flex-col gap-2 mb-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className={labelClass}>Welcome Message</p>
+                <h3 className="text-sm sm:text-[17px] font-black uppercase tracking-[0.08em] text-[#0A0D17] mt-1">
+                  User Greeting Ticker
+                </h3>
+                <p className="text-[11px] sm:text-xs text-[#6b7280] mt-0.5">
+                  Use {"{greeting}"} and {"{name}"} to personalize the homepage
+                  greeting.
                 </p>
               </div>
 
-              <label className="inline-flex items-center gap-3 rounded-full border border-black/10 px-4 py-2">
-                <span className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">
+              <label className="inline-flex w-fit items-center gap-3 rounded-[5px] border border-black/10 bg-[#FAFAF8] px-4 py-2">
+                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[#0A0D17]/50">
                   Enable
                 </span>
                 <input
                   type="checkbox"
                   checked={tickerEnabled}
                   onChange={(e) => setTickerEnabled(e.target.checked)}
-                  className="h-4 w-4"
+                  className="h-4 w-4 accent-[#0A0D17]"
                 />
               </label>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">
-                  New User Greeting
-                </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <p className={labelClass}>New User Greeting</p>
                 <input
                   value={newUserGreeting}
                   onChange={(e) => setNewUserGreeting(e.target.value)}
                   placeholder="Example: Welcome"
-                  className="w-full rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-black"
+                  className={`${inputClass} mt-2`}
                 />
               </div>
 
-              <div className="space-y-2">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">
-                  Returning User Greeting
-                </p>
+              <div>
+                <p className={labelClass}>Returning User Greeting</p>
                 <input
                   value={returningUserGreeting}
                   onChange={(e) => setReturningUserGreeting(e.target.value)}
                   placeholder="Example: Welcome back"
-                  className="w-full rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-black"
+                  className={`${inputClass} mt-2`}
                 />
               </div>
-            </div>
 
-            <textarea
-              value={tickerText}
-              onChange={(e) => setTickerText(e.target.value)}
-              rows={3}
-              placeholder="{greeting}, {name}! Try our mobile AR fitting experience."
-              className="w-full rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-black"
-            />
-          </div>
-        </div>
-
-        {slides.map((slide, index) => {
-          const displayImage = slide.previewImage || slide.image;
-
-          return (
-            <div
-              key={index}
-              className="rounded-[28px] border border-black/10 bg-white p-6 shadow-[0_15px_40px_rgba(0,0,0,0.05)]"
-            >
-              <div className="mb-5">
-                <p className="text-[11px] font-black uppercase tracking-[0.28em] text-gray-400">
-                  Slide {index + 1}
-                </p>
-                <h2 className="mt-1 text-xl font-black text-[#0A0D17]">
-                  {slide.action === "ar" ? "AR Promotion" : "Hero Content"}
-                </h2>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                <input
-                  type="text"
-                  value={slide.title}
-                  onChange={(e) =>
-                    handleSlideChange(index, "title", e.target.value)
-                  }
-                  placeholder="Title"
-                  className="w-full rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-black"
-                />
-
-                <input
-                  type="text"
-                  value={slide.subtitle}
-                  onChange={(e) =>
-                    handleSlideChange(index, "subtitle", e.target.value)
-                  }
-                  placeholder="Subtitle"
-                  className="w-full rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-black"
-                />
-
-                <input
-                  type="text"
-                  value={slide.cta}
-                  onChange={(e) =>
-                    handleSlideChange(index, "cta", e.target.value)
-                  }
-                  placeholder="CTA Button Text"
-                  className="w-full rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-black"
-                />
-
-                <select
-                  value={slide.action}
-                  onChange={(e) =>
-                    handleSlideChange(index, "action", e.target.value)
-                  }
-                  className="w-full rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-black"
-                >
-                  <option value="collection">Collection</option>
-                  <option value="ar">AR Try-On Mobile</option>
-                  <option value="bestseller">Best Seller</option>
-                  <option value="latest">Latest</option>
-                </select>
-
+              <div className="md:col-span-2">
+                <p className={labelClass}>Ticker Text</p>
                 <textarea
-                  value={slide.description}
-                  onChange={(e) =>
-                    handleSlideChange(index, "description", e.target.value)
-                  }
-                  rows={4}
-                  placeholder="Description"
-                  className="w-full rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-black lg:col-span-2"
+                  value={tickerText}
+                  onChange={(e) => setTickerText(e.target.value)}
+                  rows={3}
+                  placeholder="{greeting}, {name}! Try our mobile AR fitting experience."
+                  className={`${inputClass} mt-2 resize-none`}
                 />
-
-                <div className="lg:col-span-2">
-                  <label className="mb-2 block text-[11px] font-black uppercase tracking-[0.2em] text-gray-500">
-                    Upload Hero Image
-                  </label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) =>
-                      handleFileChange(index, e.target.files?.[0] || null)
-                    }
-                    className="w-full rounded-2xl border border-black/10 px-4 py-3 outline-none"
-                  />
-                </div>
-
-                {displayImage && (
-                  <div className="lg:col-span-2 overflow-hidden rounded-[22px] border border-black/10 bg-[#fafaf8]">
-                    <img
-                      src={resolveImage(displayImage)}
-                      alt={`Slide ${index + 1}`}
-                      className="h-[260px] w-full object-cover"
-                    />
-                  </div>
-                )}
               </div>
             </div>
-          );
-        })}
+          </div>
 
-        <div className="flex justify-end">
-          <button
-            type="submit"
-            disabled={loading}
-            className="rounded-2xl bg-[#0A0D17] px-8 py-4 text-xs font-black uppercase tracking-[0.2em] text-white transition hover:opacity-90 disabled:opacity-60"
-          >
-            {loading ? "Saving..." : "Save Hero"}
-          </button>
-        </div>
-      </form>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            {slides.map((slide, index) => {
+              const displayImage = slide.previewImage || slide.image;
+
+              return (
+                <div
+                  key={index}
+                  className={`${panelBg} rounded-[5px] overflow-hidden`}
+                >
+                  <div className="px-4 sm:px-5 py-5 border-b border-black/10">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className={labelClass}>Slide {index + 1}</p>
+                        <h3 className="mt-2 text-xl font-black uppercase tracking-tight text-[#0A0D17]">
+                          {slide.action === "ar"
+                            ? "AR Promotion"
+                            : "Hero Content"}
+                        </h3>
+                      </div>
+
+                      <div className="w-10 h-10 rounded-[5px] bg-[#0A0D17] text-white flex items-center justify-center shrink-0">
+                        {slide.action === "ar" ? (
+                          <FaMobileAlt className="text-sm" />
+                        ) : (
+                          <FaBullhorn className="text-sm" />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 sm:p-5 space-y-3">
+                    <div className={`${softPanelBg} rounded-[5px] p-4`}>
+                      <p className={labelClass}>Slide Details</p>
+
+                      <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <input
+                          type="text"
+                          value={slide.title}
+                          onChange={(e) =>
+                            handleSlideChange(index, "title", e.target.value)
+                          }
+                          placeholder="Title"
+                          className={inputClass}
+                        />
+
+                        <input
+                          type="text"
+                          value={slide.subtitle}
+                          onChange={(e) =>
+                            handleSlideChange(index, "subtitle", e.target.value)
+                          }
+                          placeholder="Subtitle"
+                          className={inputClass}
+                        />
+
+                        <input
+                          type="text"
+                          value={slide.cta}
+                          onChange={(e) =>
+                            handleSlideChange(index, "cta", e.target.value)
+                          }
+                          placeholder="CTA Button Text"
+                          className={inputClass}
+                        />
+
+                        <select
+                          value={slide.action}
+                          onChange={(e) =>
+                            handleSlideChange(index, "action", e.target.value)
+                          }
+                          className={inputClass}
+                        >
+                          <option value="collection">Collection</option>
+                          <option value="ar">AR Try-On Mobile</option>
+                          <option value="bestseller">Best Seller</option>
+                          <option value="latest">Latest</option>
+                        </select>
+
+                        <textarea
+                          value={slide.description}
+                          onChange={(e) =>
+                            handleSlideChange(
+                              index,
+                              "description",
+                              e.target.value
+                            )
+                          }
+                          rows={4}
+                          placeholder="Description"
+                          className={`${inputClass} resize-none md:col-span-2`}
+                        />
+                      </div>
+                    </div>
+
+                    <div className={`${softPanelBg} rounded-[5px] p-4`}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <FaImage className="text-[#0A0D17]/45" />
+                        <p className={labelClass}>Hero Image</p>
+                      </div>
+
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) =>
+                          handleFileChange(index, e.target.files?.[0] || null)
+                        }
+                        className={inputClass}
+                      />
+
+                      <div className="mt-3 overflow-hidden rounded-[5px] border border-black/10 bg-white">
+                        {displayImage ? (
+                          <img
+                            src={resolveImage(displayImage)}
+                            alt={`Slide ${index + 1}`}
+                            className="h-[230px] w-full object-cover"
+                          />
+                        ) : (
+                          <div className="h-[230px] w-full flex items-center justify-center bg-[#f0f0ed]">
+                            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/35">
+                              No Hero Image
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="flex justify-end mt-4">
+            <button type="submit" disabled={loading} className={buttonDark}>
+              <FaSave />
+              {loading ? "Saving..." : "Save Hero"}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };

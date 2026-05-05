@@ -2,6 +2,15 @@ import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 import { assets } from "../assets/assets";
 import axios from "axios";
+import {
+  FaClipboardList,
+  FaCheckCircle,
+  FaMoneyBillWave,
+  FaBoxOpen,
+  FaHourglassHalf,
+  FaFilter,
+  FaImage,
+} from "react-icons/fa";
 
 const ORDER_STATUSES = [
   "Pending Payment",
@@ -107,6 +116,18 @@ const Orders = () => {
 
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const token = localStorage.getItem("token");
+
+  const panelBg =
+    "bg-white border border-black/10 shadow-[0_8px_24px_rgba(0,0,0,0.05)]";
+  const softPanelBg = "bg-[#FAFAF8] border border-black/10";
+  const inputClass =
+    "w-full rounded-[5px] border border-black/10 bg-white px-3 py-2.5 text-sm text-[#0A0D17] outline-none transition focus:border-black";
+  const labelClass =
+    "text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45";
+  const buttonDark =
+    "inline-flex items-center justify-center gap-2 rounded-[5px] bg-[#0A0D17] px-4 py-2.5 text-sm font-black text-white transition hover:bg-[#1f2937] disabled:opacity-50";
+  const buttonLight =
+    "inline-flex items-center justify-center gap-2 rounded-[5px] border border-black/10 bg-white px-4 py-2.5 text-sm font-black text-[#0A0D17] transition hover:bg-[#FAFAF8] disabled:opacity-50";
 
   const normalizeStatus = (status) => {
     const value = String(status || "").trim().toLowerCase();
@@ -216,13 +237,8 @@ const Orders = () => {
       return clean;
     }
 
-    if (clean.startsWith("/uploads/")) {
-      return `${backendUrl}${clean}`;
-    }
-
-    if (clean.startsWith("uploads/")) {
-      return `${backendUrl}/${clean}`;
-    }
+    if (clean.startsWith("/uploads/")) return `${backendUrl}${clean}`;
+    if (clean.startsWith("uploads/")) return `${backendUrl}/${clean}`;
 
     const normalizedFolder = folder
       ? `${folder.replace(/^\/+|\/+$/g, "")}/`
@@ -311,8 +327,9 @@ const Orders = () => {
               referenceNumber: order.referenceNumber || "",
               paymentProofImage:
                 order.paymentProofImage || order.paymentProof || "",
-              userFullName: `${order.address?.firstName || ""} ${order.address?.lastName || ""
-                }`.trim(),
+              userFullName: `${order.address?.firstName || ""} ${
+                order.address?.lastName || ""
+              }`.trim(),
               userEmail: order.address?.email || "",
               userPhone: order.address?.phone || "",
               fullAddress: formatAddress(order.address || {}),
@@ -533,80 +550,122 @@ const Orders = () => {
   };
 
   return (
-    <div className="w-full font-['Montserrat'] pt-[40px]">
-      <div className="rounded-[28px] border border-black/10 bg-gradient-to-br from-white via-[#f8f8f6] to-[#ececec] shadow-[0_18px_60px_rgba(0,0,0,0.08)] overflow-hidden">
-        <div className="relative px-5 md:px-8 py-6 md:py-8 border-b border-black/10 bg-gradient-to-r from-[#0A0D17] via-[#111827] to-[#1f2937]">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.18),transparent_30%)] pointer-events-none" />
-
-          <div className="relative flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="text-white/60 text-[10px] font-black uppercase tracking-[0.34em]">
+    <div className="min-h-screen bg-transparent px-2.5 sm:px-3 pt-20 sm:pt-24 pb-4 font-['Montserrat']">
+      <div className="max-w-[1500px] mx-auto">
+        <div className="rounded-[5px] bg-[#0A0D17] p-5 sm:p-6 shadow-[0_18px_60px_rgba(0,0,0,0.08)] mb-4 text-white border border-black/10 overflow-hidden relative">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.34em] text-white/50 mb-2">
                 Saint Clothing Admin
               </p>
-              <h2 className="mt-2 text-2xl md:text-3xl font-black uppercase tracking-tight text-white">
-                Order Management
-              </h2>
-              <p className="mt-2 text-sm text-white/70 max-w-2xl">
-                Track orders, payment verification, dispatch progress, pre-orders,
-                and proof submissions in one place.
-              </p>
-            </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="px-4 py-3 rounded-2xl border border-white/10 bg-white/5 backdrop-blur">
-                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-white/55">
-                  Orders
-                </p>
-                <p className="mt-1 text-xl font-black text-white">
-                  {summary.totalItems}
-                </p>
-              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-[5px] bg-white/10 border border-white/10 flex items-center justify-center shrink-0 backdrop-blur-sm">
+                  <FaClipboardList className="text-sm" />
+                </div>
 
-              <div className="px-4 py-3 rounded-2xl border border-white/10 bg-white/5 backdrop-blur">
-                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-white/55">
-                  Delivered
-                </p>
-                <p className="mt-1 text-xl font-black text-white">
-                  {summary.delivered}
-                </p>
-              </div>
-
-              <div className="px-4 py-3 rounded-2xl border border-white/10 bg-white/5 backdrop-blur">
-                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-white/55">
-                  Paid
-                </p>
-                <p className="mt-1 text-xl font-black text-white">
-                  {summary.paid}
-                </p>
-              </div>
-
-              <div className="px-4 py-3 rounded-2xl border border-violet-300/30 bg-violet-400/10 backdrop-blur">
-                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-violet-100">
-                  Pending Approval
-                </p>
-                <p className="mt-1 text-xl font-black text-violet-100">
-                  {summary.pendingApproval}
-                </p>
-              </div>
-
-              <div className="px-4 py-3 rounded-2xl border border-amber-300/30 bg-amber-400/10 backdrop-blur">
-                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-amber-100">
-                  Pre-order
-                </p>
-                <p className="mt-1 text-xl font-black text-amber-100">
-                  {summary.preorder}
-                </p>
+                <div className="min-w-0">
+                  <h1 className="text-[22px] sm:text-[30px] font-black uppercase tracking-[-0.03em] truncate">
+                    Order Management
+                  </h1>
+                  <p className="text-[11px] sm:text-sm text-white/65 mt-1">
+                    Track orders, payments, dispatch progress, pre-orders, and proof submissions.
+                  </p>
+                </div>
               </div>
             </div>
+
+            <button type="button" onClick={fetchOrders} className={buttonLight}>
+              Refresh Orders
+            </button>
           </div>
         </div>
 
-        <div className="px-5 md:px-8 py-5">
-          <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className={`${panelBg} rounded-[5px] p-4 sm:p-5 mb-4`}>
+          <div className="flex flex-col gap-2 mb-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h3 className="text-sm sm:text-[17px] font-black uppercase tracking-[0.08em] text-[#0A0D17]">
+                Order Overview
+              </h3>
+              <p className="text-[11px] sm:text-xs text-[#6b7280] mt-0.5">
+                Summary for the current selected filters.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+            {[
+              {
+                label: "Orders",
+                value: summary.totalItems,
+                icon: <FaClipboardList />,
+                className: "text-[#0A0D17]",
+              },
+              {
+                label: "Delivered",
+                value: summary.delivered,
+                icon: <FaCheckCircle />,
+                className: "text-emerald-700",
+              },
+              {
+                label: "Pending",
+                value: summary.pending,
+                icon: <FaHourglassHalf />,
+                className: "text-amber-700",
+              },
+              {
+                label: "Paid",
+                value: summary.paid,
+                icon: <FaMoneyBillWave />,
+                className: "text-emerald-700",
+              },
+              {
+                label: "Approval",
+                value: summary.pendingApproval,
+                icon: <FaImage />,
+                className: "text-violet-700",
+              },
+              {
+                label: "Pre-order",
+                value: summary.preorder,
+                icon: <FaBoxOpen />,
+                className: "text-orange-700",
+              },
+            ].map((item) => (
+              <div
+                key={item.label}
+                className={`${softPanelBg} rounded-[5px] p-4 min-w-0 overflow-hidden transition hover:shadow-md`}
+              >
+                <div className="flex items-center justify-between mb-2 gap-2">
+                  <span className="text-xs font-medium text-[#6b7280]">
+                    {item.label}
+                  </span>
+                  <div className="w-9 h-9 rounded-[5px] bg-[#111111]/8 flex items-center justify-center text-[#111111] shrink-0">
+                    {item.icon}
+                  </div>
+                </div>
+
+                <h2
+                  className={`text-[24px] sm:text-[28px] font-black leading-none tracking-[-0.03em] ${item.className}`}
+                >
+                  {item.value}
+                </h2>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className={`${panelBg} rounded-[5px] p-4 sm:p-5 mb-4`}>
+          <div className="flex items-center gap-2 mb-4">
+            <FaFilter className="text-[#0A0D17]/45" />
+            <p className={labelClass}>Order Filters</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm font-bold text-[#0A0D17] outline-none focus:border-black"
+              className={inputClass}
             >
               {PRODUCT_CATEGORIES.map((cat) => (
                 <option key={cat} value={cat}>
@@ -618,7 +677,7 @@ const Orders = () => {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm font-bold text-[#0A0D17] outline-none focus:border-black"
+              className={inputClass}
             >
               {STATUS_FILTERS.map((status) => (
                 <option key={status} value={status}>
@@ -630,7 +689,7 @@ const Orders = () => {
             <select
               value={paymentMethodFilter}
               onChange={(e) => setPaymentMethodFilter(e.target.value)}
-              className="rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm font-bold text-[#0A0D17] outline-none focus:border-black"
+              className={inputClass}
             >
               {PAYMENT_METHOD_FILTERS.map((method) => (
                 <option key={method} value={method}>
@@ -642,7 +701,7 @@ const Orders = () => {
             <select
               value={paymentStatusFilter}
               onChange={(e) => setPaymentStatusFilter(e.target.value)}
-              className="rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm font-bold text-[#0A0D17] outline-none focus:border-black"
+              className={inputClass}
             >
               {PAYMENT_STATUS_FILTERS.map((status) => (
                 <option key={status} value={status}>
@@ -651,10 +710,27 @@ const Orders = () => {
               ))}
             </select>
           </div>
+        </div>
 
-          <div className="mt-6 flex flex-col gap-5">
+        <div className={`${panelBg} rounded-[5px] overflow-hidden`}>
+          <div className="px-4 sm:px-5 py-5 border-b border-black/10">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div>
+                <p className={labelClass}>Order Table</p>
+                <h3 className="mt-2 text-xl font-black uppercase tracking-tight text-[#0A0D17]">
+                  Order List
+                </h3>
+              </div>
+
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#0A0D17]/45">
+                {filteredItems.length} items
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 p-4 sm:p-5 bg-[#FAFAF8]">
             {currentItems.length === 0 && (
-              <div className="rounded-[24px] border border-dashed border-black/15 bg-white/60 py-16 text-center">
+              <div className="rounded-[5px] border border-dashed border-black/15 bg-white py-16 text-center">
                 <p className="text-sm font-black uppercase tracking-[0.24em] text-[#0A0D17]/40">
                   No Orders Found
                 </p>
@@ -670,12 +746,12 @@ const Orders = () => {
               return (
                 <div
                   key={`${item.orderId}-${item._id || item.productId || index}`}
-                  className="rounded-[26px] overflow-hidden border border-black/10 bg-white shadow-[0_12px_34px_rgba(0,0,0,0.06)] hover:shadow-[0_18px_44px_rgba(0,0,0,0.1)] transition"
+                  className="rounded-[5px] overflow-hidden border border-black/10 bg-white shadow-[0_8px_24px_rgba(0,0,0,0.04)]"
                 >
-                  <div className="grid grid-cols-1 xl:grid-cols-[1.25fr_1.35fr_1fr_0.7fr] gap-0">
-                    <div className="p-5 border-b xl:border-b-0 xl:border-r border-black/10">
+                  <div className="grid grid-cols-1 xl:grid-cols-[1.25fr_1.35fr_1fr_0.75fr]">
+                    <div className="p-4 sm:p-5 border-b xl:border-b-0 xl:border-r border-black/10">
                       <div className="flex items-start gap-4">
-                        <div className="w-16 h-16 rounded-2xl bg-[#f4f4f3] border border-black/10 flex items-center justify-center shrink-0 overflow-hidden">
+                        <div className="w-16 h-16 rounded-[5px] bg-[#f4f4f3] border border-black/10 flex items-center justify-center shrink-0 overflow-hidden">
                           <img
                             src={getOrderImageUrl(item.image)}
                             className="w-full h-full object-cover"
@@ -689,9 +765,7 @@ const Orders = () => {
                         </div>
 
                         <div className="min-w-0 flex-1">
-                          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45">
-                            Customer
-                          </p>
+                          <p className={labelClass}>Customer</p>
                           <p className="mt-1 text-sm font-black text-[#0A0D17]">
                             {item.userFullName || "Customer"}
                           </p>
@@ -705,9 +779,7 @@ const Orders = () => {
                       </div>
 
                       <div className="mt-5">
-                        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45">
-                          Product
-                        </p>
+                        <p className={labelClass}>Product</p>
 
                         <div className="mt-1 flex flex-wrap items-center gap-2">
                           <p className="text-sm font-black uppercase text-[#0A0D17]">
@@ -715,34 +787,34 @@ const Orders = () => {
                           </p>
 
                           {item.isPreorder && (
-                            <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 text-[10px] font-black uppercase tracking-[0.14em]">
+                            <span className="px-2.5 py-1 rounded-[5px] bg-amber-100 text-amber-700 text-[10px] font-black uppercase tracking-[0.14em]">
                               Pre-order
                             </span>
                           )}
 
                           {verifying && (
-                            <span className="px-2.5 py-1 rounded-full bg-violet-100 text-violet-700 text-[10px] font-black uppercase tracking-[0.14em]">
+                            <span className="px-2.5 py-1 rounded-[5px] bg-violet-100 text-violet-700 text-[10px] font-black uppercase tracking-[0.14em]">
                               Pending Approval
                             </span>
                           )}
 
                           {locked && !verifying && (
-                            <span className="px-2.5 py-1 rounded-full bg-red-100 text-red-700 text-[10px] font-black uppercase tracking-[0.14em]">
+                            <span className="px-2.5 py-1 rounded-[5px] bg-red-100 text-red-700 text-[10px] font-black uppercase tracking-[0.14em]">
                               Shipping Locked
                             </span>
                           )}
                         </div>
 
                         <div className="mt-2 flex flex-wrap gap-2">
-                          <span className="px-2.5 py-1 rounded-full bg-[#0A0D17] text-white text-[10px] font-black uppercase tracking-[0.14em]">
+                          <span className="px-2.5 py-1 rounded-[5px] bg-[#0A0D17] text-white text-[10px] font-black uppercase tracking-[0.14em]">
                             Qty {item.quantity}
                           </span>
 
-                          <span className="px-2.5 py-1 rounded-full border border-black/10 bg-[#f7f7f6] text-[#0A0D17] text-[10px] font-black uppercase tracking-[0.14em]">
+                          <span className="px-2.5 py-1 rounded-[5px] border border-black/10 bg-[#f7f7f6] text-[#0A0D17] text-[10px] font-black uppercase tracking-[0.14em]">
                             Size {item.size}
                           </span>
 
-                          <span className="px-2.5 py-1 rounded-full border border-black/10 bg-[#f7f7f6] text-[#0A0D17] text-[10px] font-black uppercase tracking-[0.14em]">
+                          <span className="px-2.5 py-1 rounded-[5px] border border-black/10 bg-[#f7f7f6] text-[#0A0D17] text-[10px] font-black uppercase tracking-[0.14em]">
                             {item.category || "Uncategorized"}
                           </span>
                         </div>
@@ -753,7 +825,7 @@ const Orders = () => {
                         </div>
 
                         {item.isPreorder && (
-                          <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+                          <div className="mt-3 rounded-[5px] border border-amber-200 bg-amber-50 px-3 py-2">
                             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-600">
                               Ships On
                             </p>
@@ -771,10 +843,8 @@ const Orders = () => {
                       </div>
                     </div>
 
-                    <div className="p-5 border-b xl:border-b-0 xl:border-r border-black/10">
-                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45">
-                        Delivery Address
-                      </p>
+                    <div className="p-4 sm:p-5 border-b xl:border-b-0 xl:border-r border-black/10">
+                      <p className={labelClass}>Delivery Address</p>
                       <p className="mt-2 text-sm text-[#0A0D17] leading-6 break-words">
                         {item.fullAddress}
                       </p>
@@ -819,23 +889,19 @@ const Orders = () => {
                       </div>
                     </div>
 
-                    <div className="p-5 border-b xl:border-b-0 xl:border-r border-black/10">
+                    <div className="p-4 sm:p-5 border-b xl:border-b-0 xl:border-r border-black/10">
                       <div className="space-y-4 text-xs">
                         <div>
-                          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45">
-                            Payment Method
-                          </p>
+                          <p className={labelClass}>Payment Method</p>
                           <p className="mt-2 text-sm font-black text-[#0A0D17]">
                             {item.paymentMethod || "COD"}
                           </p>
                         </div>
 
                         <div>
-                          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45">
-                            Payment Status
-                          </p>
+                          <p className={labelClass}>Payment Status</p>
                           <span
-                            className={`mt-2 inline-flex rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] ${getPaymentStatusColor(
+                            className={`mt-2 inline-flex rounded-[5px] border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] ${getPaymentStatusColor(
                               item.paymentStatusLabel
                             )}`}
                           >
@@ -844,7 +910,7 @@ const Orders = () => {
 
                           {verifying && (
                             <p className="mt-2 text-[11px] font-bold text-violet-700">
-                              Proof uploaded. Review and approve before shipping.
+                              Proof uploaded. Review before shipping.
                             </p>
                           )}
 
@@ -857,9 +923,7 @@ const Orders = () => {
 
                         {item.isPreorder && (
                           <div>
-                            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45">
-                              Pre-order Ship Date
-                            </p>
+                            <p className={labelClass}>Pre-order Ship Date</p>
                             <p className="mt-2 text-sm font-black text-amber-700">
                               {formatDateLong(shipDate)}
                             </p>
@@ -869,65 +933,61 @@ const Orders = () => {
                         {(item.paymentMethod === "GCash" ||
                           item.paymentMethod === "Maya" ||
                           item.paymentMethod === "GoTyme") && (
-                            <>
-                              <div>
-                                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45">
-                                  Reference No.
-                                </p>
-                                <p className="mt-2 break-all text-sm text-[#0A0D17]">
-                                  {item.referenceNumber || "Not Available"}
-                                </p>
-                              </div>
+                          <>
+                            <div>
+                              <p className={labelClass}>Reference No.</p>
+                              <p className="mt-2 break-all text-sm text-[#0A0D17]">
+                                {item.referenceNumber || "Not Available"}
+                              </p>
+                            </div>
 
-                              <div>
-                                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45 mb-2">
-                                  Payment Proof
+                            <div>
+                              <p className={`${labelClass} mb-2`}>
+                                Payment Proof
+                              </p>
+
+                              {item.paymentProofImage ? (
+                                <div className="space-y-3">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      openProofModal(item.paymentProofImage, item.name)
+                                    }
+                                    className="block"
+                                  >
+                                    <img
+                                      src={getProofUrl(item.paymentProofImage)}
+                                      alt="Payment Proof"
+                                      className="w-24 h-24 object-cover rounded-[5px] border border-black/10 hover:opacity-90 transition"
+                                      loading="lazy"
+                                      onError={(e) => {
+                                        e.currentTarget.onerror = null;
+                                        e.currentTarget.src = assets.fallback_image;
+                                      }}
+                                    />
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      openProofModal(item.paymentProofImage, item.name)
+                                    }
+                                    className={buttonLight}
+                                  >
+                                    View Proof
+                                  </button>
+                                </div>
+                              ) : (
+                                <p className="text-[#0A0D17]/40">
+                                  No payment proof uploaded
                                 </p>
-
-                                {item.paymentProofImage ? (
-                                  <div className="space-y-3">
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        openProofModal(item.paymentProofImage, item.name)
-                                      }
-                                      className="block"
-                                    >
-                                      <img
-                                        src={getProofUrl(item.paymentProofImage)}
-                                        alt="Payment Proof"
-                                        className="w-24 h-24 object-cover rounded-xl border border-black/10 hover:opacity-90 transition"
-                                        loading="lazy"
-                                        onError={(e) => {
-                                          e.currentTarget.onerror = null;
-                                          e.currentTarget.src = assets.fallback_image;
-                                        }}
-                                      />
-                                    </button>
-
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        openProofModal(item.paymentProofImage, item.name)
-                                      }
-                                      className="rounded-full border border-black/10 bg-white px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[#0A0D17] hover:bg-[#f5f5f4]"
-                                    >
-                                      View Proof
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <p className="text-[#0A0D17]/40">
-                                    No payment proof uploaded
-                                  </p>
-                                )}
-                              </div>
-                            </>
-                          )}
+                              )}
+                            </div>
+                          </>
+                        )}
 
                         <div>
-                          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45">
-                            Date
-                          </p>
+                          <p className={labelClass}>Date</p>
                           <p className="mt-2 text-sm text-[#0A0D17]">
                             {new Date(
                               item.createdAt || item.date || Date.now()
@@ -944,11 +1004,9 @@ const Orders = () => {
                       </div>
                     </div>
 
-                    <div className="p-5 flex flex-col justify-between gap-5 bg-[#fafaf8]">
+                    <div className="p-4 sm:p-5 flex flex-col justify-between gap-5 bg-[#fafaf8]">
                       <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45">
-                          Amount
-                        </p>
+                        <p className={labelClass}>Amount</p>
                         <p className="mt-2 text-2xl font-black text-[#0A0D17]">
                           {currency}
                           {Number(item.price || 0).toLocaleString()}
@@ -956,7 +1014,7 @@ const Orders = () => {
                       </div>
 
                       {verifying && (
-                        <div className="rounded-2xl border border-violet-200 bg-violet-50 p-3">
+                        <div className="rounded-[5px] border border-violet-200 bg-violet-50 p-3">
                           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">
                             Pending Approval
                           </p>
@@ -971,7 +1029,7 @@ const Orders = () => {
                           <button
                             type="button"
                             onClick={() => approvePayment(item.orderId)}
-                            className="w-full rounded-xl bg-emerald-600 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-white hover:bg-emerald-700 transition"
+                            className="w-full rounded-[5px] bg-emerald-600 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-white hover:bg-emerald-700 transition"
                           >
                             Approve Payment
                           </button>
@@ -979,7 +1037,7 @@ const Orders = () => {
                           <button
                             type="button"
                             onClick={() => rejectPayment(item.orderId)}
-                            className="w-full rounded-xl border border-red-500 bg-white py-3 text-[10px] font-black uppercase tracking-[0.18em] text-red-600 hover:bg-red-50 transition"
+                            className="w-full rounded-[5px] border border-red-500 bg-white py-3 text-[10px] font-black uppercase tracking-[0.18em] text-red-600 hover:bg-red-50 transition"
                           >
                             Reject Payment
                           </button>
@@ -987,9 +1045,7 @@ const Orders = () => {
                       )}
 
                       <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45 mb-2">
-                          Delivery Status
-                        </p>
+                        <p className={`${labelClass} mb-2`}>Delivery Status</p>
 
                         <select
                           value={normalizeStatus(item.status)}
@@ -1000,12 +1056,9 @@ const Orders = () => {
                               ? "Approve payment first before updating delivery status"
                               : "Update delivery status"
                           }
-                          className={`w-full border p-3 text-xs font-black rounded-2xl outline-none ${getStatusColor(
+                          className={`w-full border p-3 text-xs font-black rounded-[5px] outline-none ${getStatusColor(
                             item.status
-                          )} ${locked
-                              ? "cursor-not-allowed opacity-60"
-                              : "cursor-pointer"
-                            }`}
+                          )} ${locked ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
                         >
                           {ORDER_STATUSES.map((status) => (
                             <option key={status} value={status}>
@@ -1026,30 +1079,31 @@ const Orders = () => {
               );
             })}
           </div>
-
-          {totalPages > 1 && (
-            <div className="flex justify-center mt-8 gap-3 flex-wrap">
-              {[...Array(totalPages)].map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setCurrentPage(i + 1)}
-                  className={`px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-[0.18em] border ${currentPage === i + 1
-                      ? "bg-[#0A0D17] text-white border-[#0A0D17]"
-                      : "bg-white text-[#0A0D17] border-black/10"
-                    }`}
-                >
-                  {i + 1}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
+
+        {totalPages > 1 && (
+          <div className="flex justify-center mt-4 gap-2 flex-wrap">
+            {[...Array(totalPages)].map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setCurrentPage(i + 1)}
+                className={`px-3.5 py-1.5 border rounded-[5px] font-black ${
+                  currentPage === i + 1
+                    ? "bg-[#0A0D17] text-white border-[#0A0D17]"
+                    : "bg-white text-gray-900 border-[#d7d7d2]"
+                }`}
+              >
+                {i + 1}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {proofModalOpen && (
         <div className="fixed inset-0 z-50 flex items-start justify-center pt-14 md:pt-20 bg-black/70 backdrop-blur-sm px-4 overflow-y-auto">
-          <div className="w-full max-w-4xl rounded-[28px] overflow-hidden border border-white/10 shadow-[0_28px_100px_rgba(0,0,0,0.35)] bg-white">
-            <div className="px-6 md:px-8 py-5 bg-gradient-to-r from-[#0A0D17] via-[#111827] to-[#1f2937] flex items-start justify-between gap-4">
+          <div className="w-full max-w-4xl rounded-[5px] overflow-hidden border border-white/10 shadow-[0_28px_100px_rgba(0,0,0,0.35)] bg-white">
+            <div className="px-6 md:px-8 py-5 bg-[#0A0D17] flex items-start justify-between gap-4">
               <div>
                 <p className="text-white/60 text-[10px] font-black uppercase tracking-[0.28em]">
                   Payment Proof
@@ -1062,18 +1116,18 @@ const Orders = () => {
               <button
                 type="button"
                 onClick={closeProofModal}
-                className="w-10 h-10 rounded-full border border-white/15 bg-white/5 text-white text-xl leading-none hover:bg-white/10 transition"
+                className="w-10 h-10 rounded-[5px] border border-white/15 bg-white/5 text-white text-xl leading-none hover:bg-white/10 transition"
               >
                 ×
               </button>
             </div>
 
-            <div className="p-6 md:p-8 bg-gradient-to-br from-white via-[#fafaf8] to-[#eeeeea]">
-              <div className="rounded-[24px] border border-black/10 bg-white p-4 flex justify-center">
+            <div className="p-6 md:p-8 bg-[#FAFAF8]">
+              <div className="rounded-[5px] border border-black/10 bg-white p-4 flex justify-center">
                 <img
                   src={selectedProof}
                   alt="Payment Proof Large View"
-                  className="max-h-[75vh] w-auto max-w-full object-contain rounded-xl border border-black/10 bg-white"
+                  className="max-h-[75vh] w-auto max-w-full object-contain rounded-[5px] border border-black/10 bg-white"
                   loading="lazy"
                   onError={(e) => {
                     e.currentTarget.onerror = null;
@@ -1087,7 +1141,7 @@ const Orders = () => {
                   href={selectedProof}
                   target="_blank"
                   rel="noreferrer"
-                  className="rounded-full border border-black/10 bg-white px-5 py-3 text-[11px] font-black uppercase tracking-[0.18em] text-[#0A0D17] hover:bg-[#f5f5f4]"
+                  className={buttonLight}
                 >
                   Open Full Image
                 </a>
