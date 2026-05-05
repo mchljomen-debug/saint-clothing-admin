@@ -284,12 +284,6 @@ const Dashboard = () => {
     };
   };
 
-  const updateIfChanged = (setter, nextValue) => {
-    setter((prev) =>
-      JSON.stringify(prev) !== JSON.stringify(nextValue) ? nextValue : prev
-    );
-  };
-
   const fetchDashboardData = async (silent = false) => {
     try {
       if (!silent) setLoading(true);
@@ -331,13 +325,10 @@ const Dashboard = () => {
         ? branchRes.data.branches || []
         : branchRes?.data?.branches || [];
 
-      updateIfChanged(setRawProducts, products);
-      updateIfChanged(setRawOrders, orders);
-      updateIfChanged(setRawUsers, users);
-      updateIfChanged(
-        setAvailableBranches,
-        branches.filter((b) => b.isActive)
-      );
+      setRawProducts(products);
+      setRawOrders(orders);
+      setRawUsers(users);
+      setAvailableBranches(branches.filter((b) => b.isActive));
 
       setLastUpdated(new Date());
     } catch (error) {
@@ -1434,26 +1425,45 @@ const Dashboard = () => {
               </div>
             </div>
 
-            <div className="border-t border-black/10 bg-white px-4 py-3">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[9px] font-black uppercase tracking-[0.22em] text-gray-400">
-                    Auto Sync
-                  </p>
-                  <p className="text-xs font-bold text-gray-500">
-                    Every 10 minutes
-                  </p>
-                </div>
+            <div className="border-t border-black/10 bg-white px-4 py-4">
+              <div className="rounded-[5px] border border-black/10 bg-[#FAFAF8] p-3">
+                <p className="text-[9px] font-black uppercase tracking-[0.22em] text-gray-400">
+                  System Status
+                </p>
 
-                <div className="text-right">
-                  <p className="text-[9px] font-black uppercase tracking-[0.22em] text-gray-400">
-                    Updated
-                  </p>
-                  <p className="text-xs font-black text-[#0A0D17]">
-                    {formatTimeAMPM(lastUpdated)}
-                  </p>
+                <div className="mt-3 space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs font-bold text-gray-500">
+                      Auto Sync
+                    </span>
+                    <span className="rounded-[5px] bg-emerald-50 px-2 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-emerald-700">
+                      On
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs font-bold text-gray-500">
+                      Interval
+                    </span>
+                    <span className="text-xs font-black text-[#0A0D17]">
+                      10 mins
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs font-bold text-gray-500">
+                      Updated
+                    </span>
+                    <span className="text-xs font-black text-[#0A0D17]">
+                      {formatTimeAMPM(lastUpdated)}
+                    </span>
+                  </div>
                 </div>
               </div>
+
+              <p className="mt-3 text-center text-[9px] font-black uppercase tracking-[0.24em] text-gray-300">
+                Saint Clothing Admin
+              </p>
             </div>
           </div>
         </aside>

@@ -232,7 +232,21 @@ const Orders = () => {
   };
 
   const getProofUrl = (fileName) => {
-    return buildAssetUrl(fileName, "payment-proofs");
+    if (!fileName) return assets.fallback_image;
+
+    const clean = extractImageValue(fileName);
+
+    if (!clean) return assets.fallback_image;
+
+    if (
+      clean.startsWith("http://") ||
+      clean.startsWith("https://") ||
+      clean.startsWith("data:")
+    ) {
+      return clean;
+    }
+
+    return buildAssetUrl(clean, "payment-proofs");
   };
 
   const getOrderImageUrl = (image) => {
@@ -297,9 +311,8 @@ const Orders = () => {
               referenceNumber: order.referenceNumber || "",
               paymentProofImage:
                 order.paymentProofImage || order.paymentProof || "",
-              userFullName: `${order.address?.firstName || ""} ${
-                order.address?.lastName || ""
-              }`.trim(),
+              userFullName: `${order.address?.firstName || ""} ${order.address?.lastName || ""
+                }`.trim(),
               userEmail: order.address?.email || "",
               userPhone: order.address?.phone || "",
               fullAddress: formatAddress(order.address || {}),
@@ -856,60 +869,60 @@ const Orders = () => {
                         {(item.paymentMethod === "GCash" ||
                           item.paymentMethod === "Maya" ||
                           item.paymentMethod === "GoTyme") && (
-                          <>
-                            <div>
-                              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45">
-                                Reference No.
-                              </p>
-                              <p className="mt-2 break-all text-sm text-[#0A0D17]">
-                                {item.referenceNumber || "Not Available"}
-                              </p>
-                            </div>
-
-                            <div>
-                              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45 mb-2">
-                                Payment Proof
-                              </p>
-
-                              {item.paymentProofImage ? (
-                                <div className="space-y-3">
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      openProofModal(item.paymentProofImage, item.name)
-                                    }
-                                    className="block"
-                                  >
-                                    <img
-                                      src={getProofUrl(item.paymentProofImage)}
-                                      alt="Payment Proof"
-                                      className="w-24 h-24 object-cover rounded-xl border border-black/10 hover:opacity-90 transition"
-                                      loading="lazy"
-                                      onError={(e) => {
-                                        e.currentTarget.onerror = null;
-                                        e.currentTarget.src = assets.fallback_image;
-                                      }}
-                                    />
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      openProofModal(item.paymentProofImage, item.name)
-                                    }
-                                    className="rounded-full border border-black/10 bg-white px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[#0A0D17] hover:bg-[#f5f5f4]"
-                                  >
-                                    View Proof
-                                  </button>
-                                </div>
-                              ) : (
-                                <p className="text-[#0A0D17]/40">
-                                  No payment proof uploaded
+                            <>
+                              <div>
+                                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45">
+                                  Reference No.
                                 </p>
-                              )}
-                            </div>
-                          </>
-                        )}
+                                <p className="mt-2 break-all text-sm text-[#0A0D17]">
+                                  {item.referenceNumber || "Not Available"}
+                                </p>
+                              </div>
+
+                              <div>
+                                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45 mb-2">
+                                  Payment Proof
+                                </p>
+
+                                {item.paymentProofImage ? (
+                                  <div className="space-y-3">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        openProofModal(item.paymentProofImage, item.name)
+                                      }
+                                      className="block"
+                                    >
+                                      <img
+                                        src={getProofUrl(item.paymentProofImage)}
+                                        alt="Payment Proof"
+                                        className="w-24 h-24 object-cover rounded-xl border border-black/10 hover:opacity-90 transition"
+                                        loading="lazy"
+                                        onError={(e) => {
+                                          e.currentTarget.onerror = null;
+                                          e.currentTarget.src = assets.fallback_image;
+                                        }}
+                                      />
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        openProofModal(item.paymentProofImage, item.name)
+                                      }
+                                      className="rounded-full border border-black/10 bg-white px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[#0A0D17] hover:bg-[#f5f5f4]"
+                                    >
+                                      View Proof
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <p className="text-[#0A0D17]/40">
+                                    No payment proof uploaded
+                                  </p>
+                                )}
+                              </div>
+                            </>
+                          )}
 
                         <div>
                           <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45">
@@ -989,11 +1002,10 @@ const Orders = () => {
                           }
                           className={`w-full border p-3 text-xs font-black rounded-2xl outline-none ${getStatusColor(
                             item.status
-                          )} ${
-                            locked
+                          )} ${locked
                               ? "cursor-not-allowed opacity-60"
                               : "cursor-pointer"
-                          }`}
+                            }`}
                         >
                           {ORDER_STATUSES.map((status) => (
                             <option key={status} value={status}>
@@ -1021,11 +1033,10 @@ const Orders = () => {
                 <button
                   key={i}
                   onClick={() => setCurrentPage(i + 1)}
-                  className={`px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-[0.18em] border ${
-                    currentPage === i + 1
+                  className={`px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-[0.18em] border ${currentPage === i + 1
                       ? "bg-[#0A0D17] text-white border-[#0A0D17]"
                       : "bg-white text-[#0A0D17] border-black/10"
-                  }`}
+                    }`}
                 >
                   {i + 1}
                 </button>
