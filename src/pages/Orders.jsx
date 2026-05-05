@@ -307,7 +307,6 @@ const Orders = () => {
               sku: item.sku || "",
               groupCode: item.groupCode || "",
               image: item.image || null,
-
               isPreorder: order.isPreorder || item.isPreorder || false,
               expectedRestockDate: item.expectedRestockDate || null,
               preorderNote: item.preorderNote || "",
@@ -335,7 +334,7 @@ const Orders = () => {
   const approvePayment = async (orderId) => {
     try {
       const res = await axios.post(
-        `${backendUrl}/api/order/approve-manual-payment`,
+        `${backendUrl}/api/order/approve-payment`,
         { orderId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -354,7 +353,7 @@ const Orders = () => {
   const rejectPayment = async (orderId) => {
     try {
       const res = await axios.post(
-        `${backendUrl}/api/order/reject-manual-payment`,
+        `${backendUrl}/api/order/reject-payment`,
         { orderId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -371,7 +370,9 @@ const Orders = () => {
   };
 
   const isManualPayment = (item) => {
-    return MANUAL_PAYMENT_METHODS.includes(normalizePaymentMethod(item.paymentMethod));
+    return MANUAL_PAYMENT_METHODS.includes(
+      normalizePaymentMethod(item.paymentMethod)
+    );
   };
 
   const isPaymentApproved = (item) => {
@@ -523,6 +524,7 @@ const Orders = () => {
       <div className="rounded-[28px] border border-black/10 bg-gradient-to-br from-white via-[#f8f8f6] to-[#ececec] shadow-[0_18px_60px_rgba(0,0,0,0.08)] overflow-hidden">
         <div className="relative px-5 md:px-8 py-6 md:py-8 border-b border-black/10 bg-gradient-to-r from-[#0A0D17] via-[#111827] to-[#1f2937]">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.18),transparent_30%)] pointer-events-none" />
+
           <div className="relative flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <p className="text-white/60 text-[10px] font-black uppercase tracking-[0.34em]">
