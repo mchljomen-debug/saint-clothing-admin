@@ -340,23 +340,8 @@ const Orders = () => {
       );
 
       if (res.data.success) {
-        setItemsList((prev) =>
-          prev.map((item) =>
-            item.orderId === orderId
-              ? { ...item, status: normalizeStatus(newStatus) }
-              : item
-          )
-        );
-
-        setFilteredItems((prev) =>
-          prev.map((item) =>
-            item.orderId === orderId
-              ? { ...item, status: normalizeStatus(newStatus) }
-              : item
-          )
-        );
-
         toast.success("Status updated");
+        fetchOrders();
       }
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to update status");
@@ -880,8 +865,8 @@ const Orders = () => {
                   key={i}
                   onClick={() => setCurrentPage(i + 1)}
                   className={`px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-[0.18em] border ${currentPage === i + 1
-                      ? "bg-[#0A0D17] text-white border-[#0A0D17]"
-                      : "bg-white text-[#0A0D17] border-black/10"
+                    ? "bg-[#0A0D17] text-white border-[#0A0D17]"
+                    : "bg-white text-[#0A0D17] border-black/10"
                     }`}
                 >
                   {i + 1}
