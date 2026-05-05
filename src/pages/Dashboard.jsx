@@ -27,6 +27,7 @@ import {
   FaChartLine,
   FaStore,
   FaFilter,
+  FaSyncAlt,
 } from "react-icons/fa";
 import {
   exportDashboardWorkbook,
@@ -84,12 +85,17 @@ const isPaidOrder = (order) => {
   const paymentStatus = String(order?.paymentStatus || "")
     .trim()
     .toLowerCase();
+  const orderStatus = String(order?.status || "").trim().toLowerCase();
 
   if (paymentMethod === "cod") {
-    return paymentStatus === "paid" || String(order?.status || "").toLowerCase() === "delivered";
+    return paymentStatus === "paid" || orderStatus === "delivered";
   }
 
-  return paymentStatus === "paid" || order?.payment === true || order?.payment === "true";
+  return (
+    paymentStatus === "paid" ||
+    order?.payment === true ||
+    order?.payment === "true"
+  );
 };
 
 const Dashboard = () => {
@@ -137,17 +143,29 @@ const Dashboard = () => {
   const [recentOrders, setRecentOrders] = useState([]);
   const [topProducts, setTopProducts] = useState([]);
   const [lowStockProducts, setLowStockProducts] = useState([]);
+
+  const [paymentStats, setPaymentStats] = useState({
+    pending: 0,
+    verifying: 0,
+    paid: 0,
+    failed: 0,
+    cod: 0,
+  });
+
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   useEffect(() => {
-    fetchDashboardData(false); // first load with loader
+    fetchDashboardData(false);
 
     const interval = setInterval(() => {
-      fetchDashboardData(true); // silent refresh
-    }, 600000); // 🔥 10 minutes
+      fetchDashboardData(true);
+    }, 600000);
 
     return () => clearInterval(interval);
   }, []);
+
   useEffect(() => {
     buildDashboardSections();
   }, [
@@ -244,16 +262,25 @@ const Dashboard = () => {
     if (!previous || previous === 0) {
       return { percent: current > 0 ? 100 : 0, isUp: current >= previous };
     }
+
     const change = ((current - previous) / previous) * 100;
+
     return {
       percent: Math.abs(change).toFixed(1),
       isUp: change >= 0,
     };
   };
 
+  const updateIfChanged = (setter, nextValue) => {
+    setter((prev) =>
+      JSON.stringify(prev) !== JSON.stringify(nextValue) ? nextValue : prev
+    );
+  };
+
   const fetchDashboardData = async (silent = false) => {
     try {
       if (!silent) setLoading(true);
+      setRefreshing(true);
 
       const [productRes, ordersRes, usersRes, branchRes] = await Promise.all([
         axios.get(`${backendUrl}/api/product/list`),
@@ -264,10 +291,10 @@ const Dashboard = () => {
 
         role === "admin"
           ? axios
-            .get(`${backendUrl}/api/admin/users`, {
-              headers: { Authorization: `Bearer ${token}` },
-            })
-            .catch(() => ({ data: { users: [] } }))
+              .get(`${backendUrl}/api/admin/users`, {
+                headers: { Authorization: `Bearer ${token}` },
+              })
+              .catch(() => ({ data: { users: [] } }))
           : Promise.resolve({ data: { users: [] } }),
 
         axios
@@ -291,14 +318,20 @@ const Dashboard = () => {
         ? branchRes.data.branches || []
         : branchRes?.data?.branches || [];
 
-      setRawProducts(products);
-      setRawOrders(orders);
-      setRawUsers(users);
-      setAvailableBranches(branches.filter((b) => b.isActive));
+      updateIfChanged(setRawProducts, products);
+      updateIfChanged(setRawOrders, orders);
+      updateIfChanged(setRawUsers, users);
+      updateIfChanged(
+        setAvailableBranches,
+        branches.filter((b) => b.isActive)
+      );
+
+      setLastUpdated(new Date());
     } catch (error) {
       console.error("Dashboard fetch error:", error);
     } finally {
       if (!silent) setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -397,6 +430,33 @@ const Dashboard = () => {
       netProfitMargin,
       lowStockCount,
     });
+  };
+
+  const buildPaymentStats = (orders) => {
+    const nextStats = {
+      pending: 0,
+      verifying: 0,
+      paid: 0,
+      failed: 0,
+      cod: 0,
+    };
+
+    orders.forEach((order) => {
+      const method = String(order?.paymentMethod || "").trim().toLowerCase();
+      const status = String(order?.paymentStatus || "").trim().toLowerCase();
+
+      if (method === "cod") {
+        nextStats.cod += 1;
+        return;
+      }
+
+      if (status === "pending") nextStats.pending += 1;
+      else if (status === "verifying") nextStats.verifying += 1;
+      else if (status === "paid") nextStats.paid += 1;
+      else if (status === "failed") nextStats.failed += 1;
+    });
+
+    setPaymentStats(nextStats);
   };
 
   const buildWeeklySales = (orders) => {
@@ -592,7 +652,10 @@ const Dashboard = () => {
         const category = normalizeCategory(rawCategory);
         const qty = Number(item.quantity) || 0;
 
-        if (soldCategoryMap[category] === undefined) soldCategoryMap[category] = 0;
+        if (soldCategoryMap[category] === undefined) {
+          soldCategoryMap[category] = 0;
+        }
+
         soldCategoryMap[category] += qty;
       });
     });
@@ -661,6 +724,7 @@ const Dashboard = () => {
   const buildDashboardSections = () => {
     const { products, orders, users } = getBranchFilteredData();
     buildOverviewStats(products, orders, users);
+    buildPaymentStats(orders);
     buildWeeklySales(orders);
     buildMonthlySales(orders);
     buildCategorySales(products, orders);
@@ -683,15 +747,17 @@ const Dashboard = () => {
         "Net Profit Margin",
         "Low Stock Count",
       ],
-      rows: [[
-        Number(stats.totalRevenue || 0),
-        Number(stats.totalOrders || 0),
-        Number(stats.totalProducts || 0),
-        Number(stats.totalUsers || 0),
-        Number(stats.netProfit || 0),
-        `${stats.netProfitMargin}%`,
-        Number(stats.lowStockCount || 0),
-      ]],
+      rows: [
+        [
+          Number(stats.totalRevenue || 0),
+          Number(stats.totalOrders || 0),
+          Number(stats.totalProducts || 0),
+          Number(stats.totalUsers || 0),
+          Number(stats.netProfit || 0),
+          `${stats.netProfitMargin}%`,
+          Number(stats.lowStockCount || 0),
+        ],
+      ],
       currencyColumns: [1, 5],
       numberColumns: [2, 3, 4, 7],
     });
@@ -705,9 +771,9 @@ const Dashboard = () => {
       headers: ["Label", "Sales"],
       rows: weeklySales.labels.length
         ? weeklySales.labels.map((label, index) => [
-          label,
-          Number(weeklySales.data[index] || 0),
-        ])
+            label,
+            Number(weeklySales.data[index] || 0),
+          ])
         : [["No data available", ""]],
       currencyColumns: [2],
     });
@@ -721,10 +787,10 @@ const Dashboard = () => {
       headers: ["Label", "Revenue", "Profit"],
       rows: monthlySales.labels.length
         ? monthlySales.labels.map((label, index) => [
-          label,
-          Number(monthlySales.revenue[index] || 0),
-          Number(monthlySales.netProfit[index] || 0),
-        ])
+            label,
+            Number(monthlySales.revenue[index] || 0),
+            Number(monthlySales.netProfit[index] || 0),
+          ])
         : [["No data available", "", ""]],
       currencyColumns: [2, 3],
     });
@@ -738,9 +804,9 @@ const Dashboard = () => {
       headers: ["Category", "Sold"],
       rows: categorySales.labels.length
         ? categorySales.labels.map((label, index) => [
-          label,
-          Number(categorySales.data[index] || 0),
-        ])
+            label,
+            Number(categorySales.data[index] || 0),
+          ])
         : [["No data available", ""]],
       numberColumns: [2],
     });
@@ -754,10 +820,10 @@ const Dashboard = () => {
       headers: ["Product", "Units Sold", "Revenue"],
       rows: topProducts.length
         ? topProducts.map((item) => [
-          item.name,
-          Number(item.sold || 0),
-          Number(item.revenue || 0),
-        ])
+            item.name,
+            Number(item.sold || 0),
+            Number(item.revenue || 0),
+          ])
         : [["No data available", "", ""]],
       numberColumns: [2],
       currencyColumns: [3],
@@ -772,12 +838,12 @@ const Dashboard = () => {
       headers: ["Product", "Category", "Branch", "Stock Left", "Price"],
       rows: lowStockProducts.length
         ? lowStockProducts.map((item) => [
-          item.name,
-          item.category,
-          item.branch,
-          Number(item.stock || 0),
-          Number(item.price || 0),
-        ])
+            item.name,
+            item.category,
+            item.branch,
+            Number(item.stock || 0),
+            Number(item.price || 0),
+          ])
         : [["No data available", "", "", "", ""]],
       numberColumns: [4],
       currencyColumns: [5],
@@ -799,14 +865,15 @@ const Dashboard = () => {
       ],
       rows: recentOrders.length
         ? recentOrders.map((order) => [
-          order._id,
-          `${order.address?.firstName || ""} ${order.address?.lastName || ""
+            order._id,
+            `${order.address?.firstName || ""} ${
+              order.address?.lastName || ""
             }`.trim() || "Customer",
-          Number(order.amount || 0),
-          order.status || "Pending",
-          order.paymentMethod || "COD",
-          new Date(order.date || order.createdAt).toLocaleString(),
-        ])
+            Number(order.amount || 0),
+            order.status || "Pending",
+            order.paymentMethod || "COD",
+            new Date(order.date || order.createdAt).toLocaleString(),
+          ])
         : [["No data available", "", "", "", "", ""]],
       currencyColumns: [3],
     });
@@ -917,6 +984,15 @@ const Dashboard = () => {
     </select>
   );
 
+  const EmptyState = ({ message = "No data for this range." }) => (
+    <div className="rounded-2xl border border-black/10 bg-white/50 p-4 text-center">
+      <p className={`text-sm font-semibold ${textMuted}`}>{message}</p>
+      <p className={`mt-1 text-xs ${textMuted}`}>
+        Try switching the filter to Month or Year.
+      </p>
+    </div>
+  );
+
   const renderSectionHeader = (
     title,
     subtitle,
@@ -963,7 +1039,7 @@ const Dashboard = () => {
     const safeLabels = labels.length ? labels : ["No Data"];
 
     return (
-      <div className={`${panelBg} rounded-[30px] p-4 sm:p-5`}>
+      <div className={`${panelBg} rounded-[24px] p-4 sm:p-5`}>
         {renderSectionHeader(title, subtitle, rangeValue, setRange, onExport)}
 
         <div className="grid grid-cols-1 lg:grid-cols-[170px_1fr] gap-4 items-center">
@@ -1017,13 +1093,13 @@ const Dashboard = () => {
     return (
       <div className={`min-h-screen p-3 ${shellBg}`}>
         <div className="animate-pulse space-y-3">
-          <div className="h-24 rounded-[30px] bg-white/70" />
+          <div className="h-24 rounded-[24px] bg-white/70" />
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-32 rounded-[28px] bg-white/70" />
+              <div key={i} className="h-32 rounded-[24px] bg-white/70" />
             ))}
           </div>
-          <div className="h-72 rounded-[30px] bg-white/70" />
+          <div className="h-72 rounded-[24px] bg-white/70" />
         </div>
       </div>
     );
@@ -1037,7 +1113,7 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-transparent px-2.5 sm:px-3 pt-20 sm:pt-24 pb-4">
       <div className="max-w-[1500px] mx-auto grid grid-cols-1 xl:grid-cols-[250px_1fr] gap-3">
-        <aside className={`${panelBg} rounded-[30px] p-4 h-fit`}>
+        <aside className={`${panelBg} rounded-[24px] p-4 h-fit`}>
           <div className="flex items-center gap-3 mb-4">
             <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#0A0D17] via-[#1f2937] to-[#374151] flex items-center justify-center text-white shrink-0 shadow-md">
               <FaStore />
@@ -1132,9 +1208,13 @@ const Dashboard = () => {
                     <span className={`text-xs sm:text-sm ${textStrong}`}>
                       {cat}
                     </span>
-                    <span className={`text-xs sm:text-sm font-black ${textStrong}`}>
+                    <span
+                      className={`text-xs sm:text-sm font-black ${textStrong}`}
+                    >
                       {categorySales.labels.includes(cat)
-                        ? categorySales.data[categorySales.labels.indexOf(cat)]
+                        ? categorySales.data[
+                            categorySales.labels.indexOf(cat)
+                          ]
                         : 0}
                     </span>
                   </div>
@@ -1145,7 +1225,7 @@ const Dashboard = () => {
         </aside>
 
         <main className="min-w-0">
-          <div className="rounded-[32px] bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.10),_transparent_34%),linear-gradient(135deg,#05070A_0%,#111827_45%,#1f2937_100%)] p-5 sm:p-6 shadow-[0_25px_70px_rgba(0,0,0,0.22)] mb-4 text-white border border-white/10 overflow-hidden relative">
+          <div className="rounded-[26px] bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.10),_transparent_34%),linear-gradient(135deg,#05070A_0%,#111827_45%,#1f2937_100%)] p-5 sm:p-6 shadow-[0_25px_70px_rgba(0,0,0,0.22)] mb-4 text-white border border-white/10 overflow-hidden relative">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-3 mb-1.5">
@@ -1163,11 +1243,26 @@ const Dashboard = () => {
                     <p className="text-[11px] sm:text-sm text-white/65 mt-1">
                       Sales, inventory, user activity, and branch performance.
                     </p>
+                    <p className="text-[11px] sm:text-xs text-white/45 mt-1">
+                      Last updated:{" "}
+                      {lastUpdated ? lastUpdated.toLocaleTimeString() : "--"}
+                    </p>
                   </div>
                 </div>
               </div>
 
               <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => fetchDashboardData(false)}
+                  disabled={refreshing}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-white/10 text-white px-4 py-2.5 text-sm font-black transition hover:bg-white/20 disabled:opacity-50"
+                >
+                  <FaSyncAlt
+                    className={refreshing ? "animate-spin" : ""}
+                  />
+                  Refresh
+                </button>
+
                 <button
                   onClick={exportAllDashboardExcel}
                   className="inline-flex items-center gap-2 rounded-2xl bg-white text-[#111111] px-4 py-2.5 text-sm font-black transition hover:bg-[#ececec] shadow-sm"
@@ -1179,7 +1274,7 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className={`${panelBg} rounded-[30px] p-4 sm:p-5 mb-4`}>
+          <div className={`${panelBg} rounded-[24px] p-4 sm:p-5 mb-4`}>
             {renderSectionHeader(
               "Overview",
               "Store summary for the selected time period",
@@ -1190,7 +1285,7 @@ const Dashboard = () => {
 
             <div className={kpiGridClass}>
               <div
-                className={`${softPanelBg} rounded-[26px] p-4 min-w-0 overflow-hidden transition hover:shadow-md`}
+                className={`${softPanelBg} rounded-[22px] p-4 min-w-0 overflow-hidden transition hover:shadow-md`}
               >
                 <div className="flex items-center justify-between mb-2 gap-2">
                   <span className={`text-xs font-medium ${textMuted}`}>
@@ -1206,6 +1301,9 @@ const Dashboard = () => {
                 >
                   {formatCompactCurrency(displayStats.totalRevenue)}
                 </h2>
+                <p className="text-[10px] text-gray-400 mt-1">
+                  Based on paid/delivered orders only
+                </p>
                 <div className="flex items-center mt-1.5 text-xs font-semibold flex-wrap gap-1">
                   {dailyTrend.isUp ? (
                     <FaArrowUp className="text-green-600" />
@@ -1223,7 +1321,7 @@ const Dashboard = () => {
               </div>
 
               <div
-                className={`${softPanelBg} rounded-[26px] p-4 min-w-0 overflow-hidden transition hover:shadow-md`}
+                className={`${softPanelBg} rounded-[22px] p-4 min-w-0 overflow-hidden transition hover:shadow-md`}
               >
                 <div className="flex items-center justify-between mb-2 gap-2">
                   <span className={`text-xs font-medium ${textMuted}`}>
@@ -1243,7 +1341,7 @@ const Dashboard = () => {
               </div>
 
               <div
-                className={`${softPanelBg} rounded-[26px] p-4 min-w-0 overflow-hidden transition hover:shadow-md`}
+                className={`${softPanelBg} rounded-[22px] p-4 min-w-0 overflow-hidden transition hover:shadow-md`}
               >
                 <div className="flex items-center justify-between mb-2 gap-2">
                   <span className={`text-xs font-medium ${textMuted}`}>
@@ -1276,7 +1374,7 @@ const Dashboard = () => {
               </div>
 
               <div
-                className={`${softPanelBg} rounded-[26px] p-4 min-w-0 overflow-hidden transition hover:shadow-md`}
+                className={`${softPanelBg} rounded-[22px] p-4 min-w-0 overflow-hidden transition hover:shadow-md`}
               >
                 <div className="flex items-center justify-between mb-2 gap-2">
                   <span className={`text-xs font-medium ${textMuted}`}>
@@ -1299,7 +1397,7 @@ const Dashboard = () => {
 
               {role === "admin" && (
                 <div
-                  className={`${softPanelBg} rounded-[26px] p-4 min-w-0 overflow-hidden transition hover:shadow-md`}
+                  className={`${softPanelBg} rounded-[22px] p-4 min-w-0 overflow-hidden transition hover:shadow-md`}
                 >
                   <div className="flex items-center justify-between mb-2 gap-2">
                     <span className={`text-xs font-medium ${textMuted}`}>
@@ -1323,8 +1421,43 @@ const Dashboard = () => {
             </div>
           </div>
 
+          <div className={`${panelBg} rounded-[24px] p-4 sm:p-5 mb-3`}>
+            <div className="flex flex-col gap-1 mb-4">
+              <h3 className={`text-sm sm:text-[17px] font-black ${textStrong}`}>
+                Payment Status
+              </h3>
+              <p className={`text-[11px] sm:text-xs ${textMuted}`}>
+                Manual payment and COD monitoring
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              {[
+                { label: "Pending", value: paymentStats.pending },
+                { label: "Verifying", value: paymentStats.verifying },
+                { label: "Paid", value: paymentStats.paid },
+                { label: "Failed", value: paymentStats.failed },
+                { label: "COD", value: paymentStats.cod },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  className={`${softPanelBg} rounded-[20px] p-4 text-center`}
+                >
+                  <p className={`text-[11px] font-bold ${textMuted}`}>
+                    {item.label}
+                  </p>
+                  <p className={`mt-1 text-2xl font-black ${textStrong}`}>
+                    {item.value}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 mb-3">
-            <div className={`${panelBg} xl:col-span-2 rounded-[30px] p-4 sm:p-5`}>
+            <div
+              className={`${panelBg} xl:col-span-2 rounded-[24px] p-4 sm:p-5`}
+            >
               {renderSectionHeader(
                 "Sales Trend",
                 "Sales movement over time",
@@ -1353,7 +1486,7 @@ const Dashboard = () => {
               />
             </div>
 
-            <div className={`${panelBg} rounded-[30px] p-4 sm:p-5`}>
+            <div className={`${panelBg} rounded-[24px] p-4 sm:p-5`}>
               {renderSectionHeader(
                 "Top Products",
                 "Best-selling items",
@@ -1370,7 +1503,9 @@ const Dashboard = () => {
                       className={`${softPanelBg} flex items-center justify-between p-3.5 rounded-2xl gap-3`}
                     >
                       <div className="min-w-0">
-                        <p className={`font-bold text-sm ${textStrong} truncate`}>
+                        <p
+                          className={`font-bold text-sm ${textStrong} truncate`}
+                        >
                           {item.name}
                         </p>
                         <p className={`text-xs ${textMuted}`}>
@@ -1385,15 +1520,13 @@ const Dashboard = () => {
                     </div>
                   ))
                 ) : (
-                  <div className={`text-sm ${textMuted}`}>
-                    No product sales data available.
-                  </div>
+                  <EmptyState message="No product sales data available." />
                 )}
               </div>
             </div>
           </div>
 
-          <div className={`${panelBg} rounded-[30px] p-4 sm:p-5 mb-3`}>
+          <div className={`${panelBg} rounded-[24px] p-4 sm:p-5 mb-3`}>
             {renderSectionHeader(
               "Revenue and Profit",
               "Financial comparison over time",
@@ -1436,7 +1569,7 @@ const Dashboard = () => {
               exportCategoryExcel
             )}
 
-            <div className={`${panelBg} rounded-[30px] p-4 sm:p-5`}>
+            <div className={`${panelBg} rounded-[24px] p-4 sm:p-5`}>
               {renderSectionHeader(
                 "Low Stock Alert",
                 "Items that need restocking",
@@ -1446,8 +1579,11 @@ const Dashboard = () => {
               )}
 
               <div
-                className={`${lowStockProducts.length > 5 ? "max-h-[320px] overflow-y-auto pr-1" : ""
-                  } space-y-2`}
+                className={`${
+                  lowStockProducts.length > 5
+                    ? "max-h-[320px] overflow-y-auto pr-1"
+                    : ""
+                } space-y-2`}
               >
                 {lowStockProducts.length ? (
                   lowStockProducts.map((item) => (
@@ -1456,7 +1592,9 @@ const Dashboard = () => {
                       className={`${softPanelBg} flex items-center justify-between rounded-2xl px-3 py-3.5 gap-3`}
                     >
                       <div className="min-w-0">
-                        <p className={`font-bold text-sm ${textStrong} truncate`}>
+                        <p
+                          className={`font-bold text-sm ${textStrong} truncate`}
+                        >
                           {item.name}
                         </p>
                         <p className={`text-xs ${textMuted}`}>
@@ -1475,15 +1613,13 @@ const Dashboard = () => {
                     </div>
                   ))
                 ) : (
-                  <div className={`text-sm ${textMuted}`}>
-                    No low stock products right now.
-                  </div>
+                  <EmptyState message="No low stock products right now." />
                 )}
               </div>
             </div>
           </div>
 
-          <div className={`${panelBg} rounded-[30px] p-4 sm:p-5`}>
+          <div className={`${panelBg} rounded-[24px] p-4 sm:p-5`}>
             {renderSectionHeader(
               "Recent Orders",
               "Latest order activity",
@@ -1493,8 +1629,11 @@ const Dashboard = () => {
             )}
 
             <div
-              className={`overflow-x-auto ${recentOrders.length > 10 ? "max-h-[430px] overflow-y-auto pr-1" : ""
-                }`}
+              className={`overflow-x-auto ${
+                recentOrders.length > 10
+                  ? "max-h-[430px] overflow-y-auto pr-1"
+                  : ""
+              }`}
             >
               <table className="w-full text-sm">
                 <thead className="bg-[#f7f7f4]">
@@ -1521,8 +1660,9 @@ const Dashboard = () => {
                         className={`border-b last:border-b-0 ${tableRow}`}
                       >
                         <td className={`py-3 pr-3 font-semibold ${textStrong}`}>
-                          {`${order.address?.firstName || ""} ${order.address?.lastName || ""
-                            }`.trim() || "Customer"}
+                          {`${order.address?.firstName || ""} ${
+                            order.address?.lastName || ""
+                          }`.trim() || "Customer"}
                         </td>
                         <td className={`py-3 pr-3 ${textStrong}`}>
                           {formatCurrency(order.amount || 0)}
@@ -1533,14 +1673,16 @@ const Dashboard = () => {
                           </span>
                         </td>
                         <td className={`py-3 ${textMuted}`}>
-                          {new Date(order.date || order.createdAt).toLocaleDateString()}
+                          {new Date(
+                            order.date || order.createdAt
+                          ).toLocaleDateString()}
                         </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="4" className={`py-4 text-center ${textMuted}`}>
-                        No recent orders available.
+                      <td colSpan="4" className="py-4">
+                        <EmptyState message="No recent orders available." />
                       </td>
                     </tr>
                   )}
