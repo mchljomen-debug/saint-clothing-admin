@@ -389,6 +389,9 @@ const Orders = () => {
               jntTrackingUrl:
                 order.jntTrackingUrl || "https://www.jtexpress.ph/track-and-trace",
               trackingUpdatedAt: order.trackingUpdatedAt || null,
+              deliveryProofImage: order.deliveryProofImage || "",
+              deliveryProofNote: order.deliveryProofNote || "",
+              deliveryProofSubmittedAt: order.deliveryProofSubmittedAt || null,
             });
           });
         });
@@ -1263,6 +1266,81 @@ const Orders = () => {
                           >
                             Open J&T Tracking Page
                           </a>
+                        </div>
+                      )}
+
+                      {item.deliveryProofImage && (
+                        <div className="rounded-[5px] border border-emerald-200 bg-emerald-50 p-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-700">
+                                Delivery Proof Received
+                              </p>
+                              <p className="mt-1 text-[11px] font-bold text-emerald-700/80">
+                                Customer attached a proof photo when marking the order delivered.
+                              </p>
+                            </div>
+
+                            <span className="shrink-0 rounded-[5px] bg-emerald-600 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-white">
+                              Delivered
+                            </span>
+                          </div>
+
+                          {item.deliveryProofSubmittedAt && (
+                            <p className="mt-3 text-[11px] font-bold text-emerald-700/80">
+                              Submitted:{" "}
+                              {new Date(item.deliveryProofSubmittedAt).toLocaleString("en-US", {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                                hour: "numeric",
+                                minute: "2-digit",
+                                hour12: true,
+                              })}
+                            </p>
+                          )}
+
+                          {item.deliveryProofNote && (
+                            <div className="mt-3 rounded-[5px] border border-emerald-200 bg-white/70 px-3 py-2">
+                              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-700">
+                                Customer Note
+                              </p>
+                              <p className="mt-1 text-xs font-semibold leading-5 text-[#0A0D17]/70">
+                                {item.deliveryProofNote}
+                              </p>
+                            </div>
+                          )}
+
+                          <div className="mt-3 flex items-center gap-3">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                openProofModal(item.deliveryProofImage, "Delivery Proof")
+                              }
+                              className="block"
+                            >
+                              <img
+                                src={getProofUrl(item.deliveryProofImage)}
+                                alt="Delivery Proof"
+                                className="h-16 w-16 rounded-[5px] border border-emerald-200 bg-white object-cover transition hover:opacity-90"
+                                loading="lazy"
+                                onError={(e) => {
+                                  e.currentTarget.onerror = null;
+                                  e.currentTarget.src = assets.fallback_image;
+                                }}
+                              />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                openProofModal(item.deliveryProofImage, "Delivery Proof")
+                              }
+                              className={buttonLight}
+                            >
+                              View Proof
+                            </button>
+                          </div>
                         </div>
                       )}
 
