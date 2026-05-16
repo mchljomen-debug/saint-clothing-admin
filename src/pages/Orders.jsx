@@ -51,6 +51,7 @@ const PAYMENT_METHOD_FILTERS = [
   "Maya",
   "GoTyme",
   "Stripe",
+  "PayMongo",
 ];
 
 const PAYMENT_STATUS_FILTERS = [
@@ -122,6 +123,8 @@ const Orders = () => {
   const [proofModalOpen, setProofModalOpen] = useState(false);
   const [selectedProof, setSelectedProof] = useState("");
   const [selectedProofTitle, setSelectedProofTitle] = useState("");
+  const [trackingInputs, setTrackingInputs] = useState({});
+  const [savingTrackingId, setSavingTrackingId] = useState("");
 
   const itemsPerPage = 10;
   const currency = "₱";
@@ -162,6 +165,7 @@ const Orders = () => {
     if (value === "gcash") return "GCash";
     if (value === "gotyme" || value === "go tyme") return "GoTyme";
     if (value === "stripe") return "Stripe";
+    if (value === "paymongo" || value === "online payment") return "PayMongo";
 
     return paymentMethod || "COD";
   };
@@ -380,6 +384,11 @@ const Orders = () => {
                 order.deliveryEstimate?.shipsOn ||
                 null,
               deliveryEstimate: order.deliveryEstimate || null,
+              courier: order.courier || "J&T Express",
+              jntTrackingNumber: order.jntTrackingNumber || "",
+              jntTrackingUrl:
+                order.jntTrackingUrl || "https://www.jtexpress.ph/track-and-trace",
+              trackingUpdatedAt: order.trackingUpdatedAt || null,
             });
           });
         });
@@ -433,6 +442,48 @@ const Orders = () => {
       }
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to reject payment");
+    }
+  };
+
+  const handleTrackingInputChange = (orderId, value) => {
+    setTrackingInputs((prev) => ({
+      ...prev,
+      [orderId]: value,
+    }));
+  };
+
+  const saveTrackingNumber = async (orderId, fallbackTracking = "") => {
+    const trackingNumber = String(
+      trackingInputs[orderId] !== undefined
+        ? trackingInputs[orderId]
+        : fallbackTracking || ""
+    ).trim();
+
+    if (!trackingNumber) {
+      toast.error("J&T tracking number is required");
+      return;
+    }
+
+    try {
+      setSavingTrackingId(orderId);
+
+      const res = await axios.post(
+        `${backendUrl}/api/order/tracking`,
+        { orderId, jntTrackingNumber: trackingNumber },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (res.data.success) {
+        toast.success("J&T tracking number saved");
+        setTrackingInputs((prev) => ({ ...prev, [orderId]: "" }));
+        fetchOrders();
+      } else {
+        toast.error(res.data.message || "Failed to save tracking number");
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to save tracking number");
+    } finally {
+      setSavingTrackingId("");
     }
   };
 
@@ -1105,6 +1156,64 @@ const Orders = () => {
                           </button>
                         </div>
                       )}
+
+                      <div className="rounded-[5px] border border-black/10 bg-white p-3">
+                        <p className={labelClass}>Courier Tracking</p>
+
+                        <div className="mt-2 rounded-[5px] border border-black/10 bg-[#FAFAF8] px-3 py-2">
+                          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#0A0D17]/45">
+                            {item.courier || "J&T Express"}
+                          </p>
+                          <p className="mt-1 break-all text-sm font-black text-[#0A0D17]">
+                            {item.jntTrackingNumber || "No tracking number yet"}
+                          </p>
+                        </div>
+
+                        <div className="mt-3 flex flex-col gap-2">
+                          <input
+                            type="text"
+                            value={
+                              trackingInputs[item.orderId] !== undefined
+                                ? trackingInputs[item.orderId]
+                                : item.jntTrackingNumber || ""
+                            }
+                            onChange={(e) =>
+                              handleTrackingInputChange(item.orderId, e.target.value)
+                            }
+                            placeholder="Enter J&T tracking number"
+                            className="w-full rounded-[5px] border border-black/10 bg-white px-3 py-2.5 text-xs font-bold text-[#0A0D17] outline-none transition focus:border-black"
+                          />
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              saveTrackingNumber(
+                                item.orderId,
+                                item.jntTrackingNumber || ""
+                              )
+                            }
+                            disabled={savingTrackingId === item.orderId}
+                            className="w-full rounded-[5px] bg-[#0A0D17] px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-white transition hover:bg-black disabled:opacity-50"
+                          >
+                            {savingTrackingId === item.orderId
+                              ? "Saving..."
+                              : item.jntTrackingNumber
+                              ? "Update J&T Tracking"
+                              : "Save J&T Tracking"}
+                          </button>
+
+                          {item.jntTrackingNumber && (
+                            <a
+                              href={item.jntTrackingUrl || "https://www.jtexpress.ph/track-and-trace"}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="w-full rounded-[5px] border border-black/10 bg-white px-4 py-3 text-center text-[10px] font-black uppercase tracking-[0.18em] text-[#0A0D17] transition hover:border-black"
+                            >
+                              Open J&T Tracking Page
+                            </a>
+                          )}
+                        </div>
+                      </div>
 
                       <div>
                         <p className={`${labelClass} mb-2`}>
