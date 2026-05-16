@@ -487,6 +487,20 @@ const Orders = () => {
     }
   };
 
+  const canShowTrackingInput = (item) => {
+    const status = normalizeStatus(item.status);
+    const method = normalizePaymentMethod(item.paymentMethod);
+    const paid = item.paymentStatusLabel === "Paid" || item.payment === true;
+    const cod = method === "COD";
+
+    return (
+      (paid || cod) &&
+      !["Pending Payment", "Payment Failed", "Cancelled", "Delivered"].includes(
+        status
+      )
+    );
+  };
+
   const isManualPayment = (item) => {
     return MANUAL_PAYMENT_METHODS.includes(
       normalizePaymentMethod(item.paymentMethod)
@@ -1157,63 +1171,100 @@ const Orders = () => {
                         </div>
                       )}
 
-                      <div className="rounded-[5px] border border-black/10 bg-white p-3">
-                        <p className={labelClass}>Courier Tracking</p>
+                      {canShowTrackingInput(item) && (
+                        <div className="rounded-[5px] border border-black/10 bg-white p-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className={labelClass}>J&T Tracking</p>
+                              <p className="mt-1 text-[11px] font-bold text-[#0A0D17]/55">
+                                Add tracking only after the order is placed or paid.
+                              </p>
+                            </div>
 
-                        <div className="mt-2 rounded-[5px] border border-black/10 bg-[#FAFAF8] px-3 py-2">
-                          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#0A0D17]/45">
-                            {item.courier || "J&T Express"}
-                          </p>
-                          <p className="mt-1 break-all text-sm font-black text-[#0A0D17]">
-                            {item.jntTrackingNumber || "No tracking number yet"}
-                          </p>
-                        </div>
-
-                        <div className="mt-3 flex flex-col gap-2">
-                          <input
-                            type="text"
-                            value={
-                              trackingInputs[item.orderId] !== undefined
-                                ? trackingInputs[item.orderId]
-                                : item.jntTrackingNumber || ""
-                            }
-                            onChange={(e) =>
-                              handleTrackingInputChange(item.orderId, e.target.value)
-                            }
-                            placeholder="Enter J&T tracking number"
-                            className="w-full rounded-[5px] border border-black/10 bg-white px-3 py-2.5 text-xs font-bold text-[#0A0D17] outline-none transition focus:border-black"
-                          />
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              saveTrackingNumber(
-                                item.orderId,
-                                item.jntTrackingNumber || ""
-                              )
-                            }
-                            disabled={savingTrackingId === item.orderId}
-                            className="w-full rounded-[5px] bg-[#0A0D17] px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-white transition hover:bg-black disabled:opacity-50"
-                          >
-                            {savingTrackingId === item.orderId
-                              ? "Saving..."
-                              : item.jntTrackingNumber
-                              ? "Update J&T Tracking"
-                              : "Save J&T Tracking"}
-                          </button>
+                            <span className="shrink-0 rounded-[5px] bg-[#0A0D17] px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-white">
+                              {item.courier || "J&T Express"}
+                            </span>
+                          </div>
 
                           {item.jntTrackingNumber && (
-                            <a
-                              href={item.jntTrackingUrl || "https://www.jtexpress.ph/track-and-trace"}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="w-full rounded-[5px] border border-black/10 bg-white px-4 py-3 text-center text-[10px] font-black uppercase tracking-[0.18em] text-[#0A0D17] transition hover:border-black"
-                            >
-                              Open J&T Tracking Page
-                            </a>
+                            <div className="mt-3 rounded-[5px] border border-emerald-200 bg-emerald-50 px-3 py-2">
+                              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-700">
+                                Current Tracking Number
+                              </p>
+                              <p className="mt-1 break-all text-sm font-black text-emerald-800">
+                                {item.jntTrackingNumber}
+                              </p>
+                            </div>
                           )}
+
+                          <div className="mt-3 flex flex-col gap-2">
+                            <input
+                              type="text"
+                              value={
+                                trackingInputs[item.orderId] !== undefined
+                                  ? trackingInputs[item.orderId]
+                                  : item.jntTrackingNumber || ""
+                              }
+                              onChange={(e) =>
+                                handleTrackingInputChange(item.orderId, e.target.value)
+                              }
+                              placeholder="Enter J&T tracking number"
+                              className="w-full rounded-[5px] border border-black/10 bg-white px-3 py-2.5 text-xs font-bold text-[#0A0D17] outline-none transition focus:border-black"
+                            />
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                saveTrackingNumber(
+                                  item.orderId,
+                                  item.jntTrackingNumber || ""
+                                )
+                              }
+                              disabled={savingTrackingId === item.orderId}
+                              className="w-full rounded-[5px] bg-[#0A0D17] px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-white transition hover:bg-black disabled:opacity-50"
+                            >
+                              {savingTrackingId === item.orderId
+                                ? "Saving..."
+                                : item.jntTrackingNumber
+                                ? "Update J&T Tracking"
+                                : "Save J&T Tracking"}
+                            </button>
+
+                            {item.jntTrackingNumber && (
+                              <a
+                                href={item.jntTrackingUrl || "https://www.jtexpress.ph/track-and-trace"}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="w-full rounded-[5px] border border-black/10 bg-white px-4 py-3 text-center text-[10px] font-black uppercase tracking-[0.18em] text-[#0A0D17] transition hover:border-black"
+                              >
+                                Open J&T Tracking Page
+                              </a>
+                            )}
+                          </div>
                         </div>
-                      </div>
+                      )}
+
+                      {!canShowTrackingInput(item) && item.jntTrackingNumber && (
+                        <div className="rounded-[5px] border border-black/10 bg-white p-3">
+                          <p className={labelClass}>J&T Tracking</p>
+                          <div className="mt-2 rounded-[5px] border border-emerald-200 bg-emerald-50 px-3 py-2">
+                            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-700">
+                              {item.courier || "J&T Express"}
+                            </p>
+                            <p className="mt-1 break-all text-sm font-black text-emerald-800">
+                              {item.jntTrackingNumber}
+                            </p>
+                          </div>
+                          <a
+                            href={item.jntTrackingUrl || "https://www.jtexpress.ph/track-and-trace"}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-3 block w-full rounded-[5px] border border-black/10 bg-white px-4 py-3 text-center text-[10px] font-black uppercase tracking-[0.18em] text-[#0A0D17] transition hover:border-black"
+                          >
+                            Open J&T Tracking Page
+                          </a>
+                        </div>
+                      )}
 
                       <div>
                         <p className={`${labelClass} mb-2`}>
