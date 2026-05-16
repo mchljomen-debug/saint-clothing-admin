@@ -492,16 +492,15 @@ const Orders = () => {
 
   const canShowTrackingInput = (item) => {
     const status = normalizeStatus(item.status);
-    const method = normalizePaymentMethod(item.paymentMethod);
-    const paid = item.paymentStatusLabel === "Paid" || item.payment === true;
-    const cod = method === "COD";
 
-    return (
-      (paid || cod) &&
-      !["Pending Payment", "Payment Failed", "Cancelled", "Delivered"].includes(
-        status
-      )
-    );
+    // Show J&T tracking once the order is active.
+    // Hide only when payment/order is not ready or already completed.
+    return ![
+      "Pending Payment",
+      "Payment Failed",
+      "Cancelled",
+      "Delivered",
+    ].includes(status);
   };
 
   const isManualPayment = (item) => {
