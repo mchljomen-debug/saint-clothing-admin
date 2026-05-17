@@ -19,7 +19,6 @@ import {
 
 const sizesList = ["S", "M", "L", "XL", "2XL", "3XL"];
 const DEFAULT_ITEMS_PER_PAGE = 20;
-const INVENTORY_LOG_KEY = "saint_inventory_logs";
 
 const FIXED_CATEGORIES = [
   "All",
@@ -100,6 +99,16 @@ const formatDateInput = (dateValue) => {
   } catch {
     return "";
   }
+};
+
+const getLogId = (log) => log?._id || log?.id || `${log?.productId}-${log?.size}-${log?.createdAt}`;
+
+const getLogDate = (log) => log?.createdAt || log?.updatedAt || log?.updatedAt;
+
+const getLogProductId = (log) => {
+  if (!log?.productId) return "";
+  if (typeof log.productId === "object") return String(log.productId._id || "");
+  return String(log.productId);
 };
 
 const SKU = ({ token }) => {
@@ -202,21 +211,6 @@ const SKU = ({ token }) => {
     return "bg-orange-50 text-orange-700 border-orange-200";
   };
 
-  const loadInventoryLogs = () => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(INVENTORY_LOG_KEY) || "[]");
-      setInventoryLogs(Array.isArray(saved) ? saved : []);
-    } catch {
-      setInventoryLogs([]);
-    }
-  };
-
-  const saveInventoryLogs = (logs) => {
-    const limitedLogs = logs.slice(0, 100);
-    localStorage.setItem(INVENTORY_LOG_KEY, JSON.stringify(limitedLogs));
-    setInventoryLogs(limitedLogs);
-  };
-
   const fetchProducts = async () => {
     setLoading(true);
     setRefreshing(true);
@@ -257,9 +251,37 @@ const SKU = ({ token }) => {
     }
   };
 
+  const fetchInventoryLogs = async () => {
+    try {
+      const res = await axios.get(
+        `${backendUrl}/api/product/inventory-logs`,
+        axiosConfig
+      );
+
+      if (res.data.success) {
+        setInventoryLogs(res.data.logs || []);
+      }
+    } catch (err) {
+      console.error("FETCH INVENTORY LOGS ERROR:", err);
+    }
+  };
+
+  const refreshInventory = async () => {
+    setRefreshing(true);
+
+    try {
+      await fetchProducts();
+      await fetchInventoryLogs();
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   useEffect(() => {
-    if (token) fetchProducts();
-    loadInventoryLogs();
+    if (token) {
+      fetchProducts();
+      fetchInventoryLogs();
+    }
   }, [token]);
 
   useEffect(() => {
@@ -378,36 +400,6 @@ const SKU = ({ token }) => {
     setPreorderNote(product.preorderNote || "");
   };
 
-  const createStockChangeLogs = (
-    product,
-    oldStock,
-    newStock,
-    type = "Actual"
-  ) => {
-    return sizesList
-      .map((size) => {
-        const oldQty = getStock(oldStock, size);
-        const newQty = getStock(newStock, size);
-
-        if (oldQty === newQty) return null;
-
-        return {
-          id: `${Date.now()}-${product._id}-${type}-${size}`,
-          productId: product._id,
-          productName: product.name,
-          sku: product.sku || "N/A",
-          size,
-          stockType: type,
-          oldQty,
-          newQty,
-          difference: newQty - oldQty,
-          updatedBy: getAdminName(),
-          updatedAt: new Date().toISOString(),
-        };
-      })
-      .filter(Boolean);
-  };
-
   const updateStock = async (productId) => {
     try {
       const product = products.find((item) => item._id === productId);
@@ -427,18 +419,13 @@ const SKU = ({ token }) => {
         );
       });
 
-      const actualLogs = createStockChangeLogs(
-        product,
-        product.stock,
-        normalizedStock,
-        "Actual"
+      const stockChanged = sizesList.some(
+        (size) => getStock(product.stock, size) !== normalizedStock[size]
       );
 
-      const preorderLogs = createStockChangeLogs(
-        product,
-        product.preorderStock,
-        normalizedPreorderStock,
-        "Pre-order"
+      const preorderChanged = sizesList.some(
+        (size) =>
+          getStock(product.preorderStock, size) !== normalizedPreorderStock[size]
       );
 
       const metaChanged =
@@ -450,7 +437,7 @@ const SKU = ({ token }) => {
         formatDateInput(product.preorderRestockDate) !== preorderRestockDate ||
         String(product.preorderNote || "") !== String(preorderNote || "");
 
-      if (actualLogs.length === 0 && preorderLogs.length === 0 && !metaChanged) {
+      if (!stockChanged && !preorderChanged && !metaChanged) {
         toast.info("No inventory changes detected");
         return;
       }
@@ -473,6 +460,8 @@ const SKU = ({ token }) => {
 
       if (res.data.success) {
         toast.success(res.data.message || "Inventory updated successfully");
+
+        await fetchInventoryLogs();
 
         const updatedProductFromServer = res.data.product || {};
         const finalStock = updatedProductFromServer.stock || {
@@ -522,31 +511,6 @@ const SKU = ({ token }) => {
             return acc;
           }, {}),
         }));
-
-        const metaLog = metaChanged
-          ? [
-              {
-                id: `${Date.now()}-${product._id}-preorder-settings`,
-                productId: product._id,
-                productName: product.name,
-                sku: product.sku || "N/A",
-                size: "Settings",
-                stockType: "Pre-order",
-                oldQty: "-",
-                newQty: "-",
-                difference: 0,
-                updatedBy: getAdminName(),
-                updatedAt: new Date().toISOString(),
-              },
-            ]
-          : [];
-
-        saveInventoryLogs([
-          ...actualLogs,
-          ...preorderLogs,
-          ...metaLog,
-          ...inventoryLogs,
-        ]);
       } else {
         toast.error(res.data.message);
       }
@@ -556,9 +520,7 @@ const SKU = ({ token }) => {
   };
 
   const clearInventoryLogs = () => {
-    localStorage.removeItem(INVENTORY_LOG_KEY);
-    setInventoryLogs([]);
-    toast.success("Inventory logs cleared");
+    toast.info("Inventory logs are stored permanently in database");
   };
 
   const indexOfLastItem = currentPage * pageSize;
@@ -622,7 +584,7 @@ const SKU = ({ token }) => {
 
             <button
               type="button"
-              onClick={fetchProducts}
+              onClick={refreshInventory}
               disabled={refreshing}
               className="inline-flex items-center gap-2 rounded-[5px] bg-white text-[#111111] px-4 py-2.5 text-sm font-black transition hover:bg-[#ececec] shadow-sm disabled:opacity-50"
             >
@@ -967,7 +929,7 @@ const SKU = ({ token }) => {
             ) : (
               inventoryLogs.slice(0, 10).map((log) => (
                 <div
-                  key={log.id}
+                  key={getLogId(log)}
                   className="p-4 grid grid-cols-1 lg:grid-cols-[1fr_auto_auto_auto] gap-3 lg:items-center"
                 >
                   <div>
@@ -1010,7 +972,9 @@ const SKU = ({ token }) => {
                   </p>
 
                   <p className="text-[10px] font-bold text-[#0A0D17]/35">
-                    {new Date(log.updatedAt).toLocaleString()}
+                    {getLogDate(log)
+                      ? new Date(getLogDate(log)).toLocaleString()
+                      : "No date"}
                   </p>
                 </div>
               ))
@@ -1296,17 +1260,19 @@ const SKU = ({ token }) => {
 
                 <div className="mt-4 space-y-2 max-h-[240px] overflow-y-auto">
                   {inventoryLogs.filter(
-                    (log) => log.productId === selectedProduct._id
+                    (log) => getLogProductId(log) === selectedProduct._id
                   ).length === 0 ? (
                     <p className="text-xs font-bold text-[#0A0D17]/40">
                       No inventory history for this product yet.
                     </p>
                   ) : (
                     inventoryLogs
-                      .filter((log) => log.productId === selectedProduct._id)
+                      .filter(
+                        (log) => getLogProductId(log) === selectedProduct._id
+                      )
                       .map((log) => (
                         <div
-                          key={log.id}
+                          key={getLogId(log)}
                           className="rounded-[5px] border border-black/10 bg-[#fafaf8] p-3"
                         >
                           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
@@ -1332,7 +1298,9 @@ const SKU = ({ token }) => {
 
                           <p className="mt-1 text-[10px] font-bold text-[#0A0D17]/45">
                             Updated by {log.updatedBy} •{" "}
-                            {new Date(log.updatedAt).toLocaleString()}
+                            {getLogDate(log)
+                              ? new Date(getLogDate(log)).toLocaleString()
+                              : "No date"}
                           </p>
                         </div>
                       ))
