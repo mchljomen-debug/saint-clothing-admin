@@ -101,9 +101,10 @@ const formatDateInput = (dateValue) => {
   }
 };
 
-const getLogId = (log) => log?._id || log?.id || `${log?.productId}-${log?.size}-${log?.createdAt}`;
+const getLogId = (log) =>
+  log?._id || log?.id || `${log?.productId}-${log?.size}-${log?.createdAt}`;
 
-const getLogDate = (log) => log?.createdAt || log?.updatedAt || log?.updatedAt;
+const getLogDate = (log) => log?.createdAt || log?.updatedAt || "";
 
 const getLogProductId = (log) => {
   if (!log?.productId) return "";
@@ -206,6 +207,11 @@ const SKU = ({ token }) => {
     return "bg-emerald-50 text-emerald-700 border-emerald-100";
   };
 
+  const getAddBoxClass = (qty) => {
+    if (qty <= 0) return "bg-white text-[#0A0D17]/45 border-black/10";
+    return "bg-emerald-50 text-emerald-700 border-emerald-200";
+  };
+
   const getPreorderBoxClass = (qty) => {
     if (qty <= 0) return "bg-white text-[#0A0D17]/40 border-orange-100";
     return "bg-orange-50 text-orange-700 border-orange-200";
@@ -222,24 +228,21 @@ const SKU = ({ token }) => {
         const allProducts = [...res.data.products].reverse();
         setProducts(allProducts);
 
-        const initialStock = {};
-        const initialPreorderStock = {};
+        const initialStockAdd = {};
+        const initialPreorderAdd = {};
 
         allProducts.forEach((product) => {
-          initialStock[product._id] = {};
-          initialPreorderStock[product._id] = {};
+          initialStockAdd[product._id] = {};
+          initialPreorderAdd[product._id] = {};
 
           sizesList.forEach((size) => {
-            initialStock[product._id][size] = getStock(product.stock, size);
-            initialPreorderStock[product._id][size] = getStock(
-              product.preorderStock,
-              size
-            );
+            initialStockAdd[product._id][size] = 0;
+            initialPreorderAdd[product._id][size] = 0;
           });
         });
 
-        setStockUpdates(initialStock);
-        setPreorderUpdates(initialPreorderStock);
+        setStockUpdates(initialStockAdd);
+        setPreorderUpdates(initialPreorderAdd);
       } else {
         toast.error(res.data.message);
       }
@@ -372,24 +375,24 @@ const SKU = ({ token }) => {
   };
 
   const openInventoryModal = (product) => {
-    const actualInitial = {};
-    const preorderInitial = {};
+    const actualAddInitial = {};
+    const preorderAddInitial = {};
 
     sizesList.forEach((size) => {
-      actualInitial[size] = getStock(product.stock, size);
-      preorderInitial[size] = getStock(product.preorderStock, size);
+      actualAddInitial[size] = 0;
+      preorderAddInitial[size] = 0;
     });
 
     setSelectedProduct(product);
 
     setStockUpdates((prev) => ({
       ...prev,
-      [product._id]: actualInitial,
+      [product._id]: actualAddInitial,
     }));
 
     setPreorderUpdates((prev) => ({
       ...prev,
-      [product._id]: preorderInitial,
+      [product._id]: preorderAddInitial,
     }));
 
     setPreorderEnabled(product.preorderEnabled !== false);
@@ -409,23 +412,19 @@ const SKU = ({ token }) => {
         return;
       }
 
-      const normalizedStock = {};
-      const normalizedPreorderStock = {};
+      const stockToAdd = {};
+      const preorderStockToAdd = {};
 
       sizesList.forEach((size) => {
-        normalizedStock[size] = Number(stockUpdates?.[productId]?.[size] ?? 0);
-        normalizedPreorderStock[size] = Number(
+        stockToAdd[size] = Number(stockUpdates?.[productId]?.[size] ?? 0);
+        preorderStockToAdd[size] = Number(
           preorderUpdates?.[productId]?.[size] ?? 0
         );
       });
 
-      const stockChanged = sizesList.some(
-        (size) => getStock(product.stock, size) !== normalizedStock[size]
-      );
-
-      const preorderChanged = sizesList.some(
-        (size) =>
-          getStock(product.preorderStock, size) !== normalizedPreorderStock[size]
+      const hasActualAdd = sizesList.some((size) => stockToAdd[size] > 0);
+      const hasPreorderAdd = sizesList.some(
+        (size) => preorderStockToAdd[size] > 0
       );
 
       const metaChanged =
@@ -437,16 +436,16 @@ const SKU = ({ token }) => {
         formatDateInput(product.preorderRestockDate) !== preorderRestockDate ||
         String(product.preorderNote || "") !== String(preorderNote || "");
 
-      if (!stockChanged && !preorderChanged && !metaChanged) {
-        toast.info("No inventory changes detected");
+      if (!hasActualAdd && !hasPreorderAdd && !metaChanged) {
+        toast.info("Enter stock quantity to add");
         return;
       }
 
       const res = await axios.put(
         `${backendUrl}/api/product/update-stock/${productId}`,
         {
-          stock: normalizedStock,
-          preorderStock: normalizedPreorderStock,
+          stockToAdd,
+          preorderStockToAdd,
           preorderEnabled,
           preorderThreshold,
           preorderAutoGenerate,
@@ -459,16 +458,14 @@ const SKU = ({ token }) => {
       );
 
       if (res.data.success) {
-        toast.success(res.data.message || "Inventory updated successfully");
+        toast.success(res.data.message || "Stock added successfully");
 
         await fetchInventoryLogs();
 
         const updatedProductFromServer = res.data.product || {};
-        const finalStock = updatedProductFromServer.stock || {
-          ...normalizedStock,
-        };
+        const finalStock = updatedProductFromServer.stock || product.stock;
         const finalPreorderStock =
-          updatedProductFromServer.preorderStock || normalizedPreorderStock;
+          updatedProductFromServer.preorderStock || product.preorderStock;
 
         const updatedProducts = products.map((item) =>
           item._id === productId
@@ -488,6 +485,24 @@ const SKU = ({ token }) => {
 
         setProducts(updatedProducts);
 
+        const resetStockAdd = {};
+        const resetPreorderAdd = {};
+
+        sizesList.forEach((size) => {
+          resetStockAdd[size] = 0;
+          resetPreorderAdd[size] = 0;
+        });
+
+        setStockUpdates((prev) => ({
+          ...prev,
+          [productId]: resetStockAdd,
+        }));
+
+        setPreorderUpdates((prev) => ({
+          ...prev,
+          [productId]: resetPreorderAdd,
+        }));
+
         setSelectedProduct((prev) =>
           prev && prev._id === productId
             ? {
@@ -503,14 +518,6 @@ const SKU = ({ token }) => {
               }
             : prev
         );
-
-        setPreorderUpdates((prev) => ({
-          ...prev,
-          [productId]: sizesList.reduce((acc, size) => {
-            acc[size] = getStock(finalPreorderStock, size);
-            return acc;
-          }, {}),
-        }));
       } else {
         toast.error(res.data.message);
       }
@@ -575,8 +582,8 @@ const SKU = ({ token }) => {
                     Inventory Management
                   </h1>
                   <p className="text-[11px] sm:text-sm text-white/65 mt-1">
-                    Manage actual stock, pre-order allocation, auto slots,
-                    thresholds, and restock dates.
+                    View locked stock levels and add restock quantities without
+                    directly manipulating inventory.
                   </p>
                 </div>
               </div>
@@ -601,7 +608,8 @@ const SKU = ({ token }) => {
                 Stock Overview
               </h3>
               <p className="text-[11px] sm:text-xs text-[#6b7280] mt-0.5">
-                Live inventory summary from product stock and pre-order stock.
+                Current inventory is read-only. Stock increases are handled
+                through restocking transactions.
               </p>
             </div>
           </div>
@@ -725,7 +733,7 @@ const SKU = ({ token }) => {
               <div>
                 <p className={labelClass}>Stock Inventory</p>
                 <h3 className="mt-2 text-xl font-black uppercase tracking-tight text-[#0A0D17]">
-                  Product Stock Table
+                  Locked Current Stock
                 </h3>
               </div>
 
@@ -751,7 +759,7 @@ const SKU = ({ token }) => {
                 <span className="text-center">Actual</span>
                 <span className="text-center">Pre</span>
                 <span className="text-center">Status</span>
-                <span className="text-center">Action</span>
+                <span className="text-center">Restock</span>
               </div>
 
               {paginatedProducts.length > 0 ? (
@@ -846,7 +854,7 @@ const SKU = ({ token }) => {
                           className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-[#0A0D17] text-white rounded-[5px] text-xs font-black hover:bg-[#1d2433] transition"
                         >
                           <FaEdit />
-                          Edit
+                          Add
                         </button>
                       </div>
                     </div>
@@ -989,7 +997,7 @@ const SKU = ({ token }) => {
             <div className="px-6 py-5 bg-[#0A0D17] flex justify-between gap-4">
               <div>
                 <p className="text-white/45 text-[10px] font-black uppercase tracking-[0.28em]">
-                  Update Inventory
+                  Add Stock / Restock
                 </p>
 
                 <h3 className="mt-2 text-xl font-black uppercase text-white">
@@ -1028,14 +1036,14 @@ const SKU = ({ token }) => {
                   </div>
 
                   <div className="p-4">
-                    <p className={labelClass}>Actual Stock</p>
+                    <p className={labelClass}>Current Actual Stock</p>
 
                     <p className="mt-1 text-3xl font-black text-[#0A0D17]">
                       {getTotalStock(selectedProduct.stock)}
                     </p>
 
                     <p className="mt-4 text-[10px] font-black uppercase tracking-[0.22em] text-orange-700">
-                      Pre-order Stock
+                      Current Pre-order Stock
                     </p>
 
                     <p className="mt-1 text-3xl font-black text-orange-700">
@@ -1054,38 +1062,65 @@ const SKU = ({ token }) => {
 
                 <div className="space-y-4">
                   <div className={`${panelBg} rounded-[5px] p-4 sm:p-5`}>
-                    <p className={labelClass}>Actual Stock Per Size</p>
+                    <p className={labelClass}>Add Actual Stock Per Size</p>
 
-                    <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
                       {sizesList.map((size) => {
-                        const qty = Number(
+                        const currentQty = getStock(selectedProduct.stock, size);
+                        const addQty = Number(
                           stockUpdates[selectedProduct._id]?.[size] ?? 0
                         );
+                        const finalQty = currentQty + addQty;
 
                         return (
                           <div
                             key={size}
-                            className={`rounded-[5px] border p-4 ${getStockBoxClass(
-                              qty
+                            className={`rounded-[5px] border p-4 ${getAddBoxClass(
+                              addQty
                             )}`}
                           >
                             <p className="text-[10px] font-black uppercase tracking-[0.18em]">
                               Size {size}
                             </p>
 
-                            <input
-                              type="number"
-                              min={0}
-                              value={qty}
-                              onChange={(e) =>
-                                handleStockChange(
-                                  selectedProduct._id,
-                                  size,
-                                  e.target.value
-                                )
-                              }
-                              className="mt-3 w-full rounded-[5px] border border-black/10 bg-white px-3 py-3 text-center text-base font-black text-[#0A0D17] outline-none focus:border-[#0A0D17]"
-                            />
+                            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                              <div className="rounded-[5px] bg-white border border-black/10 px-2 py-2">
+                                <p className="text-[8px] font-black uppercase tracking-[0.14em] text-[#0A0D17]/40">
+                                  Current
+                                </p>
+                                <p className="text-sm font-black text-[#0A0D17]">
+                                  {currentQty}
+                                </p>
+                              </div>
+
+                              <div>
+                                <p className="text-[8px] font-black uppercase tracking-[0.14em] text-[#0A0D17]/40 mb-1">
+                                  Add
+                                </p>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={addQty}
+                                  onChange={(e) =>
+                                    handleStockChange(
+                                      selectedProduct._id,
+                                      size,
+                                      e.target.value
+                                    )
+                                  }
+                                  className="w-full rounded-[5px] border border-black/10 bg-white px-2 py-2 text-center text-sm font-black text-[#0A0D17] outline-none focus:border-[#0A0D17]"
+                                />
+                              </div>
+
+                              <div className="rounded-[5px] bg-white border border-black/10 px-2 py-2">
+                                <p className="text-[8px] font-black uppercase tracking-[0.14em] text-[#0A0D17]/40">
+                                  After
+                                </p>
+                                <p className="text-sm font-black text-emerald-700">
+                                  {finalQty}
+                                </p>
+                              </div>
+                            </div>
                           </div>
                         );
                       })}
@@ -1096,11 +1131,11 @@ const SKU = ({ token }) => {
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                       <div>
                         <p className="text-[10px] font-black uppercase tracking-[0.28em] text-orange-700">
-                          Pre-order Inventory
+                          Add Pre-order Stock
                         </p>
                         <p className="mt-1 text-xs font-bold text-orange-700/70">
-                          Auto-generates slots when actual stock reaches the
-                          threshold.
+                          Current pre-order stock is locked. Add only new
+                          pre-order slots.
                         </p>
                       </div>
 
@@ -1129,36 +1164,66 @@ const SKU = ({ token }) => {
                       </div>
                     </div>
 
-                    <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
                       {sizesList.map((size) => {
-                        const qty = Number(
+                        const currentPreorder = getStock(
+                          selectedProduct.preorderStock,
+                          size
+                        );
+                        const addPreorder = Number(
                           preorderUpdates[selectedProduct._id]?.[size] ?? 0
                         );
+                        const finalPreorder = currentPreorder + addPreorder;
 
                         return (
                           <div
                             key={size}
                             className={`rounded-[5px] border p-4 ${getPreorderBoxClass(
-                              qty
+                              addPreorder
                             )}`}
                           >
                             <p className="text-[10px] font-black uppercase tracking-[0.18em]">
                               Pre-order {size}
                             </p>
 
-                            <input
-                              type="number"
-                              min={0}
-                              value={qty}
-                              onChange={(e) =>
-                                handlePreorderChange(
-                                  selectedProduct._id,
-                                  size,
-                                  e.target.value
-                                )
-                              }
-                              className="mt-3 w-full rounded-[5px] border border-black/10 bg-white px-3 py-3 text-center text-base font-black text-[#0A0D17] outline-none focus:border-orange-500"
-                            />
+                            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                              <div className="rounded-[5px] bg-white border border-orange-100 px-2 py-2">
+                                <p className="text-[8px] font-black uppercase tracking-[0.14em] text-orange-700/40">
+                                  Current
+                                </p>
+                                <p className="text-sm font-black text-orange-700">
+                                  {currentPreorder}
+                                </p>
+                              </div>
+
+                              <div>
+                                <p className="text-[8px] font-black uppercase tracking-[0.14em] text-orange-700/40 mb-1">
+                                  Add
+                                </p>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={addPreorder}
+                                  onChange={(e) =>
+                                    handlePreorderChange(
+                                      selectedProduct._id,
+                                      size,
+                                      e.target.value
+                                    )
+                                  }
+                                  className="w-full rounded-[5px] border border-black/10 bg-white px-2 py-2 text-center text-sm font-black text-[#0A0D17] outline-none focus:border-orange-500"
+                                />
+                              </div>
+
+                              <div className="rounded-[5px] bg-white border border-orange-100 px-2 py-2">
+                                <p className="text-[8px] font-black uppercase tracking-[0.14em] text-orange-700/40">
+                                  After
+                                </p>
+                                <p className="text-sm font-black text-orange-700">
+                                  {finalPreorder}
+                                </p>
+                              </div>
+                            </div>
                           </div>
                         );
                       })}
@@ -1220,14 +1285,13 @@ const SKU = ({ token }) => {
 
                     <div className="mt-4 rounded-[5px] border border-orange-200 bg-orange-50 p-4">
                       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-700">
-                        Auto Pre-order Rule
+                        Inventory Control Rule
                       </p>
 
                       <p className="mt-2 text-xs font-bold leading-5 text-orange-700/80">
-                        If actual stock is less than or equal to the threshold
-                        and Auto Generate is enabled, saving inventory will
-                        create pre-order slots using the Auto Generate Slots
-                        value.
+                        Current stock is read-only. Administrators can only add
+                        stock through restocking. Deduction happens through
+                        orders and backend inventory movements.
                       </p>
                     </div>
                   </div>
@@ -1238,7 +1302,7 @@ const SKU = ({ token }) => {
                       onClick={() => updateStock(selectedProduct._id)}
                       className={buttonDark}
                     >
-                      Save Inventory
+                      Save Added Stock
                     </button>
 
                     <button
