@@ -15,7 +15,11 @@ import {
   FaExclamationTriangle,
   FaClipboardList,
   FaCalendarAlt,
+  FaFileExcel,
 } from "react-icons/fa";
+
+import ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
 
 const sizesList = ["S", "M", "L", "XL", "2XL", "3XL"];
 const DEFAULT_ITEMS_PER_PAGE = 20;
@@ -135,6 +139,7 @@ const SKU = ({ token }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_ITEMS_PER_PAGE);
   const [inventoryLogs, setInventoryLogs] = useState([]);
+  const [saving, setSaving] = useState(false);
 
   const axiosConfig = {
     headers: {
@@ -280,6 +285,167 @@ const SKU = ({ token }) => {
     }
   };
 
+  const exportInventoryToExcel = async () => {
+    const workbook = new ExcelJS.Workbook();
+
+    workbook.creator = "Saint Clothing";
+    workbook.created = new Date();
+
+    const worksheet = workbook.addWorksheet("Inventory");
+    worksheet.views = [
+      {
+        state: "frozen",
+        ySplit: 4,
+      },
+    ];
+    // ===== TITLE =====
+    worksheet.mergeCells("A1:N1");
+
+    const title = worksheet.getCell("A1");
+    title.value = "SAINT CLOTHING INVENTORY REPORT";
+
+    title.font = {
+      bold: true,
+      size: 20,
+      color: { argb: "FFFFFFFF" },
+    };
+
+    title.alignment = {
+      horizontal: "center",
+      vertical: "middle",
+    };
+
+    title.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "111827" },
+    };
+
+    worksheet.mergeCells("A2:N2");
+
+    worksheet.getCell("A2").value =
+      "Generated: " + new Date().toLocaleString();
+
+    worksheet.getCell("A2").font = {
+      italic: true,
+      size: 11,
+    };
+
+    worksheet.getCell("A2").alignment = {
+      horizontal: "center",
+    };
+
+    worksheet.addRow([]);
+
+    const headers = [
+      "Product",
+      "SKU",
+      "Category",
+      "Price",
+      "S",
+      "M",
+      "L",
+      "XL",
+      "2XL",
+      "3XL",
+      "Actual Stock",
+      "Pre-order",
+      "Status",
+      "Restock Date",
+    ];
+
+    const headerRow = worksheet.addRow(headers);
+
+    headerRow.eachCell((cell) => {
+      cell.font = {
+        bold: true,
+        color: { argb: "FFFFFFFF" },
+      };
+
+      cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "0A0D17" },
+      };
+
+      cell.alignment = {
+        horizontal: "center",
+        vertical: "middle",
+      };
+
+      cell.border = {
+        top: { style: "thin" },
+        left: { style: "thin" },
+        bottom: { style: "thin" },
+        right: { style: "thin" },
+      };
+    });
+
+    worksheet.autoFilter = {
+      from: "A4",
+      to: "N4",
+    };
+
+    filteredProducts.forEach((product) => {
+      worksheet.addRow([
+        product.name,
+        product.sku || "N/A",
+        normalizeCategory(product.category),
+        Number(product.price || 0),
+
+        getStock(product.stock, "S"),
+        getStock(product.stock, "M"),
+        getStock(product.stock, "L"),
+        getStock(product.stock, "XL"),
+        getStock(product.stock, "2XL"),
+        getStock(product.stock, "3XL"),
+
+        getTotalStock(product.stock),
+        getTotalStock(product.preorderStock),
+
+        getProductStatus(product),
+
+        product.preorderRestockDate
+          ? new Date(product.preorderRestockDate).toLocaleDateString()
+          : "-",
+      ]);
+    });
+
+    worksheet.columns.forEach((column) => {
+      column.width = 18;
+    });
+
+    worksheet.getColumn(1).width = 35;
+    worksheet.getColumn(2).width = 18;
+    worksheet.getColumn(3).width = 18;
+    worksheet.getColumn(4).width = 12;
+
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber > 4) {
+        row.eachCell((cell) => {
+          cell.border = {
+            top: { style: "thin", color: { argb: "DDDDDD" } },
+            left: { style: "thin", color: { argb: "DDDDDD" } },
+            bottom: { style: "thin", color: { argb: "DDDDDD" } },
+            right: { style: "thin", color: { argb: "DDDDDD" } },
+          };
+
+          cell.alignment = {
+            horizontal: "center",
+            vertical: "middle",
+          };
+        });
+      }
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+
+    saveAs(
+      new Blob([buffer]),
+      `Saint_Inventory_${new Date().toISOString().slice(0, 10)}.xlsx`
+    );
+  };
+
   useEffect(() => {
     if (token) {
       fetchProducts();
@@ -404,6 +570,9 @@ const SKU = ({ token }) => {
   };
 
   const updateStock = async (productId) => {
+    if (saving) return;
+
+    setSaving(true);
     try {
       const product = products.find((item) => item._id === productId);
 
@@ -431,7 +600,7 @@ const SKU = ({ token }) => {
         Boolean(product.preorderEnabled !== false) !== Boolean(preorderEnabled) ||
         Number(product.preorderThreshold ?? 5) !== Number(preorderThreshold) ||
         Boolean(product.preorderAutoGenerate !== false) !==
-          Boolean(preorderAutoGenerate) ||
+        Boolean(preorderAutoGenerate) ||
         Number(product.preorderAutoStock ?? 20) !== Number(preorderAutoStock) ||
         formatDateInput(product.preorderRestockDate) !== preorderRestockDate ||
         String(product.preorderNote || "") !== String(preorderNote || "");
@@ -440,7 +609,14 @@ const SKU = ({ token }) => {
         toast.info("Enter stock quantity to add");
         return;
       }
+      const confirmed = window.confirm(
+        "Are you sure you want to apply these inventory changes?"
+      );
 
+      if (!confirmed) {
+        setSaving(false);
+        return;
+      }
       const res = await axios.put(
         `${backendUrl}/api/product/update-stock/${productId}`,
         {
@@ -458,6 +634,7 @@ const SKU = ({ token }) => {
       );
 
       if (res.data.success) {
+        setSelectedProduct(null);
         toast.success(res.data.message || "Stock added successfully");
 
         await fetchInventoryLogs();
@@ -470,16 +647,16 @@ const SKU = ({ token }) => {
         const updatedProducts = products.map((item) =>
           item._id === productId
             ? {
-                ...item,
-                stock: finalStock,
-                preorderStock: finalPreorderStock,
-                preorderEnabled,
-                preorderThreshold,
-                preorderAutoGenerate,
-                preorderAutoStock,
-                preorderRestockDate: preorderRestockDate || null,
-                preorderNote,
-              }
+              ...item,
+              stock: finalStock,
+              preorderStock: finalPreorderStock,
+              preorderEnabled,
+              preorderThreshold,
+              preorderAutoGenerate,
+              preorderAutoStock,
+              preorderRestockDate: preorderRestockDate || null,
+              preorderNote,
+            }
             : item
         );
 
@@ -506,16 +683,16 @@ const SKU = ({ token }) => {
         setSelectedProduct((prev) =>
           prev && prev._id === productId
             ? {
-                ...prev,
-                stock: finalStock,
-                preorderStock: finalPreorderStock,
-                preorderEnabled,
-                preorderThreshold,
-                preorderAutoGenerate,
-                preorderAutoStock,
-                preorderRestockDate: preorderRestockDate || null,
-                preorderNote,
-              }
+              ...prev,
+              stock: finalStock,
+              preorderStock: finalPreorderStock,
+              preorderEnabled,
+              preorderThreshold,
+              preorderAutoGenerate,
+              preorderAutoStock,
+              preorderRestockDate: preorderRestockDate || null,
+              preorderNote,
+            }
             : prev
         );
       } else {
@@ -523,6 +700,9 @@ const SKU = ({ token }) => {
       }
     } catch (err) {
       toast.error(err.response?.data?.message || err.message);
+    }
+    finally {
+      setSaving(false);
     }
   };
 
@@ -589,15 +769,26 @@ const SKU = ({ token }) => {
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={refreshInventory}
-              disabled={refreshing}
-              className="inline-flex items-center gap-2 rounded-[5px] bg-white text-[#111111] px-4 py-2.5 text-sm font-black transition hover:bg-[#ececec] shadow-sm disabled:opacity-50"
-            >
-              <FaSyncAlt className={refreshing ? "animate-spin" : ""} />
-              Refresh Stock
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={exportInventoryToExcel}
+                className="inline-flex items-center gap-2 rounded-[5px] bg-emerald-600 text-white px-4 py-2.5 text-sm font-black transition hover:bg-emerald-700 shadow-sm"
+              >
+                <FaFileExcel />
+                Export Excel
+              </button>
+
+              <button
+                type="button"
+                onClick={refreshInventory}
+                disabled={refreshing}
+                className="inline-flex items-center gap-2 rounded-[5px] bg-white text-[#111111] px-4 py-2.5 text-sm font-black transition hover:bg-[#ececec] shadow-sm disabled:opacity-50"
+              >
+                <FaSyncAlt className={refreshing ? "animate-spin" : ""} />
+                Refresh Stock
+              </button>
+            </div>
           </div>
         </div>
 
@@ -771,9 +962,8 @@ const SKU = ({ token }) => {
                   return (
                     <div
                       key={product._id}
-                      className={`grid grid-cols-[2.2fr_1fr_1fr_repeat(6,70px)_90px_90px_120px_100px] items-center border-b border-[#ecece6] px-5 py-4 gap-2 ${
-                        index % 2 === 0 ? "bg-white" : "bg-[#fcfcfb]"
-                      }`}
+                      className={`grid grid-cols-[2.2fr_1fr_1fr_repeat(6,70px)_90px_90px_120px_100px] items-center border-b border-[#ecece6] px-5 py-4 gap-2 ${index % 2 === 0 ? "bg-white" : "bg-[#fcfcfb]"
+                        }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-12 h-14 rounded-[5px] bg-[#f0f0ed] overflow-hidden border border-black/10 shrink-0">
@@ -961,13 +1151,12 @@ const SKU = ({ token }) => {
                     </span>
 
                     <span
-                      className={`rounded-[5px] px-3 py-1 text-[10px] font-black ${
-                        log.difference > 0
-                          ? "bg-emerald-50 text-emerald-700"
-                          : log.difference < 0
-                            ? "bg-red-50 text-red-600"
-                            : "bg-orange-50 text-orange-700"
-                      }`}
+                      className={`rounded-[5px] px-3 py-1 text-[10px] font-black ${log.difference > 0
+                        ? "bg-emerald-50 text-emerald-700"
+                        : log.difference < 0
+                          ? "bg-red-50 text-red-600"
+                          : "bg-orange-50 text-orange-700"
+                        }`}
                     >
                       {log.difference > 0
                         ? `+${log.difference}`
@@ -1299,10 +1488,12 @@ const SKU = ({ token }) => {
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
+                      disabled={saving}
                       onClick={() => updateStock(selectedProduct._id)}
-                      className={buttonDark}
+                      className={`${buttonDark} ${saving ? "opacity-60 cursor-not-allowed" : ""
+                        }`}
                     >
-                      Save Added Stock
+                      {saving ? "Saving..." : "Save Added Stock"}
                     </button>
 
                     <button
@@ -1346,13 +1537,12 @@ const SKU = ({ token }) => {
                             </p>
 
                             <span
-                              className={`w-fit rounded-[5px] px-3 py-1 text-[10px] font-black ${
-                                log.difference > 0
-                                  ? "bg-emerald-50 text-emerald-700"
-                                  : log.difference < 0
-                                    ? "bg-red-50 text-red-600"
-                                    : "bg-orange-50 text-orange-700"
-                              }`}
+                              className={`w-fit rounded-[5px] px-3 py-1 text-[10px] font-black ${log.difference > 0
+                                ? "bg-emerald-50 text-emerald-700"
+                                : log.difference < 0
+                                  ? "bg-red-50 text-red-600"
+                                  : "bg-orange-50 text-orange-700"
+                                }`}
                             >
                               {log.difference > 0
                                 ? `+${log.difference}`
