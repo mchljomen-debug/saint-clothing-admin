@@ -13,8 +13,7 @@ import{
   Trash2,
   MonitorPlay,
   FileText,
-  Image,
-  Share2
+  Image
 }from"lucide-react";
 
 const Sidebar=()=>{
@@ -47,7 +46,6 @@ const Sidebar=()=>{
     {to:"/hero-manager",icon:MonitorPlay,label:"Hero Manager"},
     {to:"/categories",icon:Image,label:"Categories"},
     {to:"/policies",icon:FileText,label:"Policies"},
-    {to:"/social-feed",icon:Share2,label:"Social Feed"},
     {to:"/users",icon:Users,label:"Users"},
     {to:"/employees",icon:UserCog,label:"Employees"},
     {to:"/branches",icon:Store,label:"Branches"}
