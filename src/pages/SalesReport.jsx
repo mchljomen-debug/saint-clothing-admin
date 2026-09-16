@@ -1,33 +1,31 @@
-import React,{useEffect,useMemo,useState}from"react";
+import React,{useEffect,useMemo,useRef,useState}from"react";
 import axios from"axios";
 import{Line,Bar,Doughnut}from"react-chartjs-2";
 import{useNavigate}from"react-router-dom";
 import{backendUrl,currency}from"../App";
-import{FaArrowUp,FaArrowDown,FaPrint,FaSyncAlt,FaChartLine,FaShoppingCart,FaBoxOpen,FaUsers,FaMoneyBillWave}from"react-icons/fa";
-import{Chart as ChartJS,CategoryScale,LinearScale,PointElement,LineElement,BarElement,ArcElement,Title,Tooltip,Legend,Filler}from"chart.js";
+import{FaPrint,FaSyncAlt,FaChartLine,FaShoppingCart,FaBoxOpen,FaUsers,FaMoneyBillWave,FaExclamationTriangle,FaChevronLeft,FaChevronRight}from"react-icons/fa";
+import{Chart as ChartJS,CategoryScale,LinearScale,PointElement,LineElement,BarElement,ArcElement,Tooltip,Legend,Filler}from"chart.js";
 
-ChartJS.register(CategoryScale,LinearScale,PointElement,LineElement,BarElement,ArcElement,Title,Tooltip,Legend,Filler);
+ChartJS.register(CategoryScale,LinearScale,PointElement,LineElement,BarElement,ArcElement,Tooltip,Legend,Filler);
 
 const FIXED_CATEGORIES=["Tshirt","Long Sleeve","Jorts","Mesh Shorts","Crop Jersey"];
-
+const PAGE_SIZE=10;
 const RANGE_OPTIONS=[
 {value:"today",label:"Today"},
 {value:"week",label:"Week"},
 {value:"month",label:"Month"},
-{value:"year",label:"Year"},
+{value:"year",label:"Year"}
 ];
 
 const normalizeCategory=(value)=>{
 const raw=String(value||"").trim().toLowerCase();
-
 if(!raw)return"Unknown";
 if(["tshirt","t-shirt","tee","tees"].includes(raw))return"Tshirt";
 if(["long sleeve","longsleeve","long sleeves"].includes(raw))return"Long Sleeve";
 if(raw==="jorts")return"Jorts";
 if(["mesh short","mesh shorts"].includes(raw))return"Mesh Shorts";
 if(["crop jersey","cropjersey"].includes(raw))return"Crop Jersey";
-
-return value;
+return String(value||"Unknown");
 };
 
 const isPaidOrder=(order)=>{
@@ -44,100 +42,43 @@ return paymentStatus==="paid"||order?.payment===true||order?.payment==="true";
 
 const SalesReport=()=>{
 const navigate=useNavigate();
+const insightRequestRef=useRef("");
 
 const[overviewRange,setOverviewRange]=useState("month");
-const[salesTrendRange,setSalesTrendRange]=useState("week");
+const[salesTrendRange,setSalesTrendRange]=useState("month");
 const[revenueProfitRange,setRevenueProfitRange]=useState("year");
 const[categoryRange,setCategoryRange]=useState("month");
-const[topProductsRange,setTopProductsRange]=useState("month");
-const[lowStockRange]=useState("month");
+const[productRange,setProductRange]=useState("month");
 const[recentOrdersRange,setRecentOrdersRange]=useState("month");
+
+const[productPage,setProductPage]=useState(1);
+const[lowStockPage,setLowStockPage]=useState(1);
+const[recentOrdersPage,setRecentOrdersPage]=useState(1);
 
 const[rawProducts,setRawProducts]=useState([]);
 const[rawOrders,setRawOrders]=useState([]);
 const[rawUsersCount,setRawUsersCount]=useState(0);
 
-const[stats,setStats]=useState({
-totalRevenue:0,
-totalOrders:0,
-totalProducts:0,
-totalUsers:0,
-netProfit:0,
-netProfitMargin:0,
-lowStockCount:0,
-});
-
-const[displayStats,setDisplayStats]=useState(stats);
-const[weeklySales,setWeeklySales]=useState({labels:[],data:[]});
-const[monthlySales,setMonthlySales]=useState({labels:[],revenue:[],netProfit:[]});
-const[categorySales,setCategorySales]=useState({labels:[],data:[]});
-const[topProducts,setTopProducts]=useState([]);
-const[lowStockProducts,setLowStockProducts]=useState([]);
-const[recentOrders,setRecentOrders]=useState([]);
 const[loading,setLoading]=useState(true);
 const[refreshing,setRefreshing]=useState(false);
 const[lastUpdated,setLastUpdated]=useState(null);
+const[fetchError,setFetchError]=useState("");
 
-const panelBg="bg-white border border-black/10 shadow-[0_8px_24px_rgba(0,0,0,0.05)]";
-const softPanelBg="bg-[#FAFAF8] border border-black/10";
-const labelClass="text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45";
+const[salesInsight,setSalesInsight]=useState("");
+const[insightLoading,setInsightLoading]=useState(false);
+const[insightError,setInsightError]=useState("");
 
-useEffect(()=>{
-fetchData(false);
+const panelBg="bg-white border border-black/10 shadow-[0_8px_28px_rgba(10,13,23,0.06)]";
+const labelClass="text-[9px] font-black uppercase tracking-[0.26em] text-[#0A0D17]/40";
 
-const interval=setInterval(()=>{
-fetchData(true);
-},600000);
-
-return()=>clearInterval(interval);
-},[]);
-
-useEffect(()=>{
-buildReportSections();
-},[
-rawProducts,
-rawOrders,
-rawUsersCount,
-overviewRange,
-salesTrendRange,
-revenueProfitRange,
-categoryRange,
-topProductsRange,
-lowStockRange,
-recentOrdersRange,
-]);
-
-useEffect(()=>{
-const duration=700;
-const start=performance.now();
-
-const animate=(time)=>{
-const progress=Math.min((time-start)/duration,1);
-
-setDisplayStats({
-totalRevenue:Math.floor(progress*stats.totalRevenue),
-totalOrders:Math.floor(progress*stats.totalOrders),
-totalProducts:Math.floor(progress*stats.totalProducts),
-totalUsers:Math.floor(progress*stats.totalUsers),
-netProfit:Math.floor(progress*stats.netProfit),
-netProfitMargin:stats.netProfitMargin,
-lowStockCount:Math.floor(progress*stats.lowStockCount),
-});
-
-if(progress<1)requestAnimationFrame(animate);
-};
-
-requestAnimationFrame(animate);
-},[stats]);
+const formatMoney=(value)=>`${currency}${Number(value||0).toLocaleString(undefined,{maximumFractionDigits:2})}`;
 
 const getProductTotalStock=(product)=>{
 if(!product?.stock)return 0;
-if(typeof product.stock==="number")return product.stock;
-
+if(typeof product.stock==="number")return Number(product.stock)||0;
 if(typeof product.stock==="object"){
 return Object.values(product.stock).reduce((sum,qty)=>sum+(Number(qty)||0),0);
 }
-
 return 0;
 };
 
@@ -146,42 +87,30 @@ const now=new Date();
 now.setHours(0,0,0,0);
 
 if(range==="today"){
-const start=new Date(now);
 const end=new Date(now);
 end.setDate(end.getDate()+1);
-return{start,end};
+return{start:new Date(now),end};
 }
 
 if(range==="week"){
 const start=new Date(now);
 start.setDate(start.getDate()-6);
-
 const end=new Date(now);
 end.setDate(end.getDate()+1);
-
 return{start,end};
 }
 
 if(range==="month"){
 const start=new Date(now);
 start.setDate(start.getDate()-29);
-
 const end=new Date(now);
 end.setDate(end.getDate()+1);
-
-return{start,end};
-}
-
-if(range==="year"){
-const start=new Date(now.getFullYear(),now.getMonth()-11,1);
-const end=new Date(now.getFullYear(),now.getMonth()+1,1);
-
 return{start,end};
 }
 
 return{
-start:new Date(0),
-end:new Date(8640000000000000),
+start:new Date(now.getFullYear(),now.getMonth()-11,1),
+end:new Date(now.getFullYear(),now.getMonth()+1,1)
 };
 };
 
@@ -189,362 +118,644 @@ const filterOrdersByRange=(orders,range)=>{
 const{start,end}=getDateWindowForRange(range);
 
 return orders.filter((order)=>{
-const dateValue=order.date||order.createdAt;
-if(!dateValue)return false;
-
-const orderDate=new Date(dateValue);
-if(Number.isNaN(orderDate.getTime()))return false;
-
-return orderDate>=start&&orderDate<end;
+const value=order?.date||order?.createdAt;
+if(!value)return false;
+const date=new Date(value);
+return!Number.isNaN(date.getTime())&&date>=start&&date<end;
 });
 };
 
-const getTrend=(current,previous)=>{
-if(!previous||previous===0){
-return{
-percent:current>0?100:0,
-isUp:current>=previous,
-};
+const extractArray=(response,keys=[])=>{
+const data=response?.data;
+
+for(const key of keys){
+if(Array.isArray(data?.[key]))return data[key];
 }
 
-const change=((current-previous)/previous)*100;
+if(Array.isArray(data?.data))return data.data;
 
-return{
-percent:Math.abs(change).toFixed(1),
-isUp:change>=0,
+for(const key of keys){
+if(Array.isArray(data?.data?.[key]))return data.data[key];
+}
+
+return[];
 };
+
+const findProductForItem=(item)=>{
+const itemProductId=String(
+item?.productId?._id||
+item?.productId||
+item?.product?._id||
+item?.product||
+""
+);
+
+const itemName=String(
+item?.name||
+item?.productName||
+item?.productId?.name||
+item?.product?.name||
+""
+).trim();
+
+let product=null;
+
+if(itemProductId){
+product=rawProducts.find((p)=>String(p._id)===itemProductId);
+}
+
+if(!product&&itemName){
+product=rawProducts.find((p)=>{
+return String(p?.name||"").trim().toLowerCase()===itemName.toLowerCase();
+});
+}
+
+return{product,itemProductId,itemName};
 };
 
 const fetchData=async(silent=false)=>{
-try{
 if(!silent)setLoading(true);
 setRefreshing(true);
+setFetchError("");
 
 const token=localStorage.getItem("token")||"";
+const role=localStorage.getItem("role")||"";
+const branch=localStorage.getItem("branch")||"";
 
-const[productRes,ordersRes,usersRes]=await Promise.all([
-axios.get(`${backendUrl}/api/product/list`),
+let products=[];
+let orders=[];
+let users=[];
+const errors=[];
 
-axios.get(`${backendUrl}/api/order/list`,{
-headers:{Authorization:`Bearer ${token}`},
-}),
+console.log("[SALES REPORT] BACKEND:",backendUrl);
+console.log("[SALES REPORT] TOKEN:",token?"FOUND":"MISSING");
+console.log("[SALES REPORT] ROLE:",role);
+console.log("[SALES REPORT] BRANCH:",branch);
 
-axios.get(`${backendUrl}/api/admin/users`,{
-headers:{Authorization:`Bearer ${token}`},
-}).catch(()=>({data:{users:[]}})),
-]);
+try{
+const productRes=await axios.get(`${backendUrl}/api/product/list`);
+products=extractArray(productRes,["products"]);
+console.log("[SALES REPORT] PRODUCTS FOUND:",products.length);
+}catch(error){
+console.error("[SALES REPORT] PRODUCT ERROR:",error?.response?.status,error?.response?.data||error?.message);
+errors.push(`Products: ${error?.response?.status||""} ${error?.response?.data?.message||error?.message||"Request failed"}`);
+}
 
-const products=productRes?.data?.success?productRes.data.products||[]:[];
-const orders=ordersRes?.data?.success?ordersRes.data.orders||[]:[];
-const users=usersRes?.data?.users||[];
+try{
+const orderRes=await axios.get(`${backendUrl}/api/order/list`,{
+headers:{Authorization:`Bearer ${token}`}
+});
+orders=extractArray(orderRes,["orders"]);
+console.log("[SALES REPORT] ORDERS FOUND:",orders.length);
+}catch(error){
+console.error("[SALES REPORT] ORDER ERROR:",error?.response?.status,error?.response?.data||error?.message);
+errors.push(`Orders: ${error?.response?.status||""} ${error?.response?.data?.message||error?.message||"Request failed"}`);
+}
 
-console.log("[SALES REPORT] PRODUCTS:",products.length);
-console.log("[SALES REPORT] ORDERS:",orders.length);
-console.log("[SALES REPORT] USERS:",users.length);
-console.log("[SALES REPORT] ORDER RESPONSE:",ordersRes?.data);
+if(role==="admin"){
+try{
+const usersRes=await axios.get(`${backendUrl}/api/admin/users`,{
+headers:{Authorization:`Bearer ${token}`}
+});
+users=extractArray(usersRes,["users"]);
+console.log("[SALES REPORT] USERS FOUND:",users.length);
+}catch(error){
+console.error("[SALES REPORT] USER ERROR:",error?.response?.status,error?.response?.data||error?.message);
+errors.push(`Users: ${error?.response?.status||""} ${error?.response?.data?.message||error?.message||"Request failed"}`);
+}
+}
+
+if(role!=="admin"&&branch&&branch!=="all"){
+const normalizedBranch=String(branch).trim().toLowerCase();
+
+products=products.filter((product)=>{
+const productBranch=String(product?.branch||"").trim().toLowerCase();
+return!productBranch||productBranch===normalizedBranch;
+});
+
+orders=orders.filter((order)=>{
+if(String(order?.branch||"").trim().toLowerCase()===normalizedBranch)return true;
+return(order.items||[]).some((item)=>{
+return String(item?.branch||"").trim().toLowerCase()===normalizedBranch;
+});
+});
+}
+
+console.log("[SALES REPORT] FINAL PRODUCTS:",products.length);
+console.log("[SALES REPORT] FINAL ORDERS:",orders.length);
+console.log("[SALES REPORT] FINAL USERS:",users.length);
 
 setRawProducts(products);
 setRawOrders(orders);
 setRawUsersCount(users.length);
 setLastUpdated(new Date());
-}catch(error){
-console.error("[SALES REPORT] FETCH ERROR:",error?.response?.data||error?.message||error);
-}finally{
+
+if(errors.length)setFetchError(errors.join(" | "));
+
 if(!silent)setLoading(false);
 setRefreshing(false);
-}
 };
 
-const buildOverviewStats=()=>{
-const filteredOrders=filterOrdersByRange(rawOrders,overviewRange);
-const paidOrders=filteredOrders.filter(isPaidOrder);
+useEffect(()=>{
+fetchData(false);
+const interval=setInterval(()=>fetchData(true),600000);
+return()=>clearInterval(interval);
+},[]);
 
-const totalRevenue=paidOrders.reduce((sum,order)=>sum+(Number(order.amount)||0),0);
-const totalOrders=filteredOrders.length;
-const totalProducts=rawProducts.length;
-const totalUsers=rawUsersCount;
-const netProfit=Math.floor(totalRevenue*0.3);
-const netProfitMargin=totalRevenue>0?Math.floor((netProfit/totalRevenue)*100):0;
+const overviewOrders=useMemo(()=>{
+return filterOrdersByRange(rawOrders,overviewRange);
+},[rawOrders,overviewRange]);
 
-const lowStockCount=rawProducts.filter((product)=>getProductTotalStock(product)<=5).length;
+const overviewPaidOrders=useMemo(()=>{
+return overviewOrders.filter(isPaidOrder);
+},[overviewOrders]);
 
-setStats({
+const stats=useMemo(()=>{
+const totalRevenue=overviewPaidOrders.reduce((sum,order)=>{
+return sum+(Number(order?.amount)||0);
+},0);
+
+const totalUnitsSold=overviewPaidOrders.reduce((sum,order)=>{
+return sum+(order.items||[]).reduce((itemSum,item)=>{
+return itemSum+(Number(item?.quantity??item?.qty??1)||0);
+},0);
+},0);
+
+const netProfit=Math.floor(totalRevenue*.3);
+
+return{
 totalRevenue,
-totalOrders,
-totalProducts,
-totalUsers,
+totalOrders:overviewOrders.length,
+paidOrders:overviewPaidOrders.length,
+totalUnitsSold,
+totalProducts:rawProducts.length,
+totalUsers:rawUsersCount,
 netProfit,
-netProfitMargin,
-lowStockCount,
-});
+netProfitMargin:totalRevenue>0?Math.round(netProfit/totalRevenue*100):0,
+lowStockCount:rawProducts.filter((product)=>getProductTotalStock(product)<=5).length
 };
+},[overviewOrders,overviewPaidOrders,rawProducts,rawUsersCount]);
 
-const buildSalesTrend=()=>{
+const productPerformance=useMemo(()=>{
+const rangedOrders=filterOrdersByRange(rawOrders,productRange).filter(isPaidOrder);
+const map={};
+
+rawProducts.forEach((product)=>{
+map[String(product._id)]={
+_id:product._id,
+name:product.name||"Unnamed Product",
+category:normalizeCategory(product.category),
+price:Number(product.price)||0,
+stock:getProductTotalStock(product),
+sold:0,
+revenue:0
+};
+});
+
+rangedOrders.forEach((order)=>{
+(order.items||[]).forEach((item)=>{
+const itemProductId=String(
+item?.productId?._id||
+item?.productId||
+item?.product?._id||
+item?.product||
+""
+);
+
+const itemName=String(
+item?.name||
+item?.productName||
+item?.productId?.name||
+item?.product?.name||
+""
+).trim();
+
+let product=null;
+
+if(itemProductId){
+product=rawProducts.find((p)=>String(p._id)===itemProductId);
+}
+
+if(!product&&itemName){
+product=rawProducts.find((p)=>String(p?.name||"").trim().toLowerCase()===itemName.toLowerCase());
+}
+
+const key=product?String(product._id):itemProductId||`name-${itemName}`;
+if(!key)return;
+
+if(!map[key]){
+map[key]={
+_id:key,
+name:itemName||"Unknown Product",
+category:normalizeCategory(item?.category||"Unknown"),
+price:Number(item?.price)||0,
+stock:0,
+sold:0,
+revenue:0
+};
+}
+
+const qty=Number(item?.quantity??item?.qty??1)||0;
+const price=Number(item?.price??product?.price??map[key].price)||0;
+
+map[key].sold+=qty;
+map[key].revenue+=qty*price;
+});
+});
+
+return Object.values(map).sort((a,b)=>b.revenue-a.revenue||b.sold-a.sold);
+},[rawProducts,rawOrders,productRange]);
+
+const categoryPerformance=useMemo(()=>{
+const rangedOrders=filterOrdersByRange(rawOrders,categoryRange).filter(isPaidOrder);
+const map={};
+
+FIXED_CATEGORIES.forEach((category)=>{
+map[category]={
+category,
+unitsSold:0,
+revenue:0,
+products:rawProducts.filter((p)=>normalizeCategory(p.category)===category).length
+};
+});
+
+rawProducts.forEach((product)=>{
+const category=normalizeCategory(product.category);
+
+if(!map[category]){
+map[category]={category,unitsSold:0,revenue:0,products:0};
+}
+
+if(!FIXED_CATEGORIES.includes(category)){
+map[category].products+=1;
+}
+});
+
+rangedOrders.forEach((order)=>{
+(order.items||[]).forEach((item)=>{
+const itemProductId=String(
+item?.productId?._id||
+item?.productId||
+item?.product?._id||
+item?.product||
+""
+);
+
+const itemName=String(
+item?.name||
+item?.productName||
+item?.productId?.name||
+item?.product?.name||
+""
+).trim();
+
+let product=rawProducts.find((p)=>String(p._id)===itemProductId);
+
+if(!product&&itemName){
+product=rawProducts.find((p)=>String(p?.name||"").trim().toLowerCase()===itemName.toLowerCase());
+}
+
+const category=normalizeCategory(
+product?.category||
+item?.category||
+item?.productId?.category||
+item?.product?.category||
+"Unknown"
+);
+
+if(!map[category]){
+map[category]={category,unitsSold:0,revenue:0,products:0};
+}
+
+const qty=Number(item?.quantity??item?.qty??1)||0;
+const price=Number(item?.price??product?.price)||0;
+
+map[category].unitsSold+=qty;
+map[category].revenue+=qty*price;
+});
+});
+
+return Object.values(map);
+},[rawOrders,rawProducts,categoryRange]);
+
+const lowStockProducts=useMemo(()=>{
+return rawProducts
+.map((product)=>({
+_id:product._id,
+name:product.name||"Unnamed Product",
+category:normalizeCategory(product.category),
+stock:getProductTotalStock(product),
+price:Number(product.price)||0
+}))
+.filter((product)=>product.stock<=5)
+.sort((a,b)=>a.stock-b.stock);
+},[rawProducts]);
+
+const recentOrders=useMemo(()=>{
+return[...filterOrdersByRange(rawOrders,recentOrdersRange)]
+.sort((a,b)=>new Date(b.date||b.createdAt)-new Date(a.date||a.createdAt));
+},[rawOrders,recentOrdersRange]);
+
+const salesTrend=useMemo(()=>{
 const paidOrders=filterOrdersByRange(rawOrders,salesTrendRange).filter(isPaidOrder);
-
 const labels=[];
 const data=[];
 const now=new Date();
 
 if(salesTrendRange==="today"){
 for(let i=0;i<24;i++){
-const label=`${i}:00`;
-
-const total=paidOrders
-.filter((order)=>{
-const date=new Date(order.date||order.createdAt);
-return!Number.isNaN(date.getTime())&&date.getHours()===i;
-})
-.reduce((sum,order)=>sum+(Number(order.amount)||0),0);
-
-labels.push(label);
-data.push(total);
+labels.push(`${i}:00`);
+data.push(
+paidOrders.filter((order)=>new Date(order.date||order.createdAt).getHours()===i)
+.reduce((sum,order)=>sum+(Number(order.amount)||0),0)
+);
 }
 }else if(salesTrendRange==="week"){
 for(let i=6;i>=0;i--){
 const d=new Date(now);
 d.setDate(now.getDate()-i);
+labels.push(d.toLocaleDateString("en-US",{weekday:"short"}));
 
-const label=d.toLocaleDateString("en-US",{weekday:"short"});
-
-const total=paidOrders
-.filter((order)=>{
+data.push(
+paidOrders.filter((order)=>{
 const od=new Date(order.date||order.createdAt);
-
 return od.getFullYear()===d.getFullYear()&&od.getMonth()===d.getMonth()&&od.getDate()===d.getDate();
-})
-.reduce((sum,order)=>sum+(Number(order.amount)||0),0);
-
-labels.push(label);
-data.push(total);
+}).reduce((sum,order)=>sum+(Number(order.amount)||0),0)
+);
 }
 }else if(salesTrendRange==="month"){
 for(let i=29;i>=0;i--){
 const d=new Date(now);
 d.setDate(now.getDate()-i);
+labels.push(d.toLocaleDateString("en-US",{month:"short",day:"numeric"}));
 
-const label=d.toLocaleDateString("en-US",{
-month:"short",
-day:"numeric",
-});
-
-const total=paidOrders
-.filter((order)=>{
+data.push(
+paidOrders.filter((order)=>{
 const od=new Date(order.date||order.createdAt);
-
 return od.getFullYear()===d.getFullYear()&&od.getMonth()===d.getMonth()&&od.getDate()===d.getDate();
-})
-.reduce((sum,order)=>sum+(Number(order.amount)||0),0);
-
-labels.push(label);
-data.push(total);
+}).reduce((sum,order)=>sum+(Number(order.amount)||0),0)
+);
 }
 }else{
 for(let i=11;i>=0;i--){
 const d=new Date(now.getFullYear(),now.getMonth()-i,1);
-const label=d.toLocaleDateString("en-US",{month:"short"});
-const month=d.getMonth();
-const year=d.getFullYear();
+labels.push(d.toLocaleDateString("en-US",{month:"short"}));
 
-const total=paidOrders
-.filter((order)=>{
+data.push(
+paidOrders.filter((order)=>{
 const od=new Date(order.date||order.createdAt);
-return od.getMonth()===month&&od.getFullYear()===year;
-})
-.reduce((sum,order)=>sum+(Number(order.amount)||0),0);
-
-labels.push(label);
-data.push(total);
+return od.getMonth()===d.getMonth()&&od.getFullYear()===d.getFullYear();
+}).reduce((sum,order)=>sum+(Number(order.amount)||0),0)
+);
 }
 }
 
-setWeeklySales({labels,data});
-};
+return{labels,data};
+},[rawOrders,salesTrendRange]);
 
-const buildRevenueProfit=()=>{
+const revenueProfit=useMemo(()=>{
 const paidOrders=filterOrdersByRange(rawOrders,revenueProfitRange).filter(isPaidOrder);
-
 const labels=[];
 const revenue=[];
-const netProfit=[];
+const profit=[];
 const now=new Date();
 
 if(revenueProfitRange==="today"){
 for(let i=0;i<24;i++){
-const label=`${i}:00`;
-
-const amount=paidOrders
-.filter((order)=>{
-const date=new Date(order.date||order.createdAt);
-return!Number.isNaN(date.getTime())&&date.getHours()===i;
-})
+const amount=paidOrders.filter((order)=>new Date(order.date||order.createdAt).getHours()===i)
 .reduce((sum,order)=>sum+(Number(order.amount)||0),0);
 
-labels.push(label);
+labels.push(`${i}:00`);
 revenue.push(amount);
-netProfit.push(Math.floor(amount*0.3));
+profit.push(Math.floor(amount*.3));
 }
 }else if(revenueProfitRange==="week"){
 for(let i=6;i>=0;i--){
 const d=new Date(now);
 d.setDate(now.getDate()-i);
 
-const label=d.toLocaleDateString("en-US",{weekday:"short"});
-
-const amount=paidOrders
-.filter((order)=>{
+const amount=paidOrders.filter((order)=>{
 const od=new Date(order.date||order.createdAt);
-
 return od.getFullYear()===d.getFullYear()&&od.getMonth()===d.getMonth()&&od.getDate()===d.getDate();
-})
-.reduce((sum,order)=>sum+(Number(order.amount)||0),0);
+}).reduce((sum,order)=>sum+(Number(order.amount)||0),0);
 
-labels.push(label);
+labels.push(d.toLocaleDateString("en-US",{weekday:"short"}));
 revenue.push(amount);
-netProfit.push(Math.floor(amount*0.3));
+profit.push(Math.floor(amount*.3));
 }
 }else if(revenueProfitRange==="month"){
 for(let i=3;i>=0;i--){
-const weekEnd=new Date(now);
-weekEnd.setHours(23,59,59,999);
-weekEnd.setDate(now.getDate()-i*7);
+const end=new Date(now);
+end.setHours(23,59,59,999);
+end.setDate(now.getDate()-i*7);
 
-const weekStart=new Date(weekEnd);
-weekStart.setHours(0,0,0,0);
-weekStart.setDate(weekEnd.getDate()-6);
+const start=new Date(end);
+start.setHours(0,0,0,0);
+start.setDate(end.getDate()-6);
 
-const label=`Week ${4-i}`;
-
-const amount=paidOrders
-.filter((order)=>{
+const amount=paidOrders.filter((order)=>{
 const od=new Date(order.date||order.createdAt);
-return od>=weekStart&&od<=weekEnd;
-})
-.reduce((sum,order)=>sum+(Number(order.amount)||0),0);
+return od>=start&&od<=end;
+}).reduce((sum,order)=>sum+(Number(order.amount)||0),0);
 
-labels.push(label);
+labels.push(`Week ${4-i}`);
 revenue.push(amount);
-netProfit.push(Math.floor(amount*0.3));
+profit.push(Math.floor(amount*.3));
 }
 }else{
 for(let i=11;i>=0;i--){
 const d=new Date(now.getFullYear(),now.getMonth()-i,1);
-const label=d.toLocaleDateString("en-US",{month:"short"});
-const month=d.getMonth();
-const year=d.getFullYear();
 
-const amount=paidOrders
-.filter((order)=>{
+const amount=paidOrders.filter((order)=>{
 const od=new Date(order.date||order.createdAt);
-return od.getMonth()===month&&od.getFullYear()===year;
-})
-.reduce((sum,order)=>sum+(Number(order.amount)||0),0);
+return od.getMonth()===d.getMonth()&&od.getFullYear()===d.getFullYear();
+}).reduce((sum,order)=>sum+(Number(order.amount)||0),0);
 
-labels.push(label);
+labels.push(d.toLocaleDateString("en-US",{month:"short"}));
 revenue.push(amount);
-netProfit.push(Math.floor(amount*0.3));
+profit.push(Math.floor(amount*.3));
 }
 }
 
-setMonthlySales({labels,revenue,netProfit});
+return{labels,revenue,profit};
+},[rawOrders,revenueProfitRange]);
+
+const categoryChart=useMemo(()=>{
+return{
+labels:categoryPerformance.map((item)=>item.category),
+data:categoryPerformance.map((item)=>item.unitsSold)
 };
+},[categoryPerformance]);
 
-const buildCategoryOverview=()=>{
-const rangedOrders=filterOrdersByRange(rawOrders,categoryRange).filter(isPaidOrder);
-const soldCategoryMap={};
+const productTotalPages=Math.max(1,Math.ceil(productPerformance.length/PAGE_SIZE));
+const lowStockTotalPages=Math.max(1,Math.ceil(lowStockProducts.length/PAGE_SIZE));
+const recentOrdersTotalPages=Math.max(1,Math.ceil(recentOrders.length/PAGE_SIZE));
 
-FIXED_CATEGORIES.forEach((category)=>{
-soldCategoryMap[category]=0;
-});
+const paginatedProducts=useMemo(()=>{
+const start=(productPage-1)*PAGE_SIZE;
+return productPerformance.slice(start,start+PAGE_SIZE);
+},[productPerformance,productPage]);
 
-rangedOrders.forEach((order)=>{
-(order.items||[]).forEach((item)=>{
-const product=rawProducts.find((p)=>String(p._id)===String(item.productId));
+const paginatedLowStock=useMemo(()=>{
+const start=(lowStockPage-1)*PAGE_SIZE;
+return lowStockProducts.slice(start,start+PAGE_SIZE);
+},[lowStockProducts,lowStockPage]);
 
-const category=normalizeCategory(product?.category||item.category||"Unknown");
-const qty=Number(item.quantity)||0;
+const paginatedRecentOrders=useMemo(()=>{
+const start=(recentOrdersPage-1)*PAGE_SIZE;
+return recentOrders.slice(start,start+PAGE_SIZE);
+},[recentOrders,recentOrdersPage]);
 
-if(soldCategoryMap[category]===undefined){
-soldCategoryMap[category]=0;
-}
+useEffect(()=>{
+setProductPage(1);
+},[productRange]);
 
-soldCategoryMap[category]+=qty;
-});
-});
+useEffect(()=>{
+setRecentOrdersPage(1);
+},[recentOrdersRange]);
 
-setCategorySales({
-labels:FIXED_CATEGORIES,
-data:FIXED_CATEGORIES.map((category)=>soldCategoryMap[category]||0),
-});
-};
+useEffect(()=>{
+if(productPage>productTotalPages)setProductPage(productTotalPages);
+},[productPage,productTotalPages]);
 
-const buildTopProducts=()=>{
-const rangedOrders=filterOrdersByRange(rawOrders,topProductsRange).filter(isPaidOrder);
-const productSoldMap={};
+useEffect(()=>{
+if(lowStockPage>lowStockTotalPages)setLowStockPage(lowStockTotalPages);
+},[lowStockPage,lowStockTotalPages]);
 
-rangedOrders.forEach((order)=>{
-(order.items||[]).forEach((item)=>{
-const key=item.name||item.productName||"Unknown Product";
-const qty=Number(item.quantity)||0;
-const amount=(Number(item.price)||0)*qty;
+useEffect(()=>{
+if(recentOrdersPage>recentOrdersTotalPages)setRecentOrdersPage(recentOrdersTotalPages);
+},[recentOrdersPage,recentOrdersTotalPages]);
 
-if(!productSoldMap[key]){
-productSoldMap[key]={
-name:key,
-sold:0,
-revenue:0,
-};
-}
+const dataFingerprint=useMemo(()=>{
+if(!rawProducts.length&&!rawOrders.length)return"";
 
-productSoldMap[key].sold+=qty;
-productSoldMap[key].revenue+=amount;
-});
-});
-
-setTopProducts(
-Object.values(productSoldMap)
-.sort((a,b)=>b.sold-a.sold)
-.slice(0,5)
-);
-};
-
-const buildLowStock=()=>{
-setLowStockProducts(
-rawProducts
-.filter((product)=>getProductTotalStock(product)<=5)
-.map((product)=>({
-_id:product._id,
-name:product.name,
-category:normalizeCategory(product.category),
-branch:product.branch||"Main",
+const products=rawProducts.map((product)=>({
+id:String(product._id||""),
+name:product.name||"",
+category:product.category||"",
+price:Number(product.price)||0,
 stock:getProductTotalStock(product),
-price:product.price||0,
+updatedAt:product.updatedAt||""
+})).sort((a,b)=>a.id.localeCompare(b.id));
+
+const orders=rawOrders.map((order)=>({
+id:String(order._id||""),
+amount:Number(order.amount)||0,
+payment:order.payment,
+paymentStatus:order.paymentStatus||"",
+paymentMethod:order.paymentMethod||"",
+status:order.status||"",
+updatedAt:order.updatedAt||"",
+items:(order.items||[]).map((item)=>({
+productId:String(item?.productId?._id||item?.productId||item?.product?._id||item?.product||""),
+name:item?.name||item?.productName||"",
+quantity:Number(item?.quantity??item?.qty??1)||0,
+price:Number(item?.price)||0
 }))
-.sort((a,b)=>a.stock-b.stock)
+})).sort((a,b)=>a.id.localeCompare(b.id));
+
+const text=JSON.stringify({products,orders,users:rawUsersCount});
+let hash=2166136261;
+
+for(let i=0;i<text.length;i++){
+hash^=text.charCodeAt(i);
+hash=Math.imul(hash,16777619);
+}
+
+return(hash>>>0).toString(16);
+},[rawProducts,rawOrders,rawUsersCount]);
+
+useEffect(()=>{
+if(loading||!dataFingerprint)return;
+
+const cacheKey="saintSalesInsightV2";
+
+try{
+const cached=JSON.parse(localStorage.getItem(cacheKey)||"null");
+
+if(cached?.fingerprint===dataFingerprint&&cached?.insight){
+setSalesInsight(cached.insight);
+setInsightError("");
+return;
+}
+}catch(error){
+console.error("[SALES INSIGHT CACHE]",error);
+}
+
+if(insightRequestRef.current===dataFingerprint)return;
+insightRequestRef.current=dataFingerprint;
+
+const generateInsight=async()=>{
+try{
+setInsightLoading(true);
+setInsightError("");
+
+const token=localStorage.getItem("token")||"";
+
+const response=await axios.post(
+`${backendUrl}/api/ai/sales-insight`,
+{
+fingerprint:dataFingerprint,
+overview:stats,
+productPerformance:productPerformance.map((item)=>({
+name:item.name,
+category:item.category,
+unitsSold:item.sold,
+revenue:item.revenue,
+stock:item.stock,
+price:item.price
+})),
+categoryPerformance,
+lowStockProducts,
+salesTrend
+},
+{
+headers:{Authorization:`Bearer ${token}`},
+timeout:60000
+}
 );
+
+if(!response?.data?.success){
+throw new Error(response?.data?.message||"Unable to generate Sales Insight.");
+}
+
+const returned=response.data.insight;
+let insight="";
+
+if(typeof returned==="string"){
+insight=returned.trim();
+}else if(returned&&typeof returned==="object"){
+if(returned.executiveSummary){
+insight=String(returned.executiveSummary).trim();
+}else{
+const pieces=[
+...(Array.isArray(returned.keyInsights)?returned.keyInsights:[]),
+...(Array.isArray(returned.inventoryInsights)?returned.inventoryInsights:[]),
+...(Array.isArray(returned.recommendations)?returned.recommendations:[])
+];
+insight=pieces.join(" ");
+}
+}
+
+if(!insight)throw new Error("No Sales Insight was returned.");
+
+setSalesInsight(insight);
+
+localStorage.setItem(cacheKey,JSON.stringify({
+fingerprint:dataFingerprint,
+insight,
+generatedAt:response.data.generatedAt||new Date().toISOString()
+}));
+}catch(error){
+console.error("[SALES INSIGHT]",error?.response?.data||error);
+setInsightError(error?.response?.data?.message||"Sales Insight is currently unavailable.");
+}finally{
+setInsightLoading(false);
+}
 };
 
-const buildRecentOrders=()=>{
-const rangedOrders=filterOrdersByRange(rawOrders,recentOrdersRange);
-
-setRecentOrders(
-[...rangedOrders].sort((a,b)=>{
-const dateA=new Date(a.date||a.createdAt);
-const dateB=new Date(b.date||b.createdAt);
-return dateB-dateA;
-})
-);
-};
-
-const buildReportSections=()=>{
-buildOverviewStats();
-buildSalesTrend();
-buildRevenueProfit();
-buildCategoryOverview();
-buildTopProducts();
-buildLowStock();
-buildRecentOrders();
-};
+generateInsight();
+},[loading,dataFingerprint,stats,productPerformance,categoryPerformance,lowStockProducts,salesTrend]);
 
 const handlePrint=()=>{
 const params=new URLSearchParams({
@@ -552,234 +763,181 @@ overview:overviewRange,
 salesTrend:salesTrendRange,
 revenueProfit:revenueProfitRange,
 category:categoryRange,
-topProducts:topProductsRange,
-recentOrders:recentOrdersRange,
+product:productRange,
+recentOrders:recentOrdersRange
 });
 
 navigate(`/sales-report-print?${params.toString()}`);
 };
 
-const formatMoney=(value)=>`${currency}${Number(value||0).toLocaleString()}`;
-
-const formatCompactNumber=(value)=>{
-const numValue=Number(value||0);
-
-if(numValue>=1000000000)return`${Math.round(numValue/1000000000)}b`;
-if(numValue>=1000000)return`${Math.round(numValue/1000000)}m`;
-if(numValue>=1000)return`${Math.round(numValue/1000)}k`;
-
-return numValue.toLocaleString();
-};
-
-const formatCompactCurrency=(value)=>{
-const numValue=Number(value||0);
-
-if(numValue>=1000000000)return`${currency}${Math.round(numValue/1000000000)}b`;
-if(numValue>=1000000)return`${currency}${Math.round(numValue/1000000)}m`;
-if(numValue>=1000)return`${currency}${Math.round(numValue/1000)}k`;
-
-return`${currency}${numValue.toLocaleString()}`;
-};
-
-const lastMonthRevenue=monthlySales.revenue.at(-1)||0;
-const prevMonthRevenue=monthlySales.revenue.at(-2)||0;
-const lastMonthProfit=monthlySales.netProfit.at(-1)||0;
-const prevMonthProfit=monthlySales.netProfit.at(-2)||0;
-const todaySales=weeklySales.data.at(-1)||0;
-const yesterdaySales=weeklySales.data.at(-2)||0;
-
-const revenueTrend=getTrend(lastMonthRevenue,prevMonthRevenue);
-const profitTrend=getTrend(lastMonthProfit,prevMonthProfit);
-const dailyTrend=getTrend(todaySales,yesterdaySales);
-
-const doughnutOptions=useMemo(()=>({
-cutout:"72%",
-responsive:true,
-maintainAspectRatio:false,
-plugins:{
-legend:{display:false},
-},
-}),[]);
-
-const lineOptions=useMemo(()=>({
-responsive:true,
-maintainAspectRatio:false,
-plugins:{
-legend:{
-display:true,
-labels:{color:"#111827"},
-},
-},
-scales:{
-y:{
-beginAtZero:true,
-ticks:{color:"#6b7280"},
-grid:{color:"rgba(0,0,0,0.06)"},
-},
-x:{
-ticks:{color:"#6b7280"},
-grid:{display:false},
-},
-},
-}),[]);
-
-const barOptions=useMemo(()=>({
-responsive:true,
-maintainAspectRatio:false,
-plugins:{
-legend:{
-labels:{color:"#111827"},
-},
-},
-scales:{
-y:{
-beginAtZero:true,
-ticks:{color:"#6b7280"},
-grid:{color:"rgba(0,0,0,0.06)"},
-},
-x:{
-ticks:{color:"#6b7280"},
-grid:{display:false},
-},
-},
-}),[]);
-
 const RangeSelect=({value,onChange})=>(
 <select
 value={value}
 onChange={(e)=>onChange(e.target.value)}
-className="min-w-[110px] rounded-[5px] border border-black/10 bg-white px-3 py-2.5 text-sm font-black text-[#0A0D17] outline-none transition focus:border-black"
+className="rounded-[5px] border border-black/10 bg-[#FAFAF8] px-3 py-2 text-[10px] font-black uppercase tracking-wider text-[#0A0D17] outline-none"
 >
-{RANGE_OPTIONS.map((option)=>(
-<option key={option.value} value={option.value}>
-{option.label}
-</option>
+{RANGE_OPTIONS.map((item)=>(
+<option key={item.value} value={item.value}>{item.label}</option>
 ))}
 </select>
 );
 
-const renderSectionHeader=(title,subtitle,range,setRange,showFilter=true)=>(
-<div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-<div>
-<p className={labelClass}>Report Section</p>
-<h2 className="mt-2 text-xl font-black uppercase tracking-tight text-[#0A0D17]">
-{title}
-</h2>
-<p className="mt-1 text-xs text-[#6b7280]">{subtitle}</p>
-</div>
+const Pagination=({page,totalPages,totalItems,onChange})=>{
+if(!totalItems)return null;
 
-{showFilter&&(
-<div className="print:hidden">
-<RangeSelect value={range} onChange={setRange}/>
-</div>
-)}
-</div>
-);
+const pages=[];
+let start=Math.max(1,page-2);
+let end=Math.min(totalPages,start+4);
 
-const ValueDisplay=({compact,full,className=""})=>(
-<>
-<span className={`print:hidden ${className}`}>{compact}</span>
-<span className={`hidden print:inline ${className}`}>{full}</span>
-</>
-);
+if(end-start<4){
+start=Math.max(1,end-4);
+}
 
-const renderCategoryChart=(labels,data)=>{
-const hasActualData=data.some((value)=>Number(value)>0);
-const safeLabels=labels.length?labels:["No Data"];
-const safeData=hasActualData?data:[1];
+for(let i=start;i<=end;i++){
+pages.push(i);
+}
+
+const first=(page-1)*PAGE_SIZE+1;
+const last=Math.min(page*PAGE_SIZE,totalItems);
 
 return(
-<div className="grid grid-cols-1 gap-6 items-center lg:grid-cols-[220px_1fr] print:grid-cols-1">
-<div className="mx-auto h-[220px] w-full max-w-[220px] print:h-[180px] print:max-w-[180px]">
-<Doughnut
-data={{
-labels:safeLabels,
-datasets:[
-{
-data:safeData,
-backgroundColor:hasActualData
-?["#0A0D17","#374151","#b89a6b","#d6c2a1","#9ca3af"]
-:["#e5e7eb"],
-borderWidth:0,
-},
-],
-}}
-options={doughnutOptions}
-/>
-</div>
+<div className="flex flex-col gap-3 border-t border-black/10 bg-[#FAFAF8] px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+<p className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#0A0D17]/45">
+Showing {first}-{last} of {totalItems}
+</p>
 
-<div className="space-y-2">
-{safeLabels.map((label,index)=>(
-<div
-key={`${label}-${index}`}
-className="flex items-center justify-between rounded-[5px] border border-black/10 bg-[#FAFAF8] px-4 py-3 print:rounded-none print:border print:bg-white print:px-3 print:py-2"
+<div className="flex flex-wrap items-center gap-1.5">
+<button
+type="button"
+disabled={page===1}
+onClick={()=>onChange(page-1)}
+className="flex h-8 w-8 items-center justify-center rounded-[4px] border border-black/10 bg-white text-[#0A0D17] transition hover:bg-[#0A0D17] hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
 >
-<span className="font-semibold text-gray-800">{label}</span>
-<span className="font-black text-gray-900">{data[index]||0}</span>
-</div>
+<FaChevronLeft size={9}/>
+</button>
+
+{start>1&&(
+<>
+<button
+type="button"
+onClick={()=>onChange(1)}
+className="h-8 min-w-8 rounded-[4px] border border-black/10 bg-white px-2 text-[9px] font-black"
+>
+1
+</button>
+{start>2&&<span className="px-1 text-[9px] text-gray-400">...</span>}
+</>
+)}
+
+{pages.map((number)=>(
+<button
+key={number}
+type="button"
+onClick={()=>onChange(number)}
+className={`h-8 min-w-8 rounded-[4px] border px-2 text-[9px] font-black transition ${
+number===page
+?"border-[#0A0D17] bg-[#0A0D17] text-white"
+:"border-black/10 bg-white text-[#0A0D17] hover:bg-black/5"
+}`}
+>
+{number}
+</button>
 ))}
+
+{end<totalPages&&(
+<>
+{end<totalPages-1&&<span className="px-1 text-[9px] text-gray-400">...</span>}
+<button
+type="button"
+onClick={()=>onChange(totalPages)}
+className="h-8 min-w-8 rounded-[4px] border border-black/10 bg-white px-2 text-[9px] font-black"
+>
+{totalPages}
+</button>
+</>
+)}
+
+<button
+type="button"
+disabled={page===totalPages}
+onClick={()=>onChange(page+1)}
+className="flex h-8 w-8 items-center justify-center rounded-[4px] border border-black/10 bg-white text-[#0A0D17] transition hover:bg-[#0A0D17] hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
+>
+<FaChevronRight size={9}/>
+</button>
 </div>
 </div>
 );
 };
 
+const lineOptions={
+responsive:true,
+maintainAspectRatio:false,
+plugins:{
+legend:{display:false},
+tooltip:{backgroundColor:"#0A0D17",titleColor:"#d4b483",bodyColor:"#fff"}
+},
+scales:{
+y:{beginAtZero:true,grid:{color:"rgba(10,13,23,.06)"},ticks:{color:"#6b7280",font:{size:10}}},
+x:{grid:{display:false},ticks:{color:"#6b7280",font:{size:9},maxRotation:0,autoSkip:true,maxTicksLimit:8}}
+}
+};
+
+const barOptions={
+responsive:true,
+maintainAspectRatio:false,
+plugins:{
+legend:{position:"bottom",labels:{boxWidth:10,usePointStyle:true,font:{size:10}}}
+},
+scales:{
+y:{beginAtZero:true,grid:{color:"rgba(10,13,23,.06)"}},
+x:{grid:{display:false}}
+}
+};
+
+const doughnutOptions={
+responsive:true,
+maintainAspectRatio:false,
+cutout:"68%",
+plugins:{
+legend:{
+position:"bottom",
+labels:{boxWidth:9,usePointStyle:true,font:{size:9},padding:12}
+}
+}
+};
+
 if(loading){
 return(
-<div className="min-h-screen bg-transparent p-3 pt-24 font-['Montserrat']">
-<div className="animate-pulse space-y-3">
-<div className="h-24 rounded-[5px] bg-white/70"/>
-<div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-{[...Array(5)].map((_,i)=>(
-<div key={i} className="h-28 rounded-[5px] bg-white/70"/>
-))}
-</div>
-<div className="h-80 rounded-[5px] bg-white/70"/>
-<div className="h-80 rounded-[5px] bg-white/70"/>
+<div className="flex min-h-screen items-center justify-center bg-[#F3F2EE] pt-24 font-['Montserrat']">
+<div className="text-center">
+<div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-[#0A0D17]/15 border-t-[#0A0D17]"/>
+<p className="text-xs font-black uppercase tracking-[0.2em] text-[#0A0D17]">Loading Sales Report</p>
 </div>
 </div>
 );
 }
 
 return(
-<div className="min-h-screen bg-transparent px-2.5 sm:px-3 pt-20 sm:pt-24 pb-4 font-['Montserrat'] print:bg-white print:p-0">
-<div className="max-w-[1500px] mx-auto space-y-4 print:max-w-none print:space-y-3 print:px-0">
+<div className="min-w-0 bg-transparent px-2.5 pb-5 pt-20 font-['Montserrat'] text-[#0A0D17] sm:px-3 sm:pt-24">
+<div className="mx-auto max-w-[1600px] space-y-4">
 
-<div className="rounded-[5px] bg-[#0A0D17] p-5 sm:p-6 shadow-[0_18px_60px_rgba(0,0,0,0.08)] text-white border border-black/10 overflow-hidden relative print:bg-white print:text-black print:shadow-none print:rounded-none">
-<div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-<div className="min-w-0">
-<p className="text-[10px] font-black uppercase tracking-[0.34em] text-white/50 mb-2 print:text-gray-500">
-Saint Clothing Admin
-</p>
+<div className="relative overflow-hidden rounded-[5px] bg-[#0A0D17] px-5 py-6 text-white shadow-[0_18px_60px_rgba(0,0,0,.08)] sm:px-7 sm:py-7">
+<div className="absolute right-0 top-0 h-full w-1 bg-[#d4b483]"/>
 
-<div className="flex items-center gap-3">
-<div className="w-11 h-11 rounded-[5px] bg-white/10 border border-white/10 flex items-center justify-center shrink-0 backdrop-blur-sm print:bg-white print:border-black/10">
-<FaChartLine className="text-sm"/>
+<div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+<div>
+<p className="text-[9px] font-black uppercase tracking-[0.34em] text-white/45">Saint Clothing Admin</p>
+<h1 className="mt-3 text-[28px] font-black uppercase tracking-[-0.04em] sm:text-[36px]">Sales Report</h1>
+<p className="mt-1 text-[11px] text-white/45">Last updated: {lastUpdated?lastUpdated.toLocaleString():"-"}</p>
 </div>
 
-<div className="min-w-0">
-<h1 className="text-[22px] sm:text-[30px] font-black uppercase tracking-[-0.03em] truncate">
-Sales Report
-</h1>
-
-<p className="text-[11px] sm:text-sm text-white/65 mt-1 print:text-gray-500">
-Generated: {new Date().toLocaleString()}
-</p>
-
-{lastUpdated&&(
-<p className="text-[10px] text-white/40 mt-1 print:text-gray-500">
-Last synced: {lastUpdated.toLocaleString()}
-</p>
-)}
-</div>
-</div>
-</div>
-
-<div className="flex flex-wrap gap-2 print:hidden">
+<div className="flex flex-wrap gap-2">
 <button
 type="button"
 onClick={()=>fetchData(false)}
 disabled={refreshing}
-className="inline-flex items-center gap-2 rounded-[5px] bg-white/10 border border-white/10 px-4 py-2.5 text-sm font-black text-white transition hover:bg-white/20 disabled:opacity-50"
+className="inline-flex items-center gap-2 rounded-[5px] border border-white/15 bg-white/10 px-4 py-2.5 text-sm font-black transition hover:bg-white/20 disabled:opacity-50"
 >
 <FaSyncAlt className={refreshing?"animate-spin":""}/>
 {refreshing?"Refreshing...":"Refresh"}
@@ -788,358 +946,324 @@ className="inline-flex items-center gap-2 rounded-[5px] bg-white/10 border borde
 <button
 type="button"
 onClick={handlePrint}
-className="inline-flex items-center gap-2 rounded-[5px] bg-white text-[#111111] px-4 py-2.5 text-sm font-black transition hover:bg-[#ececec] shadow-sm"
+className="inline-flex items-center gap-2 rounded-[5px] bg-white px-4 py-2.5 text-sm font-black text-[#0A0D17] transition hover:bg-[#F2F2F2]"
 >
 <FaPrint/>
-Print Report
+Export Sales Report
 </button>
 </div>
 </div>
 </div>
 
-<div className={`${panelBg} rounded-[5px] p-4 sm:p-5 print:rounded-none print:shadow-none`}>
-{renderSectionHeader(
-"Overview",
-"Summary cards for the selected time period",
-overviewRange,
-setOverviewRange
+{fetchError&&(
+<div className="rounded-[5px] border border-red-200 bg-red-50 px-4 py-3">
+<p className="text-[10px] font-black uppercase tracking-[0.16em] text-red-700">Some report data could not be loaded</p>
+<p className="mt-1 text-xs font-semibold leading-5 text-red-600">{fetchError}</p>
+</div>
 )}
 
-<div className="grid grid-cols-1 gap-3 md:grid-cols-5 print:grid-cols-5 print:gap-2">
-{[
-{
-title:"Total Sales",
-value:<ValueDisplay compact={formatCompactCurrency(displayStats.totalRevenue)} full={formatMoney(stats.totalRevenue)}/>,
-subtitle:`${dailyTrend.percent}% vs previous period`,
-icon:<FaMoneyBillWave/>,
-trend:dailyTrend,
-},
-{
-title:"Orders",
-value:<ValueDisplay compact={formatCompactNumber(displayStats.totalOrders)} full={stats.totalOrders.toLocaleString()}/>,
-subtitle:"Total orders",
-icon:<FaShoppingCart/>,
-},
-{
-title:"Net Profit",
-value:<ValueDisplay compact={formatCompactCurrency(displayStats.netProfit)} full={formatMoney(stats.netProfit)}/>,
-subtitle:`Margin: ${displayStats.netProfitMargin}%`,
-icon:<FaChartLine/>,
-trend:profitTrend,
-},
-{
-title:"Inventory",
-value:<ValueDisplay compact={formatCompactNumber(displayStats.totalProducts)} full={stats.totalProducts.toLocaleString()}/>,
-subtitle:`${displayStats.lowStockCount} low stock`,
-icon:<FaBoxOpen/>,
-},
-{
-title:"Users",
-value:<ValueDisplay compact={formatCompactNumber(displayStats.totalUsers)} full={stats.totalUsers.toLocaleString()}/>,
-subtitle:`${revenueTrend.percent}% revenue trend`,
-icon:<FaUsers/>,
-},
-].map((item)=>(
-<div
-key={item.title}
-className={`${softPanelBg} rounded-[5px] p-4 min-w-0 overflow-hidden transition hover:shadow-md print:rounded-none print:shadow-none`}
->
-<div className="flex items-start justify-between gap-3">
-<div className="min-w-0">
-<p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#0A0D17]/45">
-{item.title}
+<div className={`${panelBg} overflow-hidden rounded-[5px]`}>
+<div className="bg-[#0A0D17] px-5 py-3.5">
+<h2 className="text-sm font-black uppercase tracking-[0.18em] text-white">Sales Insight</h2>
+</div>
+
+<div className="px-5 py-5">
+{insightLoading&&!salesInsight?(
+<div className="flex items-center gap-3">
+<div className="h-4 w-4 animate-spin rounded-full border-2 border-black/15 border-t-[#0A0D17]"/>
+<p className="text-sm font-semibold text-gray-500">Analyzing current sales and inventory data...</p>
+</div>
+):salesInsight?(
+<p className="text-sm font-medium leading-7 text-[#0A0D17]/70">{salesInsight}</p>
+):(
+<p className="text-sm font-medium text-gray-500">
+{insightError||(rawProducts.length||rawOrders.length?"Sales Insight is currently unavailable.":"Sales Insight will appear when report data is available.")}
 </p>
-
-<div className="mt-2 text-[23px] font-black leading-none tracking-[-0.04em] text-[#0A0D17] break-words">
-{item.value}
-</div>
-</div>
-
-<div className="w-9 h-9 rounded-[5px] bg-[#111111]/8 flex items-center justify-center text-[#111111] shrink-0">
-{item.icon}
-</div>
-</div>
-
-<div className="mt-3 flex items-center gap-1 text-xs font-bold text-[#6b7280]">
-{item.trend&&(
-item.trend.isUp
-?<FaArrowUp className="text-emerald-600"/>
-:<FaArrowDown className="text-red-600"/>
 )}
-<span>{item.subtitle}</span>
 </div>
+</div>
+
+<div className={`${panelBg} rounded-[5px] p-5`}>
+<div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+<div>
+<p className={labelClass}>Overall Performance</p>
+<h2 className="mt-1 text-xl font-black uppercase tracking-tight">Sales Overview</h2>
+</div>
+<RangeSelect value={overviewRange} onChange={setOverviewRange}/>
+</div>
+
+<div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
+{[
+["Revenue",formatMoney(stats.totalRevenue),<FaMoneyBillWave/>],
+["Orders",stats.totalOrders,<FaShoppingCart/>],
+["Paid Orders",stats.paidOrders,<FaShoppingCart/>],
+["Units Sold",stats.totalUnitsSold,<FaChartLine/>],
+["Net Profit",formatMoney(stats.netProfit),<FaMoneyBillWave/>],
+["Products",stats.totalProducts,<FaBoxOpen/>],
+["Users",stats.totalUsers,<FaUsers/>]
+].map(([title,value,icon],index)=>(
+<div key={title} className={`relative min-w-0 overflow-hidden rounded-[5px] border border-black/10 p-4 ${index===0?"bg-[#0A0D17] text-white":"bg-[#FAFAF8]"}`}>
+<div className="flex items-center justify-between gap-2">
+<p className={`truncate text-[8px] font-black uppercase tracking-[0.16em] ${index===0?"text-white/45":"text-[#0A0D17]/40"}`}>{title}</p>
+<span className={index===0?"text-[#d4b483]":"text-[#0A0D17]/35"}>{icon}</span>
+</div>
+<p className="mt-4 truncate text-lg font-black tracking-tight">{value}</p>
+{index===0&&<div className="absolute bottom-0 left-0 h-[3px] w-full bg-[#d4b483]"/>}
 </div>
 ))}
 </div>
 </div>
 
-<div className="grid grid-cols-1 gap-4 xl:grid-cols-3 print:grid-cols-1 print:gap-3">
-<div className={`${panelBg} rounded-[5px] p-4 sm:p-5 xl:col-span-2 print:rounded-none print:shadow-none`}>
-{renderSectionHeader(
-"Sales Trend",
-"Paid sales performance over the selected period",
-salesTrendRange,
-setSalesTrendRange
-)}
+<div className="grid min-w-0 grid-cols-1 gap-4 2xl:grid-cols-2">
+<div className={`${panelBg} min-w-0 rounded-[5px] p-5`}>
+<div className="mb-5 flex items-center justify-between gap-3">
+<div>
+<p className={labelClass}>Revenue Movement</p>
+<h2 className="mt-1 text-lg font-black uppercase">Sales Trend</h2>
+</div>
+<RangeSelect value={salesTrendRange} onChange={setSalesTrendRange}/>
+</div>
 
-<div className="h-[320px] print:h-[240px]">
+<div className="h-[300px] min-w-0">
 <Line
 options={lineOptions}
 data={{
-labels:weeklySales.labels.length?weeklySales.labels:["No Data"],
-datasets:[
-{
+labels:salesTrend.labels,
+datasets:[{
 label:"Sales",
-data:weeklySales.data.length?weeklySales.data:[0],
+data:salesTrend.data,
 borderColor:"#0A0D17",
-backgroundColor:"rgba(184,154,107,0.18)",
+backgroundColor:"rgba(212,180,131,.20)",
+pointBackgroundColor:"#d4b483",
+pointBorderColor:"#0A0D17",
+pointRadius:2,
+borderWidth:2,
 fill:true,
-tension:0.4,
-pointRadius:3,
-},
-],
+tension:.35
+}]
 }}
 />
 </div>
 </div>
 
-<div className={`${panelBg} rounded-[5px] p-4 sm:p-5 print:rounded-none print:shadow-none`}>
-{renderSectionHeader(
-"Top Products",
-"Best-performing products from paid orders",
-topProductsRange,
-setTopProductsRange
-)}
-
-<div className="space-y-2">
-{topProducts.length?(
-topProducts.map((item,index)=>(
-<div
-key={`${item.name}-${index}`}
-className="rounded-[5px] border border-black/10 bg-[#FAFAF8] p-4 print:rounded-none print:bg-white print:p-3"
->
-<div className="flex items-center justify-between gap-3">
-<div className="min-w-0">
-<p className="truncate font-black text-[#0A0D17] print:whitespace-normal">
-{item.name}
-</p>
-<p className="text-xs text-[#6b7280]">
-{item.sold} units sold
-</p>
+<div className={`${panelBg} min-w-0 rounded-[5px] p-5`}>
+<div className="mb-5 flex items-center justify-between gap-3">
+<div>
+<p className={labelClass}>Financial Performance</p>
+<h2 className="mt-1 text-lg font-black uppercase">Revenue & Profit</h2>
+</div>
+<RangeSelect value={revenueProfitRange} onChange={setRevenueProfitRange}/>
 </div>
 
-<p className="shrink-0 font-black text-[#0A0D17]">
-{formatMoney(item.revenue)}
-</p>
-</div>
-</div>
-))
-):(
-<div className="rounded-[5px] border border-black/10 bg-[#FAFAF8] p-4 text-sm text-gray-500">
-No paid product sales for this range.
-</div>
-)}
-</div>
-</div>
-</div>
-
-<div className={`${panelBg} rounded-[5px] p-4 sm:p-5 print:rounded-none print:shadow-none`}>
-{renderSectionHeader(
-"Revenue & Profit",
-"Paid order revenue and estimated profit",
-revenueProfitRange,
-setRevenueProfitRange
-)}
-
-<div className="h-[340px] print:h-[240px]">
+<div className="h-[300px] min-w-0">
 <Bar
 options={barOptions}
 data={{
-labels:monthlySales.labels,
+labels:revenueProfit.labels,
 datasets:[
-{
-label:"Revenue",
-data:monthlySales.revenue,
-backgroundColor:"#0A0D17",
-borderRadius:5,
-},
-{
-label:"Profit",
-data:monthlySales.netProfit,
-backgroundColor:"#b89a6b",
-borderRadius:5,
-},
-],
+{label:"Revenue",data:revenueProfit.revenue,backgroundColor:"#0A0D17",borderRadius:2},
+{label:"Estimated Profit",data:revenueProfit.profit,backgroundColor:"#d4b483",borderRadius:2}
+]
 }}
 />
 </div>
 </div>
-
-<div className="grid grid-cols-1 gap-4 xl:grid-cols-2 print:grid-cols-1 print:gap-3">
-<div className={`${panelBg} rounded-[5px] p-4 sm:p-5 print:rounded-none print:shadow-none`}>
-{renderSectionHeader(
-"Category Overview",
-"Sold quantity from paid orders by category",
-categoryRange,
-setCategoryRange
-)}
-
-{renderCategoryChart(categorySales.labels,categorySales.data)}
 </div>
 
-<div className={`${panelBg} rounded-[5px] p-4 sm:p-5 print:rounded-none print:shadow-none`}>
-{renderSectionHeader(
-"Low Stock Alert",
-"Products with total stock of 5 or below",
-lowStockRange,
-()=>{},
-false
-)}
-
-<div className="space-y-2">
-{lowStockProducts.length?(
-lowStockProducts.map((item)=>(
-<div
-key={item._id}
-className="rounded-[5px] border border-black/10 bg-[#FAFAF8] p-4 print:rounded-none print:bg-white print:p-3"
->
-<div className="flex items-center justify-between gap-3">
-<div className="min-w-0">
-<p className="truncate font-black text-[#0A0D17]">
-{item.name}
-</p>
-
-<p className="text-xs text-[#6b7280]">
-{item.category} • {item.branch}
-</p>
+<div className={`${panelBg} overflow-hidden rounded-[5px]`}>
+<div className="flex flex-wrap items-center justify-between gap-3 border-b border-black/10 bg-[#FAFAF8] px-5 py-4">
+<div>
+<p className={labelClass}>Product Movement</p>
+<h2 className="mt-1 text-xl font-black uppercase tracking-tight">Product Sales Performance</h2>
+<p className="mt-1 text-[10px] font-semibold text-gray-500">All products are displayed, including products with zero sales.</p>
+</div>
+<RangeSelect value={productRange} onChange={setProductRange}/>
 </div>
 
-<div className="shrink-0 text-right">
-<p className="font-black text-red-600">
-{item.stock} left
-</p>
-
-<p className="text-xs text-[#6b7280]">
-{formatMoney(item.price)}
-</p>
-</div>
-</div>
-</div>
-))
-):(
-<div className="rounded-[5px] border border-black/10 bg-[#FAFAF8] p-4 text-sm text-gray-500">
-No low stock products right now.
-</div>
-)}
-</div>
-</div>
-</div>
-
-<div className={`${panelBg} rounded-[5px] overflow-hidden print:rounded-none print:shadow-none`}>
-<div className="px-4 sm:px-5 py-5 border-b border-black/10">
-{renderSectionHeader(
-"Recent Orders",
-"Latest order activity for the selected period",
-recentOrdersRange,
-setRecentOrdersRange
-)}
-</div>
-
-<div className="overflow-x-auto">
-<table className="w-full min-w-[900px] border-collapse text-left print:min-w-0">
-<thead>
-<tr className="bg-[#0A0D17] text-white">
-<th className="px-5 py-4 text-[10px] font-black uppercase tracking-[0.12em]">
-Order ID
-</th>
-<th className="px-5 py-4 text-[10px] font-black uppercase tracking-[0.12em]">
-Customer
-</th>
-<th className="px-5 py-4 text-[10px] font-black uppercase tracking-[0.12em]">
-Amount
-</th>
-<th className="px-5 py-4 text-[10px] font-black uppercase tracking-[0.12em]">
-Payment
-</th>
-<th className="px-5 py-4 text-[10px] font-black uppercase tracking-[0.12em]">
-Status
-</th>
-<th className="px-5 py-4 text-[10px] font-black uppercase tracking-[0.12em]">
-Date
-</th>
+<div className="w-full overflow-x-auto">
+<table className="w-full min-w-[850px] border-collapse text-left">
+<thead className="bg-[#0A0D17] text-white">
+<tr>
+<th className="px-5 py-3 text-[9px] font-black uppercase tracking-wider">Product</th>
+<th className="px-5 py-3 text-[9px] font-black uppercase tracking-wider">Category</th>
+<th className="px-5 py-3 text-right text-[9px] font-black uppercase tracking-wider">Price</th>
+<th className="px-5 py-3 text-right text-[9px] font-black uppercase tracking-wider">Units Sold</th>
+<th className="px-5 py-3 text-right text-[9px] font-black uppercase tracking-wider">Revenue</th>
+<th className="px-5 py-3 text-right text-[9px] font-black uppercase tracking-wider">Stock</th>
 </tr>
 </thead>
 
 <tbody>
-{recentOrders.length?(
-recentOrders.map((order,i)=>(
-<tr
-key={order._id}
-className={`border-b border-[#ecece6] ${i%2===0?"bg-white":"bg-[#fcfcfb]"}`}
->
-<td className="px-5 py-4 text-xs font-black text-[#0A0D17]">
-#{order._id?.slice(-6)?.toUpperCase()}
-</td>
-
-<td className="px-5 py-4 text-xs font-semibold text-[#0A0D17]/70">
-{`${order.address?.firstName||""} ${order.address?.lastName||""}`.trim()||"Customer"}
-</td>
-
-<td className="px-5 py-4 text-xs font-black text-[#0A0D17]">
-{formatMoney(order.amount)}
-</td>
-
-<td className="px-5 py-4 text-xs font-bold text-[#0A0D17]/70">
-{order.paymentMethod||"COD"}
-</td>
-
-<td className="px-5 py-4">
-<span className="inline-flex rounded-[5px] border border-black/10 bg-[#FAFAF8] px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.1em] text-[#0A0D17]/70">
-{order.status||"Pending"}
+{paginatedProducts.length?paginatedProducts.map((item,index)=>(
+<tr key={item._id||index} className={index%2===0?"bg-white":"bg-[#FAFAF8]"}>
+<td className="border-b border-black/5 px-5 py-3 text-xs font-black">{item.name}</td>
+<td className="border-b border-black/5 px-5 py-3 text-xs font-medium text-gray-500">{item.category}</td>
+<td className="border-b border-black/5 px-5 py-3 text-right text-xs font-bold">{formatMoney(item.price)}</td>
+<td className="border-b border-black/5 px-5 py-3 text-right text-xs font-black">{item.sold}</td>
+<td className="border-b border-black/5 px-5 py-3 text-right text-xs font-black">{formatMoney(item.revenue)}</td>
+<td className="border-b border-black/5 px-5 py-3 text-right">
+<span className={`inline-flex min-w-[38px] justify-center rounded-[3px] px-2 py-1 text-[9px] font-black ${item.stock<=5?"bg-red-50 text-red-600":"bg-[#0A0D17]/5 text-[#0A0D17]"}`}>
+{item.stock}
 </span>
 </td>
-
-<td className="px-5 py-4 text-xs font-semibold text-[#6b7280]">
-{order.date||order.createdAt
-?new Date(order.date||order.createdAt).toLocaleString()
-:"No date"}
-</td>
 </tr>
-))
-):(
+)):(
 <tr>
-<td colSpan="6" className="px-4 py-8 text-center text-gray-500">
-No recent orders available for this range.
-</td>
+<td colSpan="6" className="px-5 py-10 text-center text-xs font-bold uppercase tracking-wider text-gray-400">No products found</td>
 </tr>
 )}
 </tbody>
 </table>
 </div>
+
+<Pagination page={productPage} totalPages={productTotalPages} totalItems={productPerformance.length} onChange={setProductPage}/>
 </div>
 
-<style>
-{`
-@media print {
-.print-no-scroll {
-max-height:none !important;
-overflow:visible !important;
-}
+<div className="grid min-w-0 grid-cols-1 gap-4 2xl:grid-cols-2">
+<div className={`${panelBg} min-w-0 overflow-hidden rounded-[5px]`}>
+<div className="flex flex-wrap items-center justify-between gap-3 border-b border-black/10 bg-[#FAFAF8] px-5 py-4">
+<div>
+<p className={labelClass}>Category Performance</p>
+<h2 className="mt-1 text-lg font-black uppercase">Sales By Category</h2>
+</div>
+<RangeSelect value={categoryRange} onChange={setCategoryRange}/>
+</div>
 
-.print-full-width {
-overflow:visible !important;
-}
+<div className="grid min-w-0 grid-cols-1 gap-5 p-5 lg:grid-cols-[minmax(220px,.8fr)_minmax(0,1.2fr)] lg:items-center">
+<div className="mx-auto h-[260px] w-full max-w-[320px]">
+<Doughnut
+options={doughnutOptions}
+data={{
+labels:categoryChart.labels.length?categoryChart.labels:["No Data"],
+datasets:[{
+data:categoryChart.data.some((value)=>value>0)?categoryChart.data:[1],
+backgroundColor:["#0A0D17","#d4b483","#4b4e58","#9d825d","#d9d7d1","#6b7280"],
+borderWidth:0
+}]
+}}
+/>
+</div>
 
-canvas {
-max-height:240px !important;
-}
+<div className="min-w-0 overflow-x-auto rounded-[5px] border border-black/10">
+<table className="w-full min-w-[430px] text-xs">
+<thead>
+<tr className="bg-[#0A0D17] text-white">
+<th className="px-3 py-2.5 text-left text-[8px] font-black uppercase tracking-wider">Category</th>
+<th className="px-3 py-2.5 text-right text-[8px] font-black uppercase tracking-wider">Products</th>
+<th className="px-3 py-2.5 text-right text-[8px] font-black uppercase tracking-wider">Units</th>
+<th className="px-3 py-2.5 text-right text-[8px] font-black uppercase tracking-wider">Revenue</th>
+</tr>
+</thead>
 
-body {
-background:white !important;
-}
-}
-`}
-</style>
+<tbody>
+{categoryPerformance.map((item,index)=>(
+<tr key={item.category} className={index%2===0?"bg-white":"bg-[#FAFAF8]"}>
+<td className="border-b border-black/5 px-3 py-3 font-bold">{item.category}</td>
+<td className="border-b border-black/5 px-3 py-3 text-right font-black">{item.products}</td>
+<td className="border-b border-black/5 px-3 py-3 text-right font-black">{item.unitsSold}</td>
+<td className="border-b border-black/5 px-3 py-3 text-right font-black">{formatMoney(item.revenue)}</td>
+</tr>
+))}
+</tbody>
+</table>
+</div>
+</div>
+</div>
+
+<div className={`${panelBg} min-w-0 overflow-hidden rounded-[5px]`}>
+<div className="border-b border-black/10 bg-[#FAFAF8] px-5 py-4">
+<p className={labelClass}>Inventory Monitoring</p>
+<div className="mt-1 flex items-center gap-2">
+<h2 className="text-lg font-black uppercase">Low Stock Alert</h2>
+{lowStockProducts.length>0&&<FaExclamationTriangle className="text-[#d4b483]"/>}
+</div>
+</div>
+
+<div className="w-full overflow-x-auto">
+<table className="w-full min-w-[500px] text-xs">
+<thead className="bg-[#0A0D17] text-white">
+<tr>
+<th className="px-4 py-3 text-left text-[8px] font-black uppercase tracking-wider">Product</th>
+<th className="px-4 py-3 text-left text-[8px] font-black uppercase tracking-wider">Category</th>
+<th className="px-4 py-3 text-right text-[8px] font-black uppercase tracking-wider">Stock</th>
+</tr>
+</thead>
+
+<tbody>
+{paginatedLowStock.length?paginatedLowStock.map((item,index)=>(
+<tr key={item._id} className={index%2===0?"bg-white":"bg-[#FAFAF8]"}>
+<td className="border-b border-black/5 px-4 py-3 font-black">{item.name}</td>
+<td className="border-b border-black/5 px-4 py-3 font-medium text-gray-500">{item.category}</td>
+<td className="border-b border-black/5 px-4 py-3 text-right">
+<span className="rounded-[3px] bg-red-50 px-2 py-1 text-[9px] font-black text-red-600">{item.stock}</span>
+</td>
+</tr>
+)):(
+<tr>
+<td colSpan="3" className="px-4 py-10 text-center text-xs font-bold text-gray-400">No products are currently low in stock.</td>
+</tr>
+)}
+</tbody>
+</table>
+</div>
+
+<Pagination page={lowStockPage} totalPages={lowStockTotalPages} totalItems={lowStockProducts.length} onChange={setLowStockPage}/>
+</div>
+</div>
+
+<div className={`${panelBg} overflow-hidden rounded-[5px]`}>
+<div className="flex flex-wrap items-center justify-between gap-3 border-b border-black/10 bg-[#FAFAF8] px-5 py-4">
+<div>
+<p className={labelClass}>Order Activity</p>
+<h2 className="mt-1 text-lg font-black uppercase">Recent Orders</h2>
+</div>
+<RangeSelect value={recentOrdersRange} onChange={setRecentOrdersRange}/>
+</div>
+
+<div className="w-full overflow-x-auto">
+<table className="w-full min-w-[950px] text-left text-xs">
+<thead className="bg-[#0A0D17] text-white">
+<tr>
+<th className="px-4 py-3 text-[8px] font-black uppercase tracking-wider">Order ID</th>
+<th className="px-4 py-3 text-[8px] font-black uppercase tracking-wider">Customer</th>
+<th className="px-4 py-3 text-right text-[8px] font-black uppercase tracking-wider">Amount</th>
+<th className="px-4 py-3 text-[8px] font-black uppercase tracking-wider">Payment</th>
+<th className="px-4 py-3 text-[8px] font-black uppercase tracking-wider">Payment Status</th>
+<th className="px-4 py-3 text-[8px] font-black uppercase tracking-wider">Order Status</th>
+<th className="px-4 py-3 text-[8px] font-black uppercase tracking-wider">Date</th>
+</tr>
+</thead>
+
+<tbody>
+{paginatedRecentOrders.length?paginatedRecentOrders.map((order,index)=>(
+<tr key={order._id||index} className={index%2===0?"bg-white":"bg-[#FAFAF8]"}>
+<td className="border-b border-black/5 px-4 py-3 font-black">#{String(order._id||"").slice(-6).toUpperCase()}</td>
+<td className="border-b border-black/5 px-4 py-3 font-semibold">
+{`${order.address?.firstName||""} ${order.address?.lastName||""}`.trim()||order.customerName||order.userId?.name||"Customer"}
+</td>
+<td className="border-b border-black/5 px-4 py-3 text-right font-black">{formatMoney(order.amount)}</td>
+<td className="border-b border-black/5 px-4 py-3 font-semibold">{order.paymentMethod||"COD"}</td>
+<td className="border-b border-black/5 px-4 py-3">
+<span className={`rounded-[3px] px-2 py-1 text-[8px] font-black uppercase ${isPaidOrder(order)?"bg-green-50 text-green-700":"bg-amber-50 text-amber-700"}`}>
+{isPaidOrder(order)?"Paid":order.paymentStatus||"Pending"}
+</span>
+</td>
+<td className="border-b border-black/5 px-4 py-3 font-semibold">{order.status||"Pending"}</td>
+<td className="border-b border-black/5 px-4 py-3 text-[10px] text-gray-500">
+{order.date||order.createdAt?new Date(order.date||order.createdAt).toLocaleString():"-"}
+</td>
+</tr>
+)):(
+<tr>
+<td colSpan="7" className="px-4 py-10 text-center text-xs font-bold uppercase tracking-wider text-gray-400">No orders in the selected period</td>
+</tr>
+)}
+</tbody>
+</table>
+</div>
+
+<Pagination page={recentOrdersPage} totalPages={recentOrdersTotalPages} totalItems={recentOrders.length} onChange={setRecentOrdersPage}/>
+</div>
 
 </div>
 </div>

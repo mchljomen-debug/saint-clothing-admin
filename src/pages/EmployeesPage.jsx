@@ -1,323 +1,553 @@
-import React, { useEffect, useMemo, useState } from "react";
-import axios from "axios";
-import { backendUrl } from "../App";
-import { toast } from "react-toastify";
-import { Pagination } from "antd";
-import "antd/dist/reset.css";
-import {
-  FaUsers,
-  FaUserCheck,
-  FaUserTimes,
-  FaUserTie,
-  FaSearch,
-  FaEdit,
-  FaTrash,
-  FaSyncAlt,
-  FaFileAlt,
-  FaImage,
-  FaFilter,
-  FaPlus,
-} from "react-icons/fa";
+import React,{useEffect,useMemo,useState}from"react";
+import axios from"axios";
+import{backendUrl}from"../App";
+import{toast}from"react-toastify";
+import{Pagination}from"antd";
+import"antd/dist/reset.css";
+import{FaUsers,FaUserCheck,FaUserTimes,FaUserTie,FaSearch,FaEdit,FaTrash,FaSyncAlt,FaFileAlt,FaImage,FaFilter,FaPlus}from"react-icons/fa";
 
-const DEFAULT_ITEMS_PER_PAGE = 9;
+const DEFAULT_ITEMS_PER_PAGE=9;
 
-const EmployeesPage = () => {
-  const [employees, setEmployees] = useState([]);
-  const [branches, setBranches] = useState([]);
-  const [roleFilter, setRoleFilter] = useState("All");
-  const [branchFilter, setBranchFilter] = useState("All");
-  const [search, setSearch] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_ITEMS_PER_PAGE);
-  const [editingId, setEditingId] = useState(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const [saving, setSaving] = useState(false);
+const resolveFileUrl=(value)=>{
+  if(!value)return"";
 
-  const emptyForm = {
-    name: "",
-    email: "",
-    password: "",
-    role: "staff",
-    branch: "",
-    resume: null,
-    picture: null,
-    isActive: true,
+  if(typeof value==="object"){
+    value=value.secure_url||value.url||value.src||value.path||value.image||value.filename||"";
+  }
+
+  const file=String(value||"").trim();
+  if(!file)return"";
+
+  if(file.startsWith("blob:")||file.startsWith("data:"))return file;
+  if(file.startsWith("http://")||file.startsWith("https://"))return file;
+  if(file.startsWith("/uploads/"))return`${backendUrl}${file}`;
+  if(file.startsWith("uploads/"))return`${backendUrl}/${file}`;
+
+  return`${backendUrl}/uploads/${file.replace(/^\/+/,"")}`;
+};
+
+const EmployeePicture=({employee,className="w-14 h-14"})=>{
+  const imageUrl=resolveFileUrl(employee?.picture);
+  const[failed,setFailed]=useState(false);
+
+  useEffect(()=>{
+    setFailed(false);
+  },[imageUrl]);
+
+  if(!imageUrl||failed){
+    return(
+      <div className={`${className} rounded-[5px] bg-[#0A0D17] border border-black/10 flex items-center justify-center text-white text-lg font-black uppercase shrink-0`}>
+        {employee?.name?.trim()?.charAt(0)?.toUpperCase()||"E"}
+      </div>
+    );
+  }
+
+  return(
+    <img
+      src={imageUrl}
+      alt={employee?.name||"Employee"}
+      loading="lazy"
+      onError={(e)=>{
+        console.log("EMPLOYEE IMAGE FAILED:",imageUrl);
+        setFailed(true);
+      }}
+      className={`${className} rounded-[5px] object-cover object-center border border-black/10 bg-[#f3f3f1] shrink-0`}
+    />
+  );
+};
+
+const EmployeesPage=()=>{
+  const[employees,setEmployees]=useState([]);
+  const[branches,setBranches]=useState([]);
+  const[roleFilter,setRoleFilter]=useState("All");
+  const[branchFilter,setBranchFilter]=useState("All");
+  const[search,setSearch]=useState("");
+  const[currentPage,setCurrentPage]=useState(1);
+  const[pageSize,setPageSize]=useState(DEFAULT_ITEMS_PER_PAGE);
+  const[editingId,setEditingId]=useState(null);
+  const[refreshing,setRefreshing]=useState(false);
+  const[saving,setSaving]=useState(false);
+  const[picturePreview,setPicturePreview]=useState("");
+  const[picturePreviewFailed,setPicturePreviewFailed]=useState(false);
+
+  const emptyForm={
+    name:"",
+    email:"",
+    password:"",
+    role:"staff",
+    branch:"",
+    resume:null,
+    picture:null,
+    isActive:true
   };
 
-  const [formData, setFormData] = useState(emptyForm);
+  const[formData,setFormData]=useState(emptyForm);
 
-  const token = localStorage.getItem("token");
+  const token=localStorage.getItem("token");
 
-  const axiosConfig = {
-    headers: { Authorization: `Bearer ${token}` },
+  const axiosConfig={
+    headers:{
+      Authorization:`Bearer ${token}`,
+      token
+    }
   };
 
-  const panelBg =
-    "bg-white border border-black/10 shadow-[0_8px_24px_rgba(0,0,0,0.05)]";
-  const softPanelBg = "bg-[#FAFAF8] border border-black/10";
-  const inputClass =
-    "w-full rounded-[5px] border border-black/10 bg-white px-3 py-2.5 text-sm text-[#0A0D17] outline-none transition focus:border-black";
-  const labelClass =
-    "text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45";
-  const buttonDark =
-    "inline-flex items-center justify-center gap-2 rounded-[5px] bg-[#0A0D17] px-4 py-2.5 text-sm font-black text-white transition hover:bg-[#1f2937] disabled:opacity-50";
-  const buttonLight =
-    "inline-flex items-center justify-center gap-2 rounded-[5px] border border-black/10 bg-white px-4 py-2.5 text-sm font-black text-[#0A0D17] transition hover:bg-[#FAFAF8] disabled:opacity-50";
+  const panelBg="bg-white border border-black/10 shadow-[0_8px_24px_rgba(0,0,0,0.05)]";
+  const softPanelBg="bg-[#FAFAF8] border border-black/10";
+  const inputClass="w-full rounded-[5px] border border-black/10 bg-white px-3 py-2.5 text-sm text-[#0A0D17] outline-none transition focus:border-black";
+  const labelClass="text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45";
+  const buttonDark="inline-flex items-center justify-center gap-2 rounded-[5px] bg-[#0A0D17] px-4 py-2.5 text-sm font-black text-white transition hover:bg-[#1f2937] disabled:opacity-50";
+  const buttonLight="inline-flex items-center justify-center gap-2 rounded-[5px] border border-black/10 bg-white px-4 py-2.5 text-sm font-black text-[#0A0D17] transition hover:bg-[#FAFAF8] disabled:opacity-50";
 
-  const fetchEmployees = async () => {
+  const fetchEmployees=async()=>{
     setRefreshing(true);
 
-    try {
-      const res = await axios.get(
-        `${backendUrl}/api/admin/employees`,
+    try{
+      const res=await axios.get(
+        `${backendUrl}/api/admin/employees?ts=${Date.now()}`,
         axiosConfig
       );
 
-      if (res.data.success) {
-        setEmployees(res.data.employees || []);
-      } else {
-        toast.error(res.data.message || "Failed to load employees");
+      if(res.data.success){
+        const incoming=res.data.employees||[];
+
+        console.log(
+          "EMPLOYEE PICTURES:",
+          incoming.map((employee)=>({
+            name:employee.name,
+            picture:employee.picture
+          }))
+        );
+
+        setEmployees(incoming);
+      }else{
+        toast.error(res.data.message||"Failed to load employees");
       }
-    } catch (err) {
-      console.log(err);
-      toast.error(err.response?.data?.message || "Failed to load employees");
-    } finally {
+    }catch(err){
+      console.log("FETCH EMPLOYEES ERROR:",err);
+      toast.error(err.response?.data?.message||"Failed to load employees");
+    }finally{
       setRefreshing(false);
     }
   };
 
-  const fetchBranches = async () => {
-    try {
-      const res = await axios.get(`${backendUrl}/api/branch/list`, axiosConfig);
+  const fetchBranches=async()=>{
+    try{
+      const res=await axios.get(
+        `${backendUrl}/api/branch/list?ts=${Date.now()}`,
+        axiosConfig
+      );
 
-      if (res.data.success) {
-        const activeBranches = (res.data.branches || []).filter(
-          (branch) => branch.isActive
+      if(res.data.success){
+        const activeBranches=(res.data.branches||[]).filter(
+          (branch)=>branch.isActive
         );
 
         setBranches(activeBranches);
 
-        setFormData((prev) => ({
+        setFormData((prev)=>({
           ...prev,
-          branch: prev.branch || activeBranches[0]?.code || "",
+          branch:prev.branch||activeBranches[0]?.code||""
         }));
-      } else {
-        toast.error(res.data.message || "Failed to load branches");
+      }else{
+        toast.error(res.data.message||"Failed to load branches");
       }
-    } catch (err) {
-      console.log(err);
-      toast.error(err.response?.data?.message || "Failed to load branches");
+    }catch(err){
+      console.log("FETCH BRANCHES ERROR:",err);
+      toast.error(err.response?.data?.message||"Failed to load branches");
     }
   };
 
-  useEffect(() => {
-    if (token) {
+  useEffect(()=>{
+    if(token){
       fetchEmployees();
       fetchBranches();
     }
-  }, [token]);
+  },[token]);
 
-  const onChangeHandler = (e) => {
-    const { name, value, type, files, checked } = e.target;
+  useEffect(()=>{
+    setPicturePreviewFailed(false);
 
-    setFormData((prev) => ({
+    return()=>{
+      if(picturePreview&&picturePreview.startsWith("blob:")){
+        URL.revokeObjectURL(picturePreview);
+      }
+    };
+  },[picturePreview]);
+
+  const onChangeHandler=(e)=>{
+    const{name,value,type,files,checked}=e.target;
+
+    if(type==="file"){
+      const file=files?.[0]||null;
+
+      setFormData((prev)=>({
+        ...prev,
+        [name]:file
+      }));
+
+      if(name==="picture"){
+        if(picturePreview&&picturePreview.startsWith("blob:")){
+          URL.revokeObjectURL(picturePreview);
+        }
+
+        setPicturePreviewFailed(false);
+
+        if(file){
+          const localPreview=URL.createObjectURL(file);
+          setPicturePreview(localPreview);
+        }else if(editingId){
+          const employee=employees.find(
+            (item)=>item._id===editingId
+          );
+
+          setPicturePreview(
+            resolveFileUrl(employee?.picture)
+          );
+        }else{
+          setPicturePreview("");
+        }
+      }
+
+      return;
+    }
+
+    setFormData((prev)=>({
       ...prev,
-      [name]:
-        type === "file"
-          ? files?.[0] || null
-          : type === "checkbox"
-          ? checked
-          : value,
+      [name]:type==="checkbox"?checked:value
     }));
   };
 
-  const resetForm = () => {
+  const resetForm=()=>{
+    if(picturePreview&&picturePreview.startsWith("blob:")){
+      URL.revokeObjectURL(picturePreview);
+    }
+
     setFormData({
       ...emptyForm,
-      branch: branches[0]?.code || "",
+      branch:branches[0]?.code||""
     });
+
+    setPicturePreview("");
+    setPicturePreviewFailed(false);
     setEditingId(null);
   };
 
-  const onSubmitHandler = async (e) => {
+  const onSubmitHandler=async(e)=>{
     e.preventDefault();
+
+    if(saving)return;
+
     setSaving(true);
 
-    try {
-      const submitData = new FormData();
+    try{
+      const submitData=new FormData();
 
-      submitData.append("name", formData.name);
-      submitData.append("email", formData.email);
-      submitData.append("role", formData.role);
+      submitData.append("name",formData.name.trim());
+      submitData.append("email",formData.email.trim());
+      submitData.append("role",formData.role);
       submitData.append(
         "branch",
-        formData.role === "admin" ? "all" : formData.branch
+        formData.role==="admin"?"all":formData.branch
       );
-      submitData.append("isActive", formData.isActive);
+      submitData.append(
+        "isActive",
+        String(formData.isActive)
+      );
 
-      if (formData.password) submitData.append("password", formData.password);
-      if (formData.resume) submitData.append("resume", formData.resume);
-      if (formData.picture) submitData.append("picture", formData.picture);
+      if(formData.password){
+        submitData.append(
+          "password",
+          formData.password
+        );
+      }
 
-      const res = editingId
-        ? await axios.put(
-            `${backendUrl}/api/admin/employees/${editingId}`,
-            submitData,
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "multipart/form-data",
-              },
-            }
-          )
-        : await axios.post(`${backendUrl}/api/admin/employees`, submitData, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "multipart/form-data",
-            },
-          });
+      if(formData.resume){
+        submitData.append(
+          "resume",
+          formData.resume
+        );
+      }
 
-      if (res.data.success) {
+      if(formData.picture){
+        submitData.append(
+          "picture",
+          formData.picture
+        );
+      }
+
+      const requestConfig={
+        headers:{
+          Authorization:`Bearer ${token}`,
+          token
+        }
+      };
+
+      const res=editingId
+        ?await axios.put(
+          `${backendUrl}/api/admin/employees/${editingId}`,
+          submitData,
+          requestConfig
+        )
+        :await axios.post(
+          `${backendUrl}/api/admin/employees`,
+          submitData,
+          requestConfig
+        );
+
+      if(res.data.success){
+        console.log(
+          "SAVED EMPLOYEE:",
+          res.data.employee
+        );
+
         toast.success(
-          res.data.message ||
-            (editingId
-              ? "Employee updated successfully"
-              : "Employee created successfully")
+          res.data.message||
+          (
+            editingId
+              ?"Employee updated successfully"
+              :"Employee created successfully"
+          )
         );
 
         resetForm();
-        fetchEmployees();
-        fetchBranches();
-      } else {
-        toast.error(res.data.message || "Failed to save employee");
+
+        await Promise.all([
+          fetchEmployees(),
+          fetchBranches()
+        ]);
+      }else{
+        toast.error(
+          res.data.message||
+          "Failed to save employee"
+        );
       }
-    } catch (err) {
-      console.log(err);
-      toast.error(err.response?.data?.message || "Failed to save employee");
-    } finally {
+    }catch(err){
+      console.log(
+        "SAVE EMPLOYEE ERROR:",
+        err
+      );
+
+      toast.error(
+        err.response?.data?.message||
+        "Failed to save employee"
+      );
+    }finally{
       setSaving(false);
     }
   };
 
-  const startEdit = (employee) => {
+  const startEdit=(employee)=>{
+    if(picturePreview&&picturePreview.startsWith("blob:")){
+      URL.revokeObjectURL(picturePreview);
+    }
+
     setEditingId(employee._id);
+
     setFormData({
-      name: employee.name || "",
-      email: employee.email || "",
-      password: "",
-      role: employee.role || "staff",
-      branch: employee.branch === "all" ? "" : employee.branch,
-      resume: null,
-      picture: null,
-      isActive: !!employee.isActive,
+      name:employee.name||"",
+      email:employee.email||"",
+      password:"",
+      role:employee.role||"staff",
+      branch:
+        employee.branch==="all"
+          ?""
+          :employee.branch||
+          branches[0]?.code||
+          "",
+      resume:null,
+      picture:null,
+      isActive:employee.isActive!==false
     });
 
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setPicturePreview(
+      resolveFileUrl(employee.picture)
+    );
+
+    setPicturePreviewFailed(false);
+
+    window.scrollTo({
+      top:0,
+      behavior:"smooth"
+    });
   };
 
-  const removeEmployee = async (id) => {
-    if (!window.confirm("Remove this employee?")) return;
+  const removeEmployee=async(id)=>{
+    if(!window.confirm("Remove this employee?"))return;
 
-    try {
-      const res = await axios.delete(
+    try{
+      const res=await axios.delete(
         `${backendUrl}/api/admin/employees/${id}`,
         axiosConfig
       );
 
-      if (res.data.success) {
-        toast.success(res.data.message || "Employee removed successfully");
+      if(res.data.success){
+        toast.success(
+          res.data.message||
+          "Employee removed successfully"
+        );
 
-        if (editingId === id) resetForm();
+        if(editingId===id){
+          resetForm();
+        }
 
-        fetchEmployees();
-        fetchBranches();
-      } else {
-        toast.error(res.data.message || "Failed to remove employee");
+        await Promise.all([
+          fetchEmployees(),
+          fetchBranches()
+        ]);
+      }else{
+        toast.error(
+          res.data.message||
+          "Failed to remove employee"
+        );
       }
-    } catch (err) {
-      console.log(err);
-      toast.error(err.response?.data?.message || "Failed to remove employee");
+    }catch(err){
+      console.log(
+        "REMOVE EMPLOYEE ERROR:",
+        err
+      );
+
+      toast.error(
+        err.response?.data?.message||
+        "Failed to remove employee"
+      );
     }
   };
 
-  const filteredEmployees = useMemo(() => {
-    return employees.filter((employee) => {
-      const matchRole =
-        roleFilter === "All" ? true : employee.role === roleFilter;
+  const filteredEmployees=useMemo(()=>{
+    return employees.filter((employee)=>{
+      const matchRole=
+        roleFilter==="All"||
+        employee.role===roleFilter;
 
-      const matchBranch =
-        branchFilter === "All" ? true : employee.branch === branchFilter;
+      const matchBranch=
+        branchFilter==="All"||
+        employee.branch===branchFilter;
 
-      const term = search.trim().toLowerCase();
+      const term=search
+        .trim()
+        .toLowerCase();
 
-      const matchSearch =
-        !term ||
-        employee.name?.toLowerCase().includes(term) ||
-        employee.email?.toLowerCase().includes(term) ||
-        employee.branch?.toLowerCase().includes(term);
+      const matchSearch=
+        !term||
+        employee.name
+          ?.toLowerCase()
+          .includes(term)||
+        employee.email
+          ?.toLowerCase()
+          .includes(term)||
+        employee.branch
+          ?.toLowerCase()
+          .includes(term);
 
-      return matchRole && matchBranch && matchSearch;
+      return(
+        matchRole&&
+        matchBranch&&
+        matchSearch
+      );
     });
-  }, [employees, roleFilter, branchFilter, search]);
+  },[
+    employees,
+    roleFilter,
+    branchFilter,
+    search
+  ]);
 
-  const indexOfLastItem = currentPage * pageSize;
-  const indexOfFirstItem = indexOfLastItem - pageSize;
+  const indexOfLastItem=
+    currentPage*pageSize;
 
-  const paginatedEmployees = filteredEmployees.slice(
-    indexOfFirstItem,
-    indexOfLastItem
-  );
+  const indexOfFirstItem=
+    indexOfLastItem-pageSize;
 
-  const totalPages = Math.ceil(filteredEmployees.length / pageSize) || 1;
+  const paginatedEmployees=
+    filteredEmployees.slice(
+      indexOfFirstItem,
+      indexOfLastItem
+    );
 
-  useEffect(() => {
+  const totalPages=
+    Math.ceil(
+      filteredEmployees.length/pageSize
+    )||1;
+
+  useEffect(()=>{
     setCurrentPage(1);
-  }, [search, roleFilter, branchFilter]);
+  },[
+    search,
+    roleFilter,
+    branchFilter
+  ]);
 
-  useEffect(() => {
-    if (currentPage > totalPages && totalPages > 0) {
+  useEffect(()=>{
+    if(
+      currentPage>totalPages&&
+      totalPages>0
+    ){
       setCurrentPage(totalPages);
     }
-  }, [currentPage, totalPages]);
+  },[
+    currentPage,
+    totalPages
+  ]);
 
-  const summary = useMemo(() => {
-    return {
-      total: employees.length,
-      active: employees.filter((e) => e.isActive).length,
-      inactive: employees.filter((e) => !e.isActive).length,
-      managers: employees.filter((e) => e.role === "manager").length,
-      admins: employees.filter((e) => e.role === "admin").length,
-      staff: employees.filter((e) => e.role === "staff").length,
+  const summary=useMemo(()=>{
+    return{
+      total:employees.length,
+      active:employees.filter(
+        (e)=>e.isActive
+      ).length,
+      inactive:employees.filter(
+        (e)=>!e.isActive
+      ).length,
+      managers:employees.filter(
+        (e)=>e.role==="manager"
+      ).length,
+      admins:employees.filter(
+        (e)=>e.role==="admin"
+      ).length,
+      staff:employees.filter(
+        (e)=>e.role==="staff"
+      ).length
     };
-  }, [employees]);
+  },[employees]);
 
-  const getRoleClass = (role) => {
-    if (role === "admin") return "bg-[#0A0D17] text-white border-[#0A0D17]";
-    if (role === "manager")
-      return "bg-amber-50 text-amber-700 border-amber-200";
-    return "bg-sky-50 text-sky-700 border-sky-200";
+  const getRoleClass=(role)=>{
+    if(role==="admin"){
+      return"bg-[#0A0D17] text-white border-[#0A0D17]";
+    }
+
+    if(role==="manager"){
+      return"bg-amber-50 text-amber-700 border-amber-200";
+    }
+
+    return"bg-sky-50 text-sky-700 border-sky-200";
   };
 
-  const getStatusClass = (isActive) => {
+  const getStatusClass=(isActive)=>{
     return isActive
-      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-      : "bg-red-50 text-red-700 border-red-200";
+      ?"bg-emerald-50 text-emerald-700 border-emerald-200"
+      :"bg-red-50 text-red-700 border-red-200";
   };
 
-  const getImageUrl = (picture) => {
-    if (!picture) return "";
-    if (picture.startsWith("http")) return picture;
-    return `${backendUrl}/uploads/${picture}`;
+  const getBranchName=(code)=>{
+    if(code==="all"){
+      return"All Branches";
+    }
+
+    const found=branches.find(
+      (branch)=>branch.code===code
+    );
+
+    return found
+      ?`${found.name} (${found.code})`
+      :code||"Unassigned";
   };
 
-  const getBranchName = (code) => {
-    if (code === "all") return "All Branches";
-
-    const found = branches.find((branch) => branch.code === code);
-    return found ? `${found.name} (${found.code})` : code || "Unassigned";
+  const getResumeUrl=(resume)=>{
+    return resolveFileUrl(resume);
   };
 
-  return (
+  return(
     <div className="min-h-screen bg-transparent px-2.5 sm:px-3 pt-20 sm:pt-24 pb-4 font-['Montserrat']">
       <div className="max-w-[1500px] mx-auto">
         <div className="rounded-[5px] bg-[#0A0D17] p-5 sm:p-6 shadow-[0_18px_60px_rgba(0,0,0,0.08)] mb-4 text-white border border-black/10 overflow-hidden relative">
@@ -329,16 +559,16 @@ const EmployeesPage = () => {
 
               <div className="flex items-center gap-3">
                 <div className="w-11 h-11 rounded-[5px] bg-white/10 border border-white/10 flex items-center justify-center shrink-0 backdrop-blur-sm">
-                  <FaUsers className="text-sm" />
+                  <FaUsers className="text-sm"/>
                 </div>
 
                 <div className="min-w-0">
-                  <h1 className="text-[22px] sm:text-[30px] font-black uppercase tracking-[-0.03em] truncate">
+                  <h1 className="text-[22px] sm:text-[30px] font-black uppercase tracking-[-0.03em]">
                     Employees Management
                   </h1>
+
                   <p className="text-[11px] sm:text-sm text-white/65 mt-1">
-                    Manage staff, managers, admin accounts, branch assignment,
-                    documents, and access status.
+                    Manage staff, managers, admin accounts, branch assignment, documents, and access status.
                   </p>
                 </div>
               </div>
@@ -346,14 +576,16 @@ const EmployeesPage = () => {
 
             <button
               type="button"
-              onClick={() => {
-                fetchEmployees();
-                fetchBranches();
+              onClick={async()=>{
+                await Promise.all([
+                  fetchEmployees(),
+                  fetchBranches()
+                ]);
               }}
               disabled={refreshing}
               className="inline-flex items-center gap-2 rounded-[5px] bg-white text-[#111111] px-4 py-2.5 text-sm font-black transition hover:bg-[#ececec] shadow-sm disabled:opacity-50"
             >
-              <FaSyncAlt className={refreshing ? "animate-spin" : ""} />
+              <FaSyncAlt className={refreshing?"animate-spin":""}/>
               Refresh Employees
             </button>
           </div>
@@ -365,6 +597,7 @@ const EmployeesPage = () => {
               <h3 className="text-sm sm:text-[17px] font-black uppercase tracking-[0.08em] text-[#0A0D17]">
                 Employee Overview
               </h3>
+
               <p className="text-[11px] sm:text-xs text-[#6b7280] mt-0.5">
                 Summary of admin panel employee accounts.
               </p>
@@ -374,42 +607,42 @@ const EmployeesPage = () => {
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
             {[
               {
-                label: "Total",
-                value: summary.total,
-                icon: <FaUsers />,
-                className: "text-[#0A0D17]",
+                label:"Total",
+                value:summary.total,
+                icon:<FaUsers/>,
+                className:"text-[#0A0D17]"
               },
               {
-                label: "Active",
-                value: summary.active,
-                icon: <FaUserCheck />,
-                className: "text-emerald-700",
+                label:"Active",
+                value:summary.active,
+                icon:<FaUserCheck/>,
+                className:"text-emerald-700"
               },
               {
-                label: "Inactive",
-                value: summary.inactive,
-                icon: <FaUserTimes />,
-                className: "text-red-600",
+                label:"Inactive",
+                value:summary.inactive,
+                icon:<FaUserTimes/>,
+                className:"text-red-600"
               },
               {
-                label: "Managers",
-                value: summary.managers,
-                icon: <FaUserTie />,
-                className: "text-amber-700",
+                label:"Managers",
+                value:summary.managers,
+                icon:<FaUserTie/>,
+                className:"text-amber-700"
               },
               {
-                label: "Admins",
-                value: summary.admins,
-                icon: <FaUsers />,
-                className: "text-[#0A0D17]",
+                label:"Admins",
+                value:summary.admins,
+                icon:<FaUsers/>,
+                className:"text-[#0A0D17]"
               },
               {
-                label: "Staff",
-                value: summary.staff,
-                icon: <FaUsers />,
-                className: "text-sky-700",
-              },
-            ].map((item) => (
+                label:"Staff",
+                value:summary.staff,
+                icon:<FaUsers/>,
+                className:"text-sky-700"
+              }
+            ].map((item)=>(
               <div
                 key={item.label}
                 className={`${softPanelBg} rounded-[5px] p-4 min-w-0 overflow-hidden transition hover:shadow-md`}
@@ -424,9 +657,7 @@ const EmployeesPage = () => {
                   </div>
                 </div>
 
-                <h2
-                  className={`text-[24px] sm:text-[28px] font-black leading-none tracking-[-0.03em] ${item.className}`}
-                >
+                <h2 className={`text-[24px] sm:text-[28px] font-black leading-none tracking-[-0.03em] ${item.className}`}>
                   {item.value}
                 </h2>
               </div>
@@ -436,23 +667,27 @@ const EmployeesPage = () => {
 
         <form
           onSubmit={onSubmitHandler}
+          encType="multipart/form-data"
           className={`${panelBg} rounded-[5px] p-4 sm:p-5 mb-4`}
         >
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
             <div>
-              <p className={labelClass}>Employee Form</p>
+              <p className={labelClass}>
+                Employee Form
+              </p>
 
               <h3 className="mt-1 text-xl font-black uppercase tracking-tight text-[#0A0D17]">
-                {editingId ? "Edit Employee" : "Add Employee"}
+                {editingId
+                  ?"Edit Employee"
+                  :"Add Employee"}
               </h3>
 
               <p className="text-sm text-[#6b7280] mt-1">
-                Create or update employee credentials, branch access, and file
-                records.
+                Create or update employee credentials, branch access, profile picture, and file records.
               </p>
             </div>
 
-            {editingId && (
+            {editingId&&(
               <div className="flex flex-wrap gap-2">
                 <span className="inline-flex items-center rounded-[5px] border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-amber-700">
                   Editing Mode
@@ -471,7 +706,9 @@ const EmployeesPage = () => {
 
           <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-3">
             <div className={`${softPanelBg} rounded-[5px] p-4`}>
-              <p className={labelClass}>Basic Information</p>
+              <p className={labelClass}>
+                Basic Information
+              </p>
 
               <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
                 <input
@@ -495,10 +732,12 @@ const EmployeesPage = () => {
                 />
 
                 <input
-                  type="text"
+                  type="password"
                   name="password"
                   placeholder={
-                    editingId ? "New Password (optional)" : "Password"
+                    editingId
+                      ?"New Password (optional)"
+                      :"Password"
                   }
                   value={formData.password}
                   onChange={onChangeHandler}
@@ -512,12 +751,20 @@ const EmployeesPage = () => {
                   onChange={onChangeHandler}
                   className={inputClass}
                 >
-                  <option value="staff">Staff</option>
-                  <option value="manager">Manager</option>
-                  <option value="admin">Admin</option>
+                  <option value="staff">
+                    Staff
+                  </option>
+
+                  <option value="manager">
+                    Manager
+                  </option>
+
+                  <option value="admin">
+                    Admin
+                  </option>
                 </select>
 
-                {formData.role !== "admin" ? (
+                {formData.role!=="admin"?(
                   <select
                     name="branch"
                     value={formData.branch}
@@ -525,20 +772,25 @@ const EmployeesPage = () => {
                     className={inputClass}
                     required
                   >
-                    {branches.length > 0 ? (
-                      branches.map((branch) => (
-                        <option key={branch._id} value={branch.code}>
+                    {branches.length>0?(
+                      branches.map((branch)=>(
+                        <option
+                          key={branch._id}
+                          value={branch.code}
+                        >
                           {branch.name} ({branch.code})
                         </option>
                       ))
-                    ) : (
-                      <option value="">No branches available</option>
+                    ):(
+                      <option value="">
+                        No branches available
+                      </option>
                     )}
                   </select>
-                ) : (
+                ):(
                   <input
                     type="text"
-                    value="all"
+                    value="All Branches"
                     disabled
                     className={`${inputClass} bg-[#f3f3f1] text-[#0A0D17]/45`}
                   />
@@ -552,6 +804,7 @@ const EmployeesPage = () => {
                     onChange={onChangeHandler}
                     className="w-4 h-4 accent-[#0A0D17]"
                   />
+
                   Active Employee
                 </label>
               </div>
@@ -560,29 +813,72 @@ const EmployeesPage = () => {
             <div className="space-y-3">
               <div className={`${softPanelBg} rounded-[5px] p-4`}>
                 <div className="flex items-center gap-2 mb-3">
-                  <FaImage className="text-[#0A0D17]/45" />
-                  <p className={labelClass}>Employee Picture</p>
+                  <FaImage className="text-[#0A0D17]/45"/>
+
+                  <p className={labelClass}>
+                    Employee Picture
+                  </p>
                 </div>
 
-                <input
-                  type="file"
-                  name="picture"
-                  accept=".jpg,.jpeg,.png,.webp"
-                  onChange={onChangeHandler}
-                  className={inputClass}
-                />
+                <div className="flex items-start gap-4">
+                  <div className="w-24 h-24 rounded-[5px] overflow-hidden bg-[#0A0D17] border border-black/10 shrink-0">
+                    {picturePreview&&!picturePreviewFailed?(
+                      <img
+                        src={picturePreview}
+                        alt="Employee preview"
+                        className="w-full h-full object-cover object-center"
+                        onError={()=>{
+                          console.log(
+                            "EMPLOYEE PREVIEW FAILED:",
+                            picturePreview
+                          );
 
-                {formData.picture && (
-                  <p className="mt-2 text-xs font-bold text-[#0A0D17]/50">
-                    Selected: {formData.picture.name}
-                  </p>
-                )}
+                          setPicturePreviewFailed(true);
+                        }}
+                      />
+                    ):(
+                      <div className="w-full h-full flex items-center justify-center text-white text-2xl font-black uppercase">
+                        {formData.name
+                          ?.trim()
+                          ?.charAt(0)
+                          ?.toUpperCase()||"E"}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <input
+                      type="file"
+                      name="picture"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={onChangeHandler}
+                      className={inputClass}
+                    />
+
+                    {formData.picture?(
+                      <p className="mt-2 text-xs font-bold text-[#0A0D17]/50 break-all">
+                        Selected: {formData.picture.name}
+                      </p>
+                    ):editingId&&picturePreview?(
+                      <p className="mt-2 text-xs font-bold text-emerald-700">
+                        Current employee picture loaded
+                      </p>
+                    ):(
+                      <p className="mt-2 text-xs font-semibold text-[#0A0D17]/40">
+                        JPG, PNG or WEBP
+                      </p>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div className={`${softPanelBg} rounded-[5px] p-4`}>
                 <div className="flex items-center gap-2 mb-3">
-                  <FaFileAlt className="text-[#0A0D17]/45" />
-                  <p className={labelClass}>Resume File</p>
+                  <FaFileAlt className="text-[#0A0D17]/45"/>
+
+                  <p className={labelClass}>
+                    Resume File
+                  </p>
                 </div>
 
                 <input
@@ -593,8 +889,8 @@ const EmployeesPage = () => {
                   className={inputClass}
                 />
 
-                {formData.resume && (
-                  <p className="mt-2 text-xs font-bold text-[#0A0D17]/50">
+                {formData.resume&&(
+                  <p className="mt-2 text-xs font-bold text-[#0A0D17]/50 break-all">
                     Selected: {formData.resume.name}
                   </p>
                 )}
@@ -603,17 +899,26 @@ const EmployeesPage = () => {
           </div>
 
           <div className="flex flex-wrap gap-2 mt-4">
-            <button type="submit" disabled={saving} className={buttonDark}>
-              <FaPlus />
+            <button
+              type="submit"
+              disabled={saving}
+              className={buttonDark}
+            >
+              <FaPlus/>
+
               {saving
-                ? "Saving..."
-                : editingId
-                ? "Update Employee"
-                : "Add Employee"}
+                ?"Saving..."
+                :editingId
+                ?"Update Employee"
+                :"Add Employee"}
             </button>
 
-            {editingId && (
-              <button type="button" onClick={resetForm} className={buttonLight}>
+            {editingId&&(
+              <button
+                type="button"
+                onClick={resetForm}
+                className={buttonLight}
+              >
                 Cancel
               </button>
             )}
@@ -622,41 +927,62 @@ const EmployeesPage = () => {
 
         <div className={`${panelBg} rounded-[5px] p-4 sm:p-5 mb-4`}>
           <div className="flex items-center gap-2 mb-4">
-            <FaFilter className="text-[#0A0D17]/45" />
-            <p className={labelClass}>Employee Filters</p>
+            <FaFilter className="text-[#0A0D17]/45"/>
+
+            <p className={labelClass}>
+              Employee Filters
+            </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="relative">
-              <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-[#0A0D17]/35 text-sm" />
+              <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-[#0A0D17]/35 text-sm"/>
+
               <input
                 type="text"
                 placeholder="Search name, email, branch"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e)=>setSearch(e.target.value)}
                 className="w-full rounded-[5px] border border-black/10 bg-white py-2.5 pl-9 pr-3 text-sm outline-none focus:border-black"
               />
             </div>
 
             <select
               value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
+              onChange={(e)=>setRoleFilter(e.target.value)}
               className={inputClass}
             >
-              <option value="All">All Roles</option>
-              <option value="admin">Admin</option>
-              <option value="manager">Manager</option>
-              <option value="staff">Staff</option>
+              <option value="All">
+                All Roles
+              </option>
+
+              <option value="admin">
+                Admin
+              </option>
+
+              <option value="manager">
+                Manager
+              </option>
+
+              <option value="staff">
+                Staff
+              </option>
             </select>
 
             <select
               value={branchFilter}
-              onChange={(e) => setBranchFilter(e.target.value)}
+              onChange={(e)=>setBranchFilter(e.target.value)}
               className={inputClass}
             >
-              <option value="All">All Branches</option>
-              {branches.map((branch) => (
-                <option key={branch._id} value={branch.code}>
+              <option value="All">
+                All Branches
+              </option>
+
+              {branches.map((branch)=>(
+                <option
+                  key={branch._id}
+                  value={branch.code}
+                >
                   {branch.name} ({branch.code})
                 </option>
               ))}
@@ -668,7 +994,9 @@ const EmployeesPage = () => {
           <div className="px-4 sm:px-5 py-5 border-b border-black/10">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div>
-                <p className={labelClass}>Employee Directory</p>
+                <p className={labelClass}>
+                  Employee Directory
+                </p>
 
                 <h3 className="mt-2 text-xl font-black uppercase tracking-tight text-[#0A0D17]">
                   Employee List
@@ -676,97 +1004,110 @@ const EmployeesPage = () => {
               </div>
 
               <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#0A0D17]/45">
-                {filteredEmployees.length === 0
-                  ? "0 items"
-                  : `Showing ${indexOfFirstItem + 1}-${Math.min(
-                      indexOfLastItem,
-                      filteredEmployees.length
-                    )} of ${filteredEmployees.length} items`}
+                {filteredEmployees.length===0
+                  ?"0 items"
+                  :`Showing ${indexOfFirstItem+1}-${Math.min(indexOfLastItem,filteredEmployees.length)} of ${filteredEmployees.length} items`}
               </p>
             </div>
           </div>
 
           <div className="p-4 sm:p-5 bg-[#FAFAF8]">
-            {filteredEmployees.length > 0 ? (
+            {filteredEmployees.length>0?(
               <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
-                {paginatedEmployees.map((employee) => (
+                {paginatedEmployees.map((employee)=>(
                   <div
                     key={employee._id}
                     className="rounded-[5px] border border-black/10 bg-white p-4 shadow-[0_8px_24px_rgba(0,0,0,0.04)]"
                   >
                     <div className="flex items-start gap-3">
-                      {employee.picture ? (
-                        <img
-                          src={getImageUrl(employee.picture)}
-                          alt={employee.name}
-                          className="w-14 h-14 rounded-[5px] object-cover border border-black/10"
-                        />
-                      ) : (
-                        <div className="w-14 h-14 rounded-[5px] bg-[#ececec] flex items-center justify-center text-[9px] text-gray-500 font-black uppercase shrink-0">
-                          No Img
-                        </div>
-                      )}
+                      <EmployeePicture
+                        employee={employee}
+                        className="w-16 h-16"
+                      />
 
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-black text-[#0A0D17] truncate">
-                          {employee.name}
+                        <p className="text-sm leading-5 font-black text-[#0A0D17] whitespace-normal break-words">
+                          {employee.name||
+                            "Unnamed Employee"}
                         </p>
 
-                        <p className="text-xs text-[#0A0D17]/60 break-all">
-                          {employee.email}
+                        <p className="mt-0.5 text-xs leading-5 text-[#0A0D17]/60 break-all">
+                          {employee.email||
+                            "No Email"}
                         </p>
+
+                        {employee.picture&&(
+                          <p className="mt-1 text-[9px] font-black uppercase tracking-[0.12em] text-emerald-600">
+                            Profile Image
+                          </p>
+                        )}
                       </div>
                     </div>
 
                     <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
                       <div>
-                        <p className={labelClass}>Role</p>
-                        <span
-                          className={`mt-1 inline-flex rounded-[5px] border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] ${getRoleClass(
-                            employee.role
-                          )}`}
-                        >
+                        <p className={labelClass}>
+                          Role
+                        </p>
+
+                        <span className={`mt-1 inline-flex rounded-[5px] border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] ${getRoleClass(employee.role)}`}>
                           {employee.role}
                         </span>
                       </div>
 
                       <div>
-                        <p className={labelClass}>Status</p>
-                        <span
-                          className={`mt-1 inline-flex rounded-[5px] border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] ${getStatusClass(
-                            employee.isActive
-                          )}`}
-                        >
-                          {employee.isActive ? "Active" : "Inactive"}
+                        <p className={labelClass}>
+                          Status
+                        </p>
+
+                        <span className={`mt-1 inline-flex rounded-[5px] border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] ${getStatusClass(employee.isActive)}`}>
+                          {employee.isActive
+                            ?"Active"
+                            :"Inactive"}
                         </span>
                       </div>
 
                       <div className="col-span-2">
-                        <p className={labelClass}>Branch</p>
-                        <p className="mt-1 font-bold text-[#0A0D17]">
-                          {getBranchName(employee.branch)}
+                        <p className={labelClass}>
+                          Branch
+                        </p>
+
+                        <p className="mt-1 font-bold text-[#0A0D17] break-words">
+                          {getBranchName(
+                            employee.branch
+                          )}
                         </p>
                       </div>
 
                       <div>
-                        <p className={labelClass}>Manager</p>
+                        <p className={labelClass}>
+                          Manager
+                        </p>
+
                         <p className="mt-1 font-bold text-[#0A0D17]/70">
-                          {employee.role === "manager" ? "Yes" : "No"}
+                          {employee.role==="manager"
+                            ?"Yes"
+                            :"No"}
                         </p>
                       </div>
 
                       <div>
-                        <p className={labelClass}>Resume</p>
-                        {employee.resume ? (
+                        <p className={labelClass}>
+                          Resume
+                        </p>
+
+                        {employee.resume?(
                           <a
-                            href={`${backendUrl}/uploads/${employee.resume}`}
+                            href={getResumeUrl(
+                              employee.resume
+                            )}
                             target="_blank"
                             rel="noreferrer"
                             className="mt-1 inline-flex rounded-[5px] border border-sky-200 bg-sky-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-sky-700 hover:bg-sky-100"
                           >
                             View
                           </a>
-                        ) : (
+                        ):(
                           <p className="mt-1 font-bold text-[#0A0D17]/40">
                             No File
                           </p>
@@ -777,26 +1118,32 @@ const EmployeesPage = () => {
                     <div className="mt-4 flex flex-wrap gap-2">
                       <button
                         type="button"
-                        onClick={() => startEdit(employee)}
+                        onClick={()=>
+                          startEdit(employee)
+                        }
                         className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#0A0D17] text-white rounded-[5px] text-xs font-black hover:bg-[#1d2433] transition"
                       >
-                        <FaEdit />
+                        <FaEdit/>
                         Edit
                       </button>
 
                       <button
                         type="button"
-                        onClick={() => removeEmployee(employee._id)}
+                        onClick={()=>
+                          removeEmployee(
+                            employee._id
+                          )
+                        }
                         className="inline-flex items-center gap-1.5 px-3 py-2 border border-red-200 bg-red-50 text-red-600 rounded-[5px] text-xs font-black hover:bg-red-500 hover:text-white transition"
                       >
-                        <FaTrash />
+                        <FaTrash/>
                         Remove
                       </button>
                     </div>
                   </div>
                 ))}
               </div>
-            ) : (
+            ):(
               <div className="rounded-[5px] border border-dashed border-black/15 bg-white p-12 text-center text-gray-500">
                 <div className="flex flex-col items-center justify-center">
                   <div className="w-14 h-14 rounded-[5px] bg-[#f3f3f1] border border-black/5 flex items-center justify-center text-[#0A0D17]/35 text-lg font-black">
@@ -816,7 +1163,7 @@ const EmployeesPage = () => {
           </div>
         </div>
 
-        {filteredEmployees.length > pageSize && (
+        {filteredEmployees.length>pageSize&&(
           <div className={`${panelBg} mt-4 rounded-[5px] px-4 py-4`}>
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
               <div>
@@ -825,9 +1172,7 @@ const EmployeesPage = () => {
                 </p>
 
                 <p className="mt-1 text-xs font-semibold text-[#6b7280]">
-                  Showing {indexOfFirstItem + 1} -{" "}
-                  {Math.min(indexOfLastItem, filteredEmployees.length)} of{" "}
-                  {filteredEmployees.length} employees
+                  Showing {indexOfFirstItem+1} - {Math.min(indexOfLastItem,filteredEmployees.length)} of {filteredEmployees.length} employees
                 </p>
               </div>
 
@@ -837,16 +1182,21 @@ const EmployeesPage = () => {
                 pageSize={pageSize}
                 total={filteredEmployees.length}
                 showSizeChanger
-                pageSizeOptions={["9", "18", "36", "72"]}
+                pageSizeOptions={[
+                  "9",
+                  "18",
+                  "36",
+                  "72"
+                ]}
                 responsive
-                showTotal={(total, range) =>
+                showTotal={(total,range)=>
                   `${range[0]}-${range[1]} of ${total} employees`
                 }
-                onChange={(page, size) => {
+                onChange={(page,size)=>{
                   setCurrentPage(page);
                   setPageSize(size);
                 }}
-                onShowSizeChange={(_, size) => {
+                onShowSizeChange={(_,size)=>{
                   setCurrentPage(1);
                   setPageSize(size);
                 }}
