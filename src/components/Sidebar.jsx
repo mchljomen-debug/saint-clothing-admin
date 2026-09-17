@@ -51,10 +51,6 @@ const Sidebar=()=>{
     {to:"/branches",icon:Store,label:"Branches"}
   ];
 
-  const managerArchiveLinks=[
-    {to:"/admin/history",icon:History,label:"History"}
-  ];
-
   const adminArchiveLinks=[
     {to:"/admin/history",icon:History,label:"History"},
     {to:"/admin/trash",icon:Trash2,label:"Trash"}
@@ -193,13 +189,6 @@ const Sidebar=()=>{
                 <Section
                   title="Archive"
                   links={adminArchiveLinks}
-                />
-              )}
-
-              {role==="manager"&&(
-                <Section
-                  title="Archive"
-                  links={managerArchiveLinks}
                 />
               )}
             </div>

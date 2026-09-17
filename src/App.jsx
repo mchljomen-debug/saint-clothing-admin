@@ -117,15 +117,6 @@ const App=()=>{
                 />
 
                 <Route
-                  path="/admin/history"
-                  element={
-                    <RoleRoute role={role} allowedRoles={["admin","manager"]}>
-                      <History token={token}/>
-                    </RoleRoute>
-                  }
-                />
-
-                <Route
                   path="/sales-report"
                   element={
                     <RoleRoute role={role} allowedRoles={["admin","manager"]}>
@@ -139,6 +130,15 @@ const App=()=>{
                   element={
                     <RoleRoute role={role} allowedRoles={["admin","manager"]}>
                       <SalesReportPrint token={token}/>
+                    </RoleRoute>
+                  }
+                />
+
+                <Route
+                  path="/admin/history"
+                  element={
+                    <RoleRoute role={role} allowedRoles={["admin"]}>
+                      <History token={token}/>
                     </RoleRoute>
                   }
                 />
