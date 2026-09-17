@@ -1,10 +1,10 @@
-import React,{useEffect,useMemo,useState}from"react";
+import React,{useEffect,useMemo,useRef,useState}from"react";
 import axios from"axios";
 import{backendUrl}from"../App";
 import{toast}from"react-toastify";
 import{Pagination}from"antd";
 import"antd/dist/reset.css";
-import{FaBoxes,FaSearch,FaSyncAlt,FaEdit,FaHistory,FaTrash,FaStore,FaExclamationTriangle,FaClipboardList,FaCalendarAlt,FaFileExcel}from"react-icons/fa";
+import{FaBoxes,FaSearch,FaSyncAlt,FaEdit,FaHistory,FaTrash,FaStore,FaExclamationTriangle,FaClipboardList,FaCalendarAlt,FaFileExcel,FaLightbulb}from"react-icons/fa";
 import ExcelJS from"exceljs";
 import{saveAs}from"file-saver";
 
@@ -88,6 +88,11 @@ const[inventoryLogPage,setInventoryLogPage]=useState(1);
 const[inventoryLogPageSize,setInventoryLogPageSize]=useState(DEFAULT_LOGS_PER_PAGE);
 const[saving,setSaving]=useState(false);
 const[exportingExcel,setExportingExcel]=useState(false);
+const[inventoryInsight,setInventoryInsight]=useState("");
+const[inventoryInsightLoading,setInventoryInsightLoading]=useState(false);
+const[inventoryInsightGeneratedAt,setInventoryInsightGeneratedAt]=useState("");
+const lastInsightSignature=useRef("");
+const insightRequestRunning=useRef(false);
 
 const axiosConfig={headers:{Authorization:`Bearer ${token}`}};
 
@@ -193,9 +198,12 @@ console.error("FETCH INVENTORY LOGS ERROR:",err);
 
 const refreshInventory=async()=>{
 setRefreshing(true);
+lastInsightSignature.current="";
+setInventoryInsight("");
+setInventoryInsightGeneratedAt("");
+
 try{
-await fetchProducts();
-await fetchInventoryLogs();
+await Promise.all([fetchProducts(),fetchInventoryLogs()]);
 }finally{
 setRefreshing(false);
 }
@@ -251,6 +259,91 @@ preorderStock:products.filter((p)=>getProductStatus(p)==="Pre-order").length,
 outStock:products.filter((p)=>getProductStatus(p)==="Out").length
 };
 },[products]);
+
+const generateInventoryInsight=async()=>{
+if(products.length===0||insightRequestRunning.current)return;
+
+const signature=JSON.stringify({
+products:products.map((product)=>({
+id:product._id,
+stock:sizesList.map((size)=>getStock(product.stock,size)),
+preorder:sizesList.map((size)=>getStock(product.preorderStock,size)),
+preorderEnabled:product.preorderEnabled!==false,
+preorderThreshold:Number(product.preorderThreshold??5),
+preorderRestockDate:product.preorderRestockDate||null
+})),
+logs:inventoryLogs.slice(0,100).map((log)=>({
+id:getLogId(log),
+difference:Number(log.difference||0),
+date:getLogDate(log)
+}))
+});
+
+if(lastInsightSignature.current===signature)return;
+
+insightRequestRunning.current=true;
+setInventoryInsightLoading(true);
+
+try{
+const productData=products.map((product)=>({
+name:product.name||"Unnamed Product",
+sku:product.sku||"N/A",
+category:normalizeCategory(product.category)||"Unknown",
+actualStock:getTotalStock(product.stock),
+preorderStock:getTotalStock(product.preorderStock),
+status:getProductStatus(product),
+stockBySize:sizesList.reduce((result,size)=>{
+result[size]=getStock(product.stock,size);
+return result;
+},{}),
+preorderBySize:sizesList.reduce((result,size)=>{
+result[size]=getStock(product.preorderStock,size);
+return result;
+},{}),
+preorderEnabled:product.preorderEnabled!==false,
+preorderThreshold:Number(product.preorderThreshold??5),
+preorderRestockDate:product.preorderRestockDate||null
+}));
+
+const res=await axios.post(`${backendUrl}/api/ai/inventory-insight`,{
+overview:{
+totalProducts:inventoryStats.products,
+totalActualUnits:inventoryStats.totalStock,
+totalPreorderUnits:inventoryStats.totalPreorder,
+healthyProducts:inventoryStats.healthyStock,
+lowStockProducts:inventoryStats.lowStock,
+criticalProducts:inventoryStats.criticalStock,
+preorderProducts:inventoryStats.preorderStock,
+outOfStockProducts:inventoryStats.outStock
+},
+products:productData,
+inventoryLogs:inventoryLogs.slice(0,100)
+},axiosConfig);
+
+if(res.data.success){
+setInventoryInsight(res.data.insight||"");
+setInventoryInsightGeneratedAt(res.data.generatedAt||new Date().toISOString());
+lastInsightSignature.current=signature;
+}else{
+console.error("INVENTORY INSIGHT ERROR:",res.data.message);
+}
+}catch(error){
+console.error("INVENTORY INSIGHT ERROR:",error.response?.data||error);
+}finally{
+insightRequestRunning.current=false;
+setInventoryInsightLoading(false);
+}
+};
+
+useEffect(()=>{
+if(loading||products.length===0)return;
+
+const timer=setTimeout(()=>{
+generateInventoryInsight();
+},700);
+
+return()=>clearTimeout(timer);
+},[loading,products,inventoryLogs]);
 
 const exportInventoryToExcel=async()=>{
 if(exportingExcel)return;
@@ -388,7 +481,6 @@ inventorySheet.mergeCells(`${labelCell}:K${rowNumber}`);
 inventorySheet.getCell(labelCell).value=label;
 inventorySheet.getCell(labelCell).font={name:"Arial",size:8,bold:true,color:{argb:gray}};
 inventorySheet.getCell(labelCell).alignment={vertical:"middle",horizontal:"right"};
-
 inventorySheet.mergeCells(`${valueCell}:N${rowNumber}`);
 inventorySheet.getCell(valueCell).value=value;
 inventorySheet.getCell(valueCell).numFmt=integerFormat;
@@ -640,24 +732,12 @@ setExportingExcel(false);
 
 const handleStockChange=(productId,size,value)=>{
 const safeValue=Math.max(0,Number(value)||0);
-setStockUpdates((prev)=>({
-...prev,
-[productId]:{
-...prev[productId],
-[String(size).toUpperCase()]:safeValue
-}
-}));
+setStockUpdates((prev)=>({...prev,[productId]:{...prev[productId],[String(size).toUpperCase()]:safeValue}}));
 };
 
 const handlePreorderChange=(productId,size,value)=>{
 const safeValue=Math.max(0,Number(value)||0);
-setPreorderUpdates((prev)=>({
-...prev,
-[productId]:{
-...prev[productId],
-[String(size).toUpperCase()]:safeValue
-}
-}));
+setPreorderUpdates((prev)=>({...prev,[productId]:{...prev[productId],[String(size).toUpperCase()]:safeValue}}));
 };
 
 const openInventoryModal=(product)=>{
@@ -670,17 +750,8 @@ preorderAddInitial[size]=0;
 });
 
 setSelectedProduct(product);
-
-setStockUpdates((prev)=>({
-...prev,
-[product._id]:actualAddInitial
-}));
-
-setPreorderUpdates((prev)=>({
-...prev,
-[product._id]:preorderAddInitial
-}));
-
+setStockUpdates((prev)=>({...prev,[product._id]:actualAddInitial}));
+setPreorderUpdates((prev)=>({...prev,[product._id]:preorderAddInitial}));
 setPreorderEnabled(product.preorderEnabled!==false);
 setPreorderThreshold(Number(product.preorderThreshold??5));
 setPreorderAutoGenerate(product.preorderAutoGenerate!==false);
@@ -728,9 +799,7 @@ return;
 const confirmed=window.confirm("Are you sure you want to apply these inventory changes?");
 if(!confirmed)return;
 
-const res=await axios.put(
-`${backendUrl}/api/product/update-stock/${productId}`,
-{
+const res=await axios.put(`${backendUrl}/api/product/update-stock/${productId}`,{
 stockToAdd,
 preorderStockToAdd,
 preorderEnabled,
@@ -740,12 +809,13 @@ preorderAutoStock,
 preorderRestockDate,
 preorderNote,
 updatedBy:getAdminName()
-},
-axiosConfig
-);
+},axiosConfig);
 
 if(res.data.success){
 setSelectedProduct(null);
+lastInsightSignature.current="";
+setInventoryInsight("");
+setInventoryInsightGeneratedAt("");
 toast.success(res.data.message||"Stock added successfully");
 await fetchInventoryLogs();
 
@@ -753,9 +823,7 @@ const updatedProductFromServer=res.data.product||{};
 const finalStock=updatedProductFromServer.stock||product.stock;
 const finalPreorderStock=updatedProductFromServer.preorderStock||product.preorderStock;
 
-const updatedProducts=products.map((item)=>
-item._id===productId
-?{
+const updatedProducts=products.map((item)=>item._id===productId?{
 ...item,
 stock:finalStock,
 preorderStock:finalPreorderStock,
@@ -765,9 +833,7 @@ preorderAutoGenerate,
 preorderAutoStock,
 preorderRestockDate:preorderRestockDate||null,
 preorderNote
-}
-:item
-);
+}:item);
 
 setProducts(updatedProducts);
 
@@ -820,9 +886,7 @@ return(
 <div className="animate-pulse space-y-3">
 <div className="h-24 rounded-[5px] bg-white/70"/>
 <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
-{[...Array(6)].map((_,i)=>(
-<div key={i} className="h-28 rounded-[5px] bg-white/70"/>
-))}
+{[...Array(6)].map((_,i)=><div key={i} className="h-28 rounded-[5px] bg-white/70"/>)}
 </div>
 <div className="h-96 rounded-[5px] bg-white/70"/>
 </div>
@@ -892,6 +956,43 @@ Refresh Stock
 </div>
 
 <div className={`${panelBg} rounded-[5px] p-4 sm:p-5 mb-4`}>
+<div className="flex items-center gap-3">
+<div className="w-10 h-10 rounded-[5px] bg-[#0A0D17] text-white flex items-center justify-center shrink-0">
+<FaLightbulb/>
+</div>
+<div>
+<p className={labelClass}>Inventory Analysis</p>
+<h3 className="mt-1 text-lg font-black uppercase tracking-tight text-[#0A0D17]">Inventory Insight</h3>
+</div>
+</div>
+
+<div className="mt-4 rounded-[5px] border border-black/10 bg-[#FAFAF8] p-4 min-h-[110px]">
+{inventoryInsightLoading?(
+<div className="animate-pulse space-y-3 py-2">
+<div className="h-3 bg-black/10 rounded w-full"/>
+<div className="h-3 bg-black/10 rounded w-[94%]"/>
+<div className="h-3 bg-black/10 rounded w-[88%]"/>
+<div className="h-3 bg-black/10 rounded w-[70%]"/>
+</div>
+):inventoryInsight?(
+<>
+<p className="text-xs sm:text-sm font-semibold leading-6 text-[#0A0D17]/75">{inventoryInsight}</p>
+{inventoryInsightGeneratedAt&&(
+<p className="mt-3 text-[9px] font-black uppercase tracking-[0.14em] text-[#0A0D17]/30">
+Updated {new Date(inventoryInsightGeneratedAt).toLocaleString()}
+</p>
+)}
+</>
+):(
+<div className="flex items-center gap-3 py-5">
+<FaSyncAlt className="animate-spin text-[#0A0D17]/30 shrink-0"/>
+<p className="text-xs sm:text-sm font-semibold text-[#0A0D17]/45">Analyzing current inventory...</p>
+</div>
+)}
+</div>
+</div>
+
+<div className={`${panelBg} rounded-[5px] p-4 sm:p-5 mb-4`}>
 <div className="grid grid-cols-1 xl:grid-cols-[1fr_180px_210px] gap-3 items-end">
 <div>
 <p className={labelClass}>Search Inventory</p>
@@ -904,9 +1005,7 @@ Refresh Stock
 <div>
 <p className={labelClass}>Category</p>
 <select value={categoryFilter} onChange={(e)=>setCategoryFilter(e.target.value)} className={`${inputClass} mt-2`}>
-{FIXED_CATEGORIES.map((cat)=>(
-<option key={cat} value={cat}>{cat}</option>
-))}
+{FIXED_CATEGORIES.map((cat)=><option key={cat} value={cat}>{cat}</option>)}
 </select>
 </div>
 
@@ -940,9 +1039,7 @@ Refresh Stock
 <span>Product</span>
 <span className="text-center">SKU</span>
 <span className="text-center">Category</span>
-{sizesList.map((size)=>(
-<span key={size} className="text-center">{size}</span>
-))}
+{sizesList.map((size)=><span key={size} className="text-center">{size}</span>)}
 <span className="text-center">Actual</span>
 <span className="text-center">Pre</span>
 <span className="text-center">Status</span>
@@ -956,65 +1053,38 @@ const status=getProductStatus(product);
 
 return(
 <div key={product._id} className={`grid grid-cols-[2fr_.9fr_.85fr_repeat(6,.38fr)_.5fr_.5fr_.75fr_.62fr] items-center gap-1 border-b border-[#ecece6] px-4 py-4 ${index%2===0?"bg-white":"bg-[#fcfcfb]"}`}>
-
 <div className="flex items-center gap-2 min-w-0">
 <div className="w-9 h-11 rounded-[5px] bg-[#f0f0ed] overflow-hidden border border-black/10 shrink-0">
-{getCardImage(product)?(
-<img src={getCardImage(product)} alt={product.name} className="w-full h-full object-cover" onError={(e)=>{e.currentTarget.style.display="none";}}/>
-):(
-<div className="w-full h-full flex items-center justify-center text-[7px] font-black text-black/30">IMG</div>
-)}
+{getCardImage(product)?<img src={getCardImage(product)} alt={product.name} className="w-full h-full object-cover"/>:<div className="w-full h-full flex items-center justify-center text-[7px] font-black text-black/30">IMG</div>}
 </div>
-
 <div className="min-w-0 flex-1 pr-1">
-<p className="m-0 text-[10px] leading-[14px] font-black uppercase text-[#0A0D17] whitespace-normal break-words overflow-visible text-clip">
-{product.name||"Unnamed Product"}
-</p>
-<p className="m-0 mt-1 text-[8px] leading-3 font-bold text-[#0A0D17]/40 whitespace-nowrap">
-₱{Number(product.price||0).toLocaleString()}
-</p>
+<p className="m-0 text-[10px] leading-[14px] font-black uppercase text-[#0A0D17] whitespace-normal break-words">{product.name||"Unnamed Product"}</p>
+<p className="m-0 mt-1 text-[8px] leading-3 font-bold text-[#0A0D17]/40">₱{Number(product.price||0).toLocaleString()}</p>
 </div>
 </div>
 
-<div className="min-w-0 px-1">
-<p className="m-0 text-center text-[8px] leading-3 font-black text-[#0A0D17]/65 whitespace-normal break-all">
-{product.sku||"N/A"}
-</p>
-</div>
-
-<div className="min-w-0 text-center px-0.5">
-<span className="inline-flex max-w-full justify-center rounded-[5px] bg-[#f3f3f1] border border-black/10 px-1.5 py-1 text-[7px] leading-3 font-black uppercase text-[#0A0D17]/60 whitespace-normal break-words">
-{normalizeCategory(product.category)||"None"}
-</span>
-</div>
+<p className="m-0 text-center text-[8px] font-black text-[#0A0D17]/65 break-all">{product.sku||"N/A"}</p>
+<div className="text-center"><span className="inline-flex rounded-[5px] bg-[#f3f3f1] border border-black/10 px-1.5 py-1 text-[7px] font-black uppercase">{normalizeCategory(product.category)||"None"}</span></div>
 
 {sizesList.map((size)=>{
 const qty=getStock(product.stock,size);
 return(
-<div key={size} className="min-w-0 text-center">
-<span className={`inline-flex min-w-[25px] justify-center rounded-[4px] border px-1 py-1.5 text-[8px] font-black ${getStockBoxClass(qty)}`}>
-{qty}
-</span>
+<div key={size} className="text-center">
+<span className={`inline-flex min-w-[25px] justify-center rounded-[4px] border px-1 py-1.5 text-[8px] font-black ${getStockBoxClass(qty)}`}>{qty}</span>
 </div>
 );
 })}
 
-<p className="m-0 text-center text-[10px] font-black text-[#0A0D17]">{totalStock}</p>
+<p className="m-0 text-center text-[10px] font-black">{totalStock}</p>
 <p className="m-0 text-center text-[10px] font-black text-orange-700">{totalPreorder}</p>
+<div className="text-center"><span className={`inline-flex rounded-[5px] border px-1.5 py-1.5 text-[7px] font-black uppercase ${getInventoryStatusClass(status)}`}>{status}</span></div>
 
-<div className="min-w-0 text-center px-0.5">
-<span className={`inline-flex max-w-full justify-center rounded-[5px] border px-1.5 py-1.5 text-[7px] leading-3 font-black uppercase tracking-[0.02em] whitespace-normal ${getInventoryStatusClass(status)}`}>
-{status}
-</span>
-</div>
-
-<div className="min-w-0 text-center">
-<button type="button" onClick={()=>openInventoryModal(product)} className="inline-flex items-center justify-center gap-1 rounded-[5px] bg-[#0A0D17] px-2 py-2 text-[8px] font-black text-white transition hover:bg-[#1d2433]">
-<FaEdit className="text-[8px]"/>
+<div className="text-center">
+<button type="button" onClick={()=>openInventoryModal(product)} className="inline-flex items-center justify-center gap-1 rounded-[5px] bg-[#0A0D17] px-2 py-2 text-[8px] font-black text-white transition hover:bg-[#1f2937]">
+<FaEdit/>
 Add
 </button>
 </div>
-
 </div>
 );
 }):(
@@ -1032,127 +1102,71 @@ return(
 <div key={product._id} className="p-4 bg-white">
 <div className="flex items-start gap-3">
 <div className="w-14 h-16 rounded-[5px] bg-[#f0f0ed] overflow-hidden border border-black/10 shrink-0">
-{getCardImage(product)?(
-<img src={getCardImage(product)} alt={product.name} className="w-full h-full object-cover" onError={(e)=>{e.currentTarget.style.display="none";}}/>
-):(
-<div className="w-full h-full flex items-center justify-center text-[8px] font-black text-black/30">IMG</div>
-)}
+{getCardImage(product)?<img src={getCardImage(product)} alt={product.name} className="w-full h-full object-cover"/>:<div className="w-full h-full flex items-center justify-center text-[8px] font-black text-black/30">IMG</div>}
 </div>
 
 <div className="min-w-0 flex-1">
-<div className="flex items-start justify-between gap-2">
-<div className="min-w-0 flex-1">
-<p className="text-sm leading-5 font-black uppercase text-[#0A0D17] whitespace-normal break-words">{product.name||"Unnamed Product"}</p>
-<p className="mt-1 text-[10px] font-bold text-[#0A0D17]/45 break-all">SKU: {product.sku||"N/A"}</p>
-<p className="mt-1 text-[10px] font-bold text-[#0A0D17]/45">{normalizeCategory(product.category)||"None"} • ₱{Number(product.price||0).toLocaleString()}</p>
-</div>
-
-<span className={`shrink-0 inline-flex rounded-[5px] border px-2 py-1 text-[8px] font-black uppercase ${getInventoryStatusClass(status)}`}>
-{status}
-</span>
-</div>
+<p className="text-sm leading-5 font-black uppercase">{product.name||"Unnamed Product"}</p>
+<p className="mt-1 text-[10px] font-bold text-black/45">SKU: {product.sku||"N/A"}</p>
+<p className="mt-1 text-[10px] font-bold text-black/45">{normalizeCategory(product.category)||"None"}</p>
+<span className={`mt-2 inline-flex rounded-[5px] border px-2 py-1 text-[8px] font-black uppercase ${getInventoryStatusClass(status)}`}>{status}</span>
 </div>
 </div>
 
 <div className="mt-4 grid grid-cols-6 gap-1.5">
-{sizesList.map((size)=>{
-const qty=getStock(product.stock,size);
-return(
-<div key={size} className={`rounded-[5px] border p-2 text-center ${getStockBoxClass(qty)}`}>
-<p className="text-[8px] font-black uppercase opacity-60">{size}</p>
-<p className="mt-1 text-xs font-black">{qty}</p>
+{sizesList.map((size)=>(
+<div key={size} className={`rounded-[5px] border p-2 text-center ${getStockBoxClass(getStock(product.stock,size))}`}>
+<p className="text-[8px] font-black">{size}</p>
+<p className="mt-1 text-xs font-black">{getStock(product.stock,size)}</p>
 </div>
-);
-})}
+))}
 </div>
 
 <div className="mt-3 grid grid-cols-2 gap-2">
-<div className="rounded-[5px] border border-black/10 bg-[#FAFAF8] p-2.5">
-<p className="text-[8px] font-black uppercase tracking-[0.12em] text-[#0A0D17]/40">Actual Stock</p>
-<p className="mt-1 text-base font-black text-[#0A0D17]">{totalStock}</p>
+<div className={`${softPanelBg} rounded-[5px] p-2.5`}>
+<p className="text-[8px] font-black uppercase">Actual Stock</p>
+<p className="mt-1 text-base font-black">{totalStock}</p>
 </div>
-
 <div className="rounded-[5px] border border-orange-100 bg-orange-50 p-2.5">
-<p className="text-[8px] font-black uppercase tracking-[0.12em] text-orange-700/50">Pre-order</p>
+<p className="text-[8px] font-black uppercase text-orange-700">Pre-order</p>
 <p className="mt-1 text-base font-black text-orange-700">{totalPreorder}</p>
 </div>
 </div>
 
-<button type="button" onClick={()=>openInventoryModal(product)} className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-[5px] bg-[#0A0D17] px-3 py-2.5 text-xs font-black text-white transition hover:bg-[#1d2433]">
-<FaEdit/>
+<button type="button" onClick={()=>openInventoryModal(product)} className="mt-3 w-full rounded-[5px] bg-[#0A0D17] px-3 py-2.5 text-xs font-black text-white">
+<FaEdit className="inline mr-2"/>
 Add Stock
 </button>
 </div>
 );
 }):(
-<div className="p-12 text-center text-[#6b7280] font-semibold bg-white">No inventory found</div>
+<div className="p-10 text-center text-sm font-semibold text-black/40">No inventory found</div>
 )}
 </div>
 </div>
 
 {filteredProducts.length>pageSize&&(
-<div className={`${panelBg} mt-4 mb-4 rounded-[5px] px-4 py-4`}>
-<div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-<div>
-<p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45">Page Control</p>
-<p className="mt-1 text-xs font-semibold text-[#6b7280]">
-Showing {indexOfFirstItem+1} - {Math.min(indexOfLastItem,filteredProducts.length)} of {filteredProducts.length} inventory items
-</p>
-</div>
-
+<div className={`${panelBg} mt-4 mb-4 rounded-[5px] px-4 py-4 overflow-x-auto`}>
 <Pagination
-className="saint-pagination"
 current={currentPage}
 pageSize={pageSize}
 total={filteredProducts.length}
 showSizeChanger
 pageSizeOptions={["10","20","50","100"]}
-responsive
-showTotal={(total,range)=>`${range[0]}-${range[1]} of ${total} items`}
 onChange={(page,size)=>{
 setCurrentPage(page);
 setPageSize(size);
 }}
-onShowSizeChange={(_,size)=>{
-setCurrentPage(1);
-setPageSize(size);
-}}
 />
-</div>
 </div>
 )}
 
 <div className={`${panelBg} rounded-[5px] overflow-hidden`}>
-<div className="px-4 sm:px-5 py-5 border-b border-black/10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+<div className="px-4 sm:px-5 py-5 border-b border-black/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
 <div>
 <p className={labelClass}>Inventory History</p>
-<h3 className="mt-2 text-xl font-black uppercase tracking-tight text-[#0A0D17]">Recent Inventory Updates</h3>
-{inventoryLogs.length>0&&(
-<p className="mt-1 text-[11px] font-semibold text-[#6b7280]">
-Showing {inventoryLogStart+1} - {Math.min(inventoryLogEnd,inventoryLogs.length)} of {inventoryLogs.length} inventory updates
-</p>
-)}
+<h3 className="mt-2 text-xl font-black uppercase tracking-tight">Recent Inventory Updates</h3>
 </div>
-
-<div className="flex flex-wrap items-center gap-2">
-{inventoryLogs.length>0&&(
-<div className="flex items-center gap-2">
-<span className="text-[9px] font-black uppercase tracking-[0.16em] text-[#0A0D17]/40">Rows</span>
-<select
-value={inventoryLogPageSize}
-onChange={(e)=>{
-setInventoryLogPageSize(Number(e.target.value));
-setInventoryLogPage(1);
-}}
-className="rounded-[5px] border border-black/10 bg-white px-3 py-2 text-xs font-black text-[#0A0D17] outline-none focus:border-black"
->
-<option value={10}>10</option>
-<option value={20}>20</option>
-<option value={50}>50</option>
-<option value={100}>100</option>
-</select>
-</div>
-)}
 
 {inventoryLogs.length>0&&(
 <button type="button" onClick={clearInventoryLogs} className={buttonLight}>
@@ -1161,73 +1175,66 @@ Clear Logs
 </button>
 )}
 </div>
-</div>
 
 <div className="divide-y divide-black/10">
 {inventoryLogs.length===0?(
-<div className="px-4 py-10 text-center text-xs font-black uppercase tracking-[0.2em] text-[#0A0D17]/35">No inventory update logs yet</div>
-):(
-paginatedInventoryLogs.map((log)=>(
-<div key={getLogId(log)} className="p-4 grid grid-cols-1 lg:grid-cols-[1fr_auto_auto_auto] gap-3 lg:items-center transition hover:bg-[#FAFAF8]">
-<div className="min-w-0">
-<p className="text-sm font-black uppercase text-[#0A0D17] whitespace-normal break-words">{log.productName||"Unknown Product"}</p>
-<p className="mt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[#0A0D17]/45">
-SKU: {log.sku||"N/A"} • {log.stockType||"Actual"} • Size {log.size||"-"}
-</p>
+<div className="px-4 py-10 text-center text-xs font-black uppercase text-black/35">No inventory update logs yet</div>
+):paginatedInventoryLogs.map((log)=>{
+const difference=Number(log.difference||0);
+
+return(
+<div key={getLogId(log)} className="p-4 grid grid-cols-1 lg:grid-cols-[1fr_auto_auto_auto] gap-3 lg:items-center">
+<div>
+<p className="text-sm font-black uppercase">{log.productName||"Unknown Product"}</p>
+<p className="mt-1 text-[10px] font-bold text-black/45">SKU: {log.sku||"N/A"} • {log.stockType||"Actual"} • Size {log.size||"-"}</p>
 </div>
 
-<div className="flex gap-2 flex-wrap">
-<span className="rounded-[5px] bg-[#f3f3f1] px-3 py-1 text-[10px] font-black text-[#0A0D17]/60">Old: {log.oldQty}</span>
-<span className="rounded-[5px] bg-[#f3f3f1] px-3 py-1 text-[10px] font-black text-[#0A0D17]/60">New: {log.newQty}</span>
-<span className={`rounded-[5px] px-3 py-1 text-[10px] font-black ${Number(log.difference)>0?"bg-emerald-50 text-emerald-700":Number(log.difference)<0?"bg-red-50 text-red-600":"bg-orange-50 text-orange-700"}`}>
-{Number(log.difference)>0?`+${log.difference}`:log.difference}
+<div className="flex items-center gap-2 text-[10px] font-black">
+<span className="rounded-[5px] border border-black/10 bg-[#FAFAF8] px-2 py-1.5">Old: {Number(log.oldQty||0)}</span>
+<span className="rounded-[5px] border border-black/10 bg-[#FAFAF8] px-2 py-1.5">New: {Number(log.newQty||0)}</span>
+<span className={`rounded-[5px] border px-2 py-1.5 ${difference>0?"border-emerald-200 bg-emerald-50 text-emerald-700":difference<0?"border-red-200 bg-red-50 text-red-700":"border-black/10 bg-[#FAFAF8]"}`}>
+{difference>0?`+${difference}`:difference}
 </span>
 </div>
 
-<p className="text-[10px] font-bold text-[#0A0D17]/45 whitespace-nowrap">Updated by {log.updatedBy||"Admin"}</p>
-<p className="text-[10px] font-bold text-[#0A0D17]/35 whitespace-nowrap">{getLogDate(log)?new Date(getLogDate(log)).toLocaleString():"No date"}</p>
+<p className="text-[10px] font-bold text-black/45">Updated by {log.updatedBy||"Admin"}</p>
+<p className="text-[10px] font-bold text-black/45">{getLogDate(log)?new Date(getLogDate(log)).toLocaleString():"No date"}</p>
 </div>
-))
-)}
-</div>
-
-{inventoryLogs.length>0&&(
-<div className="border-t border-black/10 bg-[#FAFAF8] px-4 sm:px-5 py-4">
-<div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-<div>
-<p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#0A0D17]/45">History Page Control</p>
-<p className="mt-1 text-xs font-semibold text-[#6b7280]">
-Showing {inventoryLogStart+1} - {Math.min(inventoryLogEnd,inventoryLogs.length)} of {inventoryLogs.length} updates
-</p>
+);
+})}
 </div>
 
+{inventoryLogs.length>inventoryLogPageSize&&(
+<div className="border-t border-black/10 p-4 overflow-x-auto">
 <Pagination
-className="saint-pagination"
 current={inventoryLogPage}
 pageSize={inventoryLogPageSize}
 total={inventoryLogs.length}
-showSizeChanger={false}
-responsive
-showLessItems
-onChange={(page)=>setInventoryLogPage(page)}
+showSizeChanger
+pageSizeOptions={["10","20","50","100"]}
+onChange={(page,size)=>{
+setInventoryLogPage(page);
+setInventoryLogPageSize(size);
+}}
 />
-</div>
 </div>
 )}
 </div>
+
 </div>
 
 {selectedProduct&&(
 <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm p-4 flex items-start justify-center pt-14 md:pt-20 overflow-y-auto">
-<div className="w-full max-w-5xl rounded-[5px] overflow-hidden bg-white shadow-[0_28px_100px_rgba(0,0,0,0.35)]">
+<div className="w-full max-w-5xl rounded-[5px] overflow-hidden bg-white shadow-2xl mb-10">
 
-<div className="px-6 py-5 bg-[#0A0D17] flex justify-between gap-4">
-<div>
-<p className="text-white/45 text-[10px] font-black uppercase tracking-[0.28em]">Add Stock / Restock</p>
-<h3 className="mt-2 text-xl font-black uppercase text-white">{selectedProduct.name}</h3>
-<p className="mt-1 text-white/45 text-[11px] font-bold uppercase tracking-[0.14em]">SKU: {selectedProduct.sku||"N/A"}</p>
+<div className="px-5 sm:px-6 py-5 bg-[#0A0D17] flex items-start justify-between gap-4">
+<div className="min-w-0">
+<p className="text-white/45 text-[10px] font-black uppercase tracking-[0.22em]">Add Stock / Restock</p>
+<h3 className="mt-2 text-lg sm:text-xl font-black uppercase text-white break-words">{selectedProduct.name||"Unnamed Product"}</h3>
+<p className="mt-1 text-white/45 text-[11px] font-bold">SKU: {selectedProduct.sku||"N/A"}</p>
 </div>
-<button type="button" onClick={()=>setSelectedProduct(null)} className="w-10 h-10 rounded-[5px] bg-white/10 text-white text-xl">×</button>
+
+<button type="button" onClick={()=>setSelectedProduct(null)} disabled={saving} className="w-10 h-10 rounded-[5px] bg-white/10 border border-white/10 text-white text-xl font-bold shrink-0 hover:bg-white/20 disabled:opacity-50">×</button>
 </div>
 
 <div className="p-4 sm:p-6 bg-[#f7f7f4]">
@@ -1238,56 +1245,55 @@ onChange={(page)=>setInventoryLogPage(page)}
 {getCardImage(selectedProduct)?(
 <img src={getCardImage(selectedProduct)} alt={selectedProduct.name} className="w-full h-full object-cover"/>
 ):(
-<div className="w-full h-full flex items-center justify-center text-xs font-black uppercase tracking-[0.2em] text-[#0A0D17]/30">No Image</div>
+<div className="w-full h-full flex items-center justify-center text-xs font-black text-black/30">No Image</div>
 )}
 </div>
 
 <div className="p-4">
 <p className={labelClass}>Current Actual Stock</p>
-<p className="mt-1 text-3xl font-black text-[#0A0D17]">{getTotalStock(selectedProduct.stock)}</p>
-<p className="mt-4 text-[10px] font-black uppercase tracking-[0.22em] text-orange-700">Current Pre-order Stock</p>
+<p className="mt-1 text-3xl font-black">{getTotalStock(selectedProduct.stock)}</p>
+
+<p className="mt-4 text-[10px] font-black uppercase tracking-[0.18em] text-orange-700">Current Pre-order Stock</p>
 <p className="mt-1 text-3xl font-black text-orange-700">{getTotalStock(selectedProduct.preorderStock)}</p>
-<span className={`mt-3 inline-flex rounded-[5px] border px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] ${getInventoryStatusClass(getProductStatus(selectedProduct))}`}>
-{getProductStatus(selectedProduct)}
-</span>
+
+<div className="mt-4">
+<span className={`inline-flex rounded-[5px] border px-2 py-1.5 text-[8px] font-black uppercase ${getInventoryStatusClass(getProductStatus(selectedProduct))}`}>{getProductStatus(selectedProduct)}</span>
+</div>
 </div>
 </div>
 
 <div className="space-y-4">
 
-<div className={`${panelBg} rounded-[5px] p-4 sm:p-5`}>
-<p className={labelClass}>Add Actual Stock Per Size</p>
+<div className={`${panelBg} rounded-[5px] p-4`}>
+<div>
+<p className={labelClass}>Actual Inventory</p>
+<h4 className="mt-1 text-base font-black uppercase">Add Actual Stock Per Size</h4>
+<p className="mt-1 text-[10px] font-semibold text-black/45">Enter only the quantity being added. Existing stock remains locked.</p>
+</div>
 
 <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
 {sizesList.map((size)=>{
 const currentQty=getStock(selectedProduct.stock,size);
 const addQty=Number(stockUpdates[selectedProduct._id]?.[size]??0);
-const finalQty=currentQty+addQty;
 
 return(
 <div key={size} className={`rounded-[5px] border p-4 ${getAddBoxClass(addQty)}`}>
-<p className="text-[10px] font-black uppercase tracking-[0.18em]">Size {size}</p>
-
-<div className="mt-3 grid grid-cols-3 gap-2 text-center">
-<div className="rounded-[5px] bg-white border border-black/10 px-2 py-2">
-<p className="text-[8px] font-black uppercase tracking-[0.14em] text-[#0A0D17]/40">Current</p>
-<p className="text-sm font-black text-[#0A0D17]">{currentQty}</p>
+<div className="flex items-center justify-between">
+<p className="text-[10px] font-black uppercase">Size {size}</p>
+<p className="text-[9px] font-black uppercase opacity-60">+ Add</p>
 </div>
+
+<div className="mt-3 grid grid-cols-[1fr_80px_1fr] gap-2 items-center text-center">
+<div>
+<p className="text-[8px] font-black uppercase opacity-50">Current</p>
+<p className="mt-1 text-lg font-black">{currentQty}</p>
+</div>
+
+<input type="number" min={0} value={addQty} onChange={(e)=>handleStockChange(selectedProduct._id,size,e.target.value)} className="w-full rounded-[5px] border border-black/10 bg-white px-2 py-2 text-center text-sm font-black outline-none focus:border-black"/>
 
 <div>
-<p className="text-[8px] font-black uppercase tracking-[0.14em] text-[#0A0D17]/40 mb-1">Add</p>
-<input
-type="number"
-min={0}
-value={addQty}
-onChange={(e)=>handleStockChange(selectedProduct._id,size,e.target.value)}
-className="w-full rounded-[5px] border border-black/10 bg-white px-2 py-2 text-center text-sm font-black text-[#0A0D17] outline-none focus:border-[#0A0D17]"
-/>
-</div>
-
-<div className="rounded-[5px] bg-white border border-black/10 px-2 py-2">
-<p className="text-[8px] font-black uppercase tracking-[0.14em] text-[#0A0D17]/40">After</p>
-<p className="text-sm font-black text-emerald-700">{finalQty}</p>
+<p className="text-[8px] font-black uppercase opacity-50">After</p>
+<p className="mt-1 text-lg font-black text-emerald-700">{currentQty+addQty}</p>
 </div>
 </div>
 </div>
@@ -1296,56 +1302,32 @@ className="w-full rounded-[5px] border border-black/10 bg-white px-2 py-2 text-c
 </div>
 </div>
 
-<div className="rounded-[5px] bg-white border border-orange-200 p-4 sm:p-5">
-<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+<div className="rounded-[5px] bg-white border border-orange-200 p-4">
 <div>
-<p className="text-[10px] font-black uppercase tracking-[0.28em] text-orange-700">Add Pre-order Stock</p>
-<p className="mt-1 text-xs font-bold text-orange-700/70">Current pre-order stock is locked. Add only new pre-order slots.</p>
-</div>
-
-<div className="flex flex-wrap gap-3">
-<label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.14em] text-[#0A0D17]">
-<input type="checkbox" checked={preorderEnabled} onChange={(e)=>setPreorderEnabled(e.target.checked)}/>
-Enable Pre-order
-</label>
-
-<label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.14em] text-[#0A0D17]">
-<input type="checkbox" checked={preorderAutoGenerate} onChange={(e)=>setPreorderAutoGenerate(e.target.checked)}/>
-Auto Generate
-</label>
-</div>
+<p className="text-[10px] font-black uppercase tracking-[0.22em] text-orange-700">Pre-order Inventory</p>
+<h4 className="mt-1 text-base font-black uppercase">Add Pre-order Stock</h4>
 </div>
 
 <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
 {sizesList.map((size)=>{
-const currentPreorder=getStock(selectedProduct.preorderStock,size);
-const addPreorder=Number(preorderUpdates[selectedProduct._id]?.[size]??0);
-const finalPreorder=currentPreorder+addPreorder;
+const current=getStock(selectedProduct.preorderStock,size);
+const add=Number(preorderUpdates[selectedProduct._id]?.[size]??0);
 
 return(
-<div key={size} className={`rounded-[5px] border p-4 ${getPreorderBoxClass(addPreorder)}`}>
-<p className="text-[10px] font-black uppercase tracking-[0.18em]">Pre-order {size}</p>
+<div key={size} className={`rounded-[5px] border p-4 ${getPreorderBoxClass(add)}`}>
+<p className="text-[10px] font-black uppercase">Pre-order {size}</p>
 
-<div className="mt-3 grid grid-cols-3 gap-2 text-center">
-<div className="rounded-[5px] bg-white border border-orange-100 px-2 py-2">
-<p className="text-[8px] font-black uppercase tracking-[0.14em] text-orange-700/40">Current</p>
-<p className="text-sm font-black text-orange-700">{currentPreorder}</p>
+<div className="mt-3 grid grid-cols-[1fr_80px_1fr] gap-2 items-center text-center">
+<div>
+<p className="text-[8px] font-black uppercase opacity-50">Current</p>
+<p className="mt-1 text-lg font-black">{current}</p>
 </div>
+
+<input type="number" min={0} value={add} onChange={(e)=>handlePreorderChange(selectedProduct._id,size,e.target.value)} className="w-full rounded-[5px] border border-orange-200 bg-white px-2 py-2 text-center text-sm font-black outline-none focus:border-orange-500"/>
 
 <div>
-<p className="text-[8px] font-black uppercase tracking-[0.14em] text-orange-700/40 mb-1">Add</p>
-<input
-type="number"
-min={0}
-value={addPreorder}
-onChange={(e)=>handlePreorderChange(selectedProduct._id,size,e.target.value)}
-className="w-full rounded-[5px] border border-black/10 bg-white px-2 py-2 text-center text-sm font-black text-[#0A0D17] outline-none focus:border-orange-500"
-/>
-</div>
-
-<div className="rounded-[5px] bg-white border border-orange-100 px-2 py-2">
-<p className="text-[8px] font-black uppercase tracking-[0.14em] text-orange-700/40">After</p>
-<p className="text-sm font-black text-orange-700">{finalPreorder}</p>
+<p className="text-[8px] font-black uppercase opacity-50">After</p>
+<p className="mt-1 text-lg font-black text-orange-700">{current+add}</p>
 </div>
 </div>
 </div>
@@ -1353,86 +1335,90 @@ className="w-full rounded-[5px] border border-black/10 bg-white px-2 py-2 text-c
 })}
 </div>
 
+<div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+<label className="rounded-[5px] border border-black/10 p-3 flex items-center gap-3">
+<input type="checkbox" checked={preorderEnabled} onChange={(e)=>setPreorderEnabled(e.target.checked)}/>
+<div>
+<p className="text-[10px] font-black uppercase">Pre-order Enabled</p>
+<p className="text-[9px] text-black/45 mt-0.5">Allow pre-order inventory for this product.</p>
+</div>
+</label>
+
+<label className="rounded-[5px] border border-black/10 p-3 flex items-center gap-3">
+<input type="checkbox" checked={preorderAutoGenerate} onChange={(e)=>setPreorderAutoGenerate(e.target.checked)}/>
+<div>
+<p className="text-[10px] font-black uppercase">Auto Generate</p>
+<p className="text-[9px] text-black/45 mt-0.5">Use automatic pre-order stock generation.</p>
+</div>
+</label>
+</div>
+
 <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
 <div>
-<p className={labelClass}>Auto Pre-order Threshold</p>
-<input type="number" min={0} value={preorderThreshold} onChange={(e)=>setPreorderThreshold(Number(e.target.value)||5)} className={`${inputClass} mt-2`}/>
+<p className={labelClass}>Pre-order Threshold</p>
+<input type="number" min={0} value={preorderThreshold} onChange={(e)=>setPreorderThreshold(Math.max(0,Number(e.target.value)||0))} className={`${inputClass} mt-2`}/>
 </div>
 
 <div>
-<p className={labelClass}>Auto Generate Slots</p>
-<input type="number" min={0} value={preorderAutoStock} onChange={(e)=>setPreorderAutoStock(Number(e.target.value)||20)} className={`${inputClass} mt-2`}/>
+<p className={labelClass}>Auto Pre-order Stock</p>
+<input type="number" min={0} value={preorderAutoStock} onChange={(e)=>setPreorderAutoStock(Math.max(0,Number(e.target.value)||0))} className={`${inputClass} mt-2`}/>
 </div>
 
 <div>
-<p className={labelClass}>Expected Restock Date</p>
+<p className={labelClass}>Restock Date</p>
 <input type="date" value={preorderRestockDate} onChange={(e)=>setPreorderRestockDate(e.target.value)} className={`${inputClass} mt-2`}/>
 </div>
 </div>
 
 <div className="mt-4">
 <p className={labelClass}>Pre-order Note</p>
-<textarea
-value={preorderNote}
-onChange={(e)=>setPreorderNote(e.target.value)}
-placeholder="Example: Ships once restocked."
-className="mt-2 w-full min-h-[90px] rounded-[5px] border border-black/10 px-3 py-3 text-sm font-bold outline-none focus:border-orange-500"
-/>
-</div>
-
-<div className="mt-4 rounded-[5px] border border-orange-200 bg-orange-50 p-4">
-<p className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-700">Inventory Control Rule</p>
-<p className="mt-2 text-xs font-bold leading-5 text-orange-700/80">
-Current stock is read-only. Administrators can only add stock through restocking. Deduction happens through orders and backend inventory movements.
-</p>
+<textarea value={preorderNote} onChange={(e)=>setPreorderNote(e.target.value)} placeholder="Optional pre-order information..." className="mt-2 w-full min-h-[90px] resize-y rounded-[5px] border border-black/10 bg-white p-3 text-sm outline-none focus:border-black"/>
 </div>
 </div>
 
-<div className="flex flex-wrap gap-2">
-<button type="button" disabled={saving} onClick={()=>updateStock(selectedProduct._id)} className={`${buttonDark} ${saving?"opacity-60 cursor-not-allowed":""}`}>
+<div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+<button type="button" onClick={()=>setSelectedProduct(null)} disabled={saving} className={buttonLight}>Cancel</button>
+<button type="button" disabled={saving} onClick={()=>updateStock(selectedProduct._id)} className={buttonDark}>
+{saving?<FaSyncAlt className="animate-spin"/>:<FaBoxes/>}
 {saving?"Saving...":"Save Added Stock"}
 </button>
-
-<button type="button" onClick={()=>setSelectedProduct(null)} className={buttonLight}>
-Cancel
-</button>
 </div>
-
 </div>
 </div>
 
-<div className={`${panelBg} mt-4 rounded-[5px] p-4 sm:p-5`}>
+<div className={`${panelBg} mt-4 rounded-[5px] p-4`}>
 <div className="flex items-center gap-2">
-<FaHistory className="text-[#0A0D17]/45"/>
+<FaHistory/>
+<div>
 <p className={labelClass}>Product Inventory History</p>
+<h4 className="mt-1 text-sm font-black uppercase">{selectedProduct.name}</h4>
+</div>
 </div>
 
-<div className="mt-4 space-y-2 max-h-[240px] overflow-y-auto">
-{inventoryLogs.filter((log)=>getLogProductId(log)===selectedProduct._id).length===0?(
-<p className="text-xs font-bold text-[#0A0D17]/40">No inventory history for this product yet.</p>
-):(
-inventoryLogs
-.filter((log)=>getLogProductId(log)===selectedProduct._id)
-.map((log)=>(
-<div key={getLogId(log)} className="rounded-[5px] border border-black/10 bg-[#fafaf8] p-3">
-<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-<p className="text-[11px] font-black uppercase text-[#0A0D17]">
-{log.stockType||"Actual"} • Size {log.size}: {log.oldQty} → {log.newQty}
-</p>
+<div className="mt-4 space-y-2">
+{inventoryLogs.filter((log)=>getLogProductId(log)===String(selectedProduct._id)).length>0?(
+inventoryLogs.filter((log)=>getLogProductId(log)===String(selectedProduct._id)).slice(0,10).map((log)=>{
+const difference=Number(log.difference||0);
 
-<span className={`w-fit rounded-[5px] px-3 py-1 text-[10px] font-black ${log.difference>0?"bg-emerald-50 text-emerald-700":log.difference<0?"bg-red-50 text-red-600":"bg-orange-50 text-orange-700"}`}>
-{log.difference>0?`+${log.difference}`:log.difference}
+return(
+<div key={getLogId(log)} className="rounded-[5px] border border-black/10 bg-[#FAFAF8] p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+<div>
+<p className="text-[11px] font-black">{log.stockType||"Actual"} • Size {log.size||"-"}: {Number(log.oldQty||0)} → {Number(log.newQty||0)}</p>
+<p className="mt-1 text-[9px] font-bold text-black/40">{getLogDate(log)?new Date(getLogDate(log)).toLocaleString():"No date"} • {log.updatedBy||"Admin"}</p>
+</div>
+
+<span className={`self-start sm:self-auto rounded-[5px] border px-2 py-1 text-[9px] font-black ${difference>0?"border-emerald-200 bg-emerald-50 text-emerald-700":difference<0?"border-red-200 bg-red-50 text-red-700":"border-black/10 bg-white"}`}>
+{difference>0?`+${difference}`:difference}
 </span>
 </div>
-
-<p className="mt-1 text-[10px] font-bold text-[#0A0D17]/45">
-Updated by {log.updatedBy} • {getLogDate(log)?new Date(getLogDate(log)).toLocaleString():"No date"}
-</p>
-</div>
-))
+);
+})
+):(
+<p className="text-xs font-semibold text-black/35">No inventory updates recorded for this product.</p>
 )}
 </div>
 </div>
+
 </div>
 </div>
 </div>
